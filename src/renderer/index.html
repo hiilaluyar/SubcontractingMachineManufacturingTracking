@@ -1,0 +1,3380 @@
+<!-- src/renderer/index.html -->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karataş Stok Yönetimi</title>
+    <link rel="stylesheet" href="../assets/styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notiflix@3.2.0/dist/notiflix-3.2.0.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/notiflix@3.2.0/dist/notiflix-3.2.0.min.js"></script>
+
+<!-- Toastify CDN -->
+<script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+
+
+
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <img src="../../logo/karatas-makine-logo.png" alt="Karataş Makine Logo" class="logo-image">
+                <p id="userInfo">Kullanıcı: <span id="userName"></span></p>
+            </div>
+            <ul class="nav-links">
+                <ul class="nav-links">
+                    <li class="active"><a href="#" data-page="anasayfa"><i class="fas fa-home"></i> <span>Anasayfa</span></a></li>
+                    <li><a href="#" data-page="stok-ekle"><i class="fas fa-plus-circle"></i> <span>Stok Ekle</span></a></li>
+                    <li><a href="#" data-page="hammadde-listesi"><i class="fas fa-list"></i> <span>Hammadde Listesi</span></a></li>
+                    <li><a href="#" data-page="sarf-malzeme-listesi"><i class="fas fa-toolbox"></i> <span>Sarf Malzeme Listesi</span></a></li>
+                    <li><a href="#" data-page="yari-mamul-listesi"><i class="fas fa-puzzle-piece"></i> <span>Yarı Mamul Listesi</span></a></li>
+                    <li><a href="#" data-page="fason-imalat"><i class="fas fa-industry"></i> <span>Fason İmalat</span></a></li>
+                    <li><a href="#" data-page="makine-imalat"><i class="fas fa-cogs"></i> <span>Makine İmalat</span></a></li>
+                    <li><a href="#" data-page="iskarta-urunler"><i class="fas fa-trash-alt"></i> <span>Iskarta Ürünler</span></a></li>
+                    <li><a href="#" data-page="tedarikci-listesi"><i class="fas fa-truck"></i> <span>Tedarikçiler</span></a></li>
+                    <li><a href="#" data-page="calisan-listesi"><i class="fas fa-user"></i> <span>Çalışanlar</span></a></li>
+                    <li><a href="#" data-page="projeler"><i class="fas fa-project-diagram"></i> <span>Projeler</span></a></li>
+                </ul>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span>Çıkış Yap</span></button>
+            </div>
+        </div>
+        
+        <!-- Ana İçerik -->
+        <div class="content">
+            <!-- Anasayfa -->
+            <!-- Anasayfa -->
+<div class="page active" id="anasayfa">
+    <h1>Hoşgeldiniz</h1>
+    <div class="dashboard">
+        <!-- Hammadde Kartları Satırı -->
+        <div class="card-row">
+            <div class="card primary">
+                <div class="card-icon">
+                    <i class="fas fa-warehouse"></i>
+                </div>
+                <div class="card-content">
+                    <div class="card-title">Toplam Hammadde</div>
+                    <div class="card-value" id="totalRawMaterials">0</div>
+                    <div class="card-subtitle">Stokta Mevcut</div>
+                </div>
+            </div>
+            <div class="card secondary">
+                <div class="card-icon">
+                    <i class="fas fa-toolbox"></i>
+                </div>
+                <div class="card-content">
+                    <div class="card-title">Toplam Sarf Malzeme</div>
+                    <div class="card-value" id="totalConsumables">0</div>
+                    <div class="card-subtitle">Stokta Mevcut</div>
+                </div>
+            </div>
+            <div class="card tertiary">
+                <div class="card-icon">
+                    <i class="fas fa-puzzle-piece"></i>
+                </div>
+                <div class="card-content">
+                    <div class="card-title">Toplam Yarı Mamul</div>
+                    <div class="card-value" id="totalSemiProducts">0</div>
+                    <div class="card-subtitle">Stokta Mevcut</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Durum Kartları Satırı -->
+        <div class="card-row">
+            <div class="card warning">
+                <div class="card-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="card-content">
+                    <div class="card-title">Kritik Seviyedeki Stoklar</div>
+                    <div class="card-value" id="criticalStocks">0</div>
+                    <div class="card-subtitle">Tüm Kategoriler</div>
+                </div>
+            </div>
+            <div class="card danger">
+                <div class="card-icon">
+                    <i class="fas fa-ban"></i>
+                </div>
+                <div class="card-content">
+                    <div class="card-title">Tükenen Stoklar</div>
+                    <div class="card-value" id="depletedStocks">0</div>
+                    <div class="card-subtitle">Tüm Kategoriler</div>
+                </div>
+            </div>
+    
+        </div>
+    </div>
+    
+    <div class="recent-container">
+        <div class="panel-header">
+            <h2>Son Stok İşlemleri</h2>
+            <div class="panel-actions">
+                <select id="recentActivityFilter">
+                    <option value="all">Tüm İşlemler</option>
+                    <option value="hammadde">Hammadde</option>
+                    <option value="sarf">Sarf Malzeme</option>
+                    <option value="yari">Yarı Mamul</option>
+                </select>
+            </div>
+        </div>
+        <div class="table-container">
+            <table id="recentActivitiesTable">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>İşlem</th>
+                        <th>Stok Kodu</th>
+                        <th>Malzeme</th>
+                        <th>Miktar</th>
+                        <th>Kullanıcı</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Son işlemler burada listelenecek -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="dashboard-footer">
+        <div class="stats-row">
+            <div class="stat-item">
+                <div class="stat-label">Projeler</div>
+                <div class="stat-value" id="totalProjects">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Tedarikçiler</div>
+                <div class="stat-value" id="totalSuppliers">0</div>
+            </div>
+            <!-- Removed "Toplam İşlem" stat item -->
+        </div>
+    </div>
+</div>
+
+            <!-- Stok Ekle -->
+            <div class="page" id="stok-ekle">
+                <h1>Stok Ekle</h1>
+                <div class="sub-menu">
+                    <button class="sub-menu-btn active" data-submenu="hammadde-stok-ekle">Hammadde Stok Ekle</button>
+                    <button class="sub-menu-btn" data-submenu="sarf-malzeme-ekle">Sarf Malzeme Ekle</button>
+                    <button class="sub-menu-btn" data-submenu="yari-mamul-ekle">Yarı Mamul Ekle</button>
+                    <!-- Diğer stok ekle türleri buraya eklenecek -->
+                </div>
+
+
+<!-- Sarf Malzeme Ekle sub-page -->
+<div class="sub-page" id="sarf-malzeme-ekle">
+    <h2>Sarf Malzeme Ekle</h2>
+    <form id="sarfMalzemeForm">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="sarfMalzemeAdi">Malzeme Adı</label>
+                <input type="text" id="sarfMalzemeAdi" required>
+            </div>
+            <div class="form-group">
+                <label for="sarfMalzemeBirim">Birim</label>
+                <select id="sarfMalzemeBirim" required>
+                    <option value="adet">Adet</option>
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="m">Metre (m)</option>
+                    <option value="m2">Metrekare (m²)</option>
+                    <option value="m2">Metreküp (m³)</option>
+                    <option value="lt">Litre (lt)</option>
+                    <option value="kutu">Kutu</option>
+                    <option value="paket">Paket</option>
+                </select>
+            </div>
+        </div>
+
+
+        <div class="form-buttons">
+            <button type="submit" id="sarfMalzemeKaydetBtn">Kaydet</button>
+        </div>
+    </form>
+</div>
+
+
+
+
+
+
+
+
+               <!-- Sub-page for Hammadde Stok Ekle -->
+<div class="sub-page active" id="hammadde-stok-ekle">
+    <h2>Hammadde Stok Ekle</h2>
+    
+    <!-- Material type selection -->
+    <div class="material-type-selection">
+        <button class="material-type-btn active" data-material-type="sac">Sac</button>
+        <button class="material-type-btn" data-material-type="boru">Boru</button>
+        <button class="material-type-btn" data-material-type="mil">Mil</button>
+    </div>
+    
+    <!-- Sac Form -->
+   <!-- Güncellenmiş Sac Form -->
+<form id="hammaddeForm" class="material-form active" data-form-type="sac">
+    <input type="hidden" id="hammaddeTuru" value="sac">
+    <div class="form-row">
+        <div class="form-group">
+            <label for="malzemeAdi">Malzeme Adı</label>
+            <input type="text" id="malzemeAdi" required>
+        </div>
+        <div class="form-group">
+            <label for="kalinlik">Kalınlık (mm)</label>
+            <input type="number" id="kalinlik" step="0.01" required>
+        </div>
+    </div>
+    
+    <div class="form-row">
+        <div class="form-group">
+            <label for="yogunluk">Yoğunluk (kg/m³)</label>
+            <input type="number" id="yogunluk" value="7850">
+        </div>
+        <div class="form-group">
+            <label for="kritikSeviye">Kritik Seviye (kg)</label>
+            <input type="number" id="kritikSeviye" step="0.01" min="0" required>
+        </div>
+    </div>
+    
+    <div class="form-buttons">
+        <button type="submit" id="kaydetBtn">Kaydet</button>
+    </div>
+</form>
+    <!-- Boru Form -->
+    <form id="boruForm" class="material-form" data-form-type="boru" style="display: none;">
+        <input type="hidden" id="boruHammaddeTuru" value="boru">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="boruMalzemeAdi">Malzeme Adı</label>
+                <input type="text" id="boruMalzemeAdi" required>
+            </div>
+            <div class="form-group">
+                <label for="boruCap">Çap (mm)</label>
+                <input type="number" id="boruCap" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="boruKalinlik">Kalınlık (mm)</label>
+                <input type="number" id="boruKalinlik" step="0.01" required>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="boruUzunluk">Uzunluk (mm)</label>
+                <input type="number" id="boruUzunluk" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="boruYogunluk">Yoğunluk (kg/m³)</label>
+                <input type="number" id="boruYogunluk" value="7850">
+            </div>
+        </div>
+        
+        <div class="form-buttons">
+
+            <button type="submit" id="boruKaydetBtn">Kaydet</button>
+        </div>
+    </form>
+
+    <!-- Mil Form -->
+    <form id="milForm" class="material-form" data-form-type="mil" style="display: none;">
+        <input type="hidden" id="milHammaddeTuru" value="mil">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="milMalzemeAdi">Malzeme Adı</label>
+                <input type="text" id="milMalzemeAdi" required>
+            </div>
+            <div class="form-group">
+                <label for="milCap">Çap (mm)</label>
+                <input type="number" id="milCap" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="milUzunluk">Uzunluk (mm)</label>
+                <input type="number" id="milUzunluk" step="0.01" required>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="milYogunluk">Yoğunluk (kg/m³)</label>
+                <input type="number" id="milYogunluk" value="7850">
+            </div>
+        </div>
+        
+        <div class="form-buttons">
+            <button type="submit" id="milKaydetBtn" disabled>Kaydet</button>
+        </div>
+    </form>
+
+    <div id="hesaplamaDetaylari" class="hidden">
+        <h3>Hesaplama Detayları</h3>
+        <div class="calculation-details">
+            <div class="detail-row">
+                <span>Hacim:</span>
+                <span id="hacim">0 m³</span>
+            </div>
+            <div class="detail-row">
+                <span id="parcaAgirligi_label">Plaka Ağırlığı:</span>
+                <span id="plakaAgirligi">0 kg</span>
+            </div>
+            <div class="detail-row">
+                <span id="plakaSayisi_label">Toplam Plaka Sayısı:</span>
+                <span id="plakaSayisi">0</span>
+            </div>
+            <div class="detail-row" id="toplamAgirlik_row" style="display: none;">
+                <span>Toplam Ağırlık:</span>
+                <span id="toplamAgirlik">0 kg</span>
+            </div>
+        </div>
+
+        <div id="parcalarContainer">
+            <h3>Parçalar</h3>
+            
+            <div id="parcaListesi" class="parca-listesi">
+                <!-- Parçalar burada listelenecek -->
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<div class="sub-page" id="yari-mamul-ekle">
+    <h2>Yarı Mamul Ekle</h2>
+    <form id="yariMamulEkleForm">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="yariMamulEkleAdi">Malzeme Adı</label>
+                <input type="text" id="yariMamulEkleAdi" required>
+            </div>
+            <div class="form-group">
+                <label for="yariMamulEkleBirim">Birim</label>
+                <select id="yariMamulEkleBirim" required>
+                    <option value="adet">Adet</option>
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="m">Metre (m)</option>
+                    <option value="m2">Metrekare (m²)</option>
+                    <option value="m3">Metreküp (m³)</option>
+                    <option value="lt">Litre (lt)</option>
+                    <option value="kutu">Kutu</option>
+                    <option value="paket">Paket</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="yariMamulEkleMiktar">Miktar</label>
+                <input type="number" id="yariMamulEkleMiktar" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="yariMamulEkleKritikSeviye">Kritik Seviye</label>
+                <input type="number" id="yariMamulEkleKritikSeviye" step="0.01" min="0" required>
+            </div>
+        </div>
+
+        <div class="form-buttons">
+            <button type="submit" id="yariMamulEkleKaydetBtn">Kaydet</button>
+        </div>
+    </form>
+</div>
+
+
+  </div>
+
+
+
+
+
+
+
+<!-- Hammadde Listesi -->
+<div class="page" id="hammadde-listesi">
+    <h1>Hammadde Listesi</h1>
+    <div class="search-bar">
+        <div class="search-row">
+            <input type="text" id="hammaddeAra" placeholder="Malzeme adı veya barkod ara...">
+            <select id="hammaddeTipSecimi">
+                <option value="">Tüm Tipler</option>
+                <option value="sac">Sac</option>
+                <option value="boru">Boru</option>
+                <option value="mil">Mil</option>
+            </select>
+            <select id="hammaddeDurumSecimi">
+                <option value="">Tüm Durumlar</option>
+                <option value="STOKTA_VAR">Stokta Var</option>
+                <option value="AZ_KALDI">Az Kaldı</option>
+                <option value="STOKTA_YOK">Stokta Yok</option>
+            </select>
+            <button id="hammaddeAraBtn" class="search-button">
+                <i class="fas fa-search"></i> Ara
+            </button>
+        </div>
+    </div>
+    <div class="table-container">
+        <table id="hammaddeTable">
+            <thead>
+                <tr>
+                    <th>Stok Kodu</th>
+                    <th>Malzeme Bilgisi</th>
+                    <th>Miktar</th>
+                    <th>Kalan</th>
+                    <th>Barkod</th>
+                    <th>Durumu</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Hammadde verileri burada listelenecek -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+
+<!-- Sarf Malzeme Listesi sayfası için güncellenmiş HTML -->
+<div class="page" id="sarf-malzeme-listesi">
+    <h1>Sarf Malzeme Listesi</h1>
+    
+    <div class="search-bar">
+        <div class="search-row">
+          <input type="text" id="sarfMalzemeAra" placeholder="Malzeme adı veya barkod ara...">
+          <select id="sarfMalzemeDurumSecimi">
+            <option value="">Tüm Durumlar</option>
+            <option value="STOKTA_VAR">Stokta Var</option>
+            <option value="AZ_KALDI">Az Kaldı</option>
+            <option value="STOKTA_YOK">Stokta Yok</option>
+          </select>
+          <button id="sarfMalzemeAraBtn" class="search-button">
+            <i class="fas fa-search"></i> Ara
+          </button>
+          <!-- PDF Yazdır butonu JavaScript tarafından eklenecek -->
+        </div>
+    </div>
+    
+    <div class="table-container">
+        <table id="sarfMalzemeTable">
+            <thead>
+                <tr>
+                    <th>Stok Kodu</th>
+                    <th>Malzeme Adı</th>
+                    <!-- Birim sütunu kaldırıldı -->
+                    <!-- Toplam Miktar sütunu kaldırıldı -->
+                    <th>Kalan</th>
+                    <th>Barkod</th>
+                    <th>Durumu</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Sarf malzeme verileri burada listelenecek -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Bu kısmı body'nin en sonuna ekleyin -->
+<div id="print-container"></div>
+            
+
+      <!-- Updated Sarf Malzeme Detay Modal -->
+<div class="modal" id="sarfMalzemeDetayModal">
+    <div class="modal-content large-modal">
+        <span class="close">&times;</span>
+        <h2>Sarf Malzeme Detayları</h2>
+        <div id="sarfMalzemeDetay" class="detay-container">
+            <!-- Sarf malzeme detayları burada gösterilecek -->
+        </div>
+        
+        <!-- Yeni: Tab Sistemi -->
+        <div class="tab-container">
+            <div class="tab-header">
+                <div class="tab-button active" data-tab="sarf-giris-gecmisi-tab">Malzeme Giriş Geçmişi</div>
+                <div class="tab-button" data-tab="sarf-islem-gecmisi-tab">İşlem Geçmişi</div>
+            </div>
+            
+            <!-- Malzeme Giriş Geçmişi Tab -->
+            <div id="sarf-giris-gecmisi-tab" class="tab-content active">
+                <div class="action-bar">
+                    <button id="yeniSarfMalzemeGirisBtn" class="btn-primary">
+                        <i class="fas fa-plus"></i> Yeni Giriş Ekle
+                    </button>
+                </div>
+                <h3>Malzeme Giriş Geçmişi</h3>
+                <div class="table-container">
+                    <table id="sarfGirisGecmisiTable">
+                        <thead>
+                            <tr>
+                                <th>Tarih</th>
+                        <th>Miktar</th>
+                        <th>Birim Fiyat</th>
+                        <th>Para Birimi</th>
+                        <th>Toplam Tutar</th>
+                        <th>Tedarikçi</th>
+                        <th>Ekleyen</th>
+                        
+                             
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="7" class="text-center">Veri yükleniyor...</td>
+                            </tr>
+                            <!-- Malzeme giriş geçmişi burada listelenecek -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- İşlem Geçmişi Tab -->
+            <div id="sarf-islem-gecmisi-tab" class="tab-content">
+                <h3>İşlem Geçmişi</h3>
+                <div class="action-buttons">
+                    <button class="btn-primary" onclick="openSarfMalzemeIslemModal(currentSarfMalzemeId)">
+                        <i class="fas fa-plus"></i> İşlem Yap
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table id="sarfMalzemeIslemGecmisiTable">
+                        <thead>
+                            <tr>
+                                <th>Tarih</th>
+                                <th>İşlem Türü</th>
+                                <th>Miktar</th>
+                                <th>Kullanım Alanı</th>
+                                <th>Proje</th>
+                                <th>Kullanıcı</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- İşlem geçmişi burada listelenecek -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Sarf Malzeme Giriş Modalı -->
+<div id="sarfMalzemeGirisModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Sarf Malzeme Giriş</h2>
+        <span class="close" onclick="closeModal('sarfMalzemeGirisModal')">&times;</span>
+      </div>
+      <div class="modal-body">
+        <form id="sarfMalzemeGirisForm">
+          <input type="hidden" id="sarfMalzemeGirisSarfMalzemeId">
+          
+          <div class="form-group">
+            <label for="sarfMalzemeGirisMiktar">Miktar:</label>
+            <input type="number" step="0.01" id="sarfMalzemeGirisMiktar" min="0" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="sarfMalzemeGirisBirimFiyat">Birim Fiyat:</label>
+            <input type="number" step="0.01" id="sarfMalzemeGirisBirimFiyat" min="0" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="sarfMalzemeGirisBirimFiyatTuru">Para Birimi:</label>
+            <select id="sarfMalzemeGirisBirimFiyatTuru" required>
+              <option value="TRY">TL (₺)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+            </select>
+          </div>
+          
+          <!-- Sarf Malzeme Giriş Modalında Tedarikçi Seçimi -->
+<div class="form-group">
+    <label for="sarfMalzemeGirisTedarikci">Tedarikçi: <span class="required-field">*</span></label>
+    <div class="project-selection">
+        <input 
+            type="text" 
+            id="sarfMalzemeGirisTedarikci" 
+            list="sarfMalzemeListesi" 
+            placeholder="Tedarikçi seçin veya ara..."
+            required
+        >
+        <datalist id="sarfMalzemeListesi">
+            <!-- Tedarikçiler dinamik olarak eklenecek -->
+        </datalist>
+        <button type="button" id="sarfMalzemeYeniTedarikciEkleBtn" class="btn-secondary">
+            <i class="fas fa-plus"></i> Yeni
+        </button>
+    </div>
+</div>
+          
+          <div class="form-group">
+            <label for="sarfMalzemeGirisKritikSeviye">Kritik Seviye: <span class="required-field">*</span></label>
+            <input type="number" step="0.01" id="sarfMalzemeGirisKritikSeviye" min="0" required>
+          </div>
+          
+          <div id="sarfMalzemeGirisModal-error" class="error-message"></div>
+          <div id="sarfMalzemeGirisModal-success" class="success-message"></div>
+          
+          <div class="form-actions">
+            <button type="button" id="sarfMalzemeGirisKaydetBtn" class="btn">Kaydet</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+<!-- Sarf Malzeme İşlem Modalı -->
+<div class="modal" id="sarfMalzemeIslemModal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Sarf Malzeme İşlemi Yap - <span id="sarfMalzemeHeader"></span></h2>
+        
+        <!-- Hata ve başarı mesajları için alanlar -->
+        <div class="alert error" id="sarfMalzemeIslemModal-error" style="display: none;"></div>
+        <div class="alert success" id="sarfMalzemeIslemModal-success" style="display: none;"></div>
+        
+        <div class="sarf-malzeme-islem-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="sarfMalzemeKullanilanMiktar">Kullanılan Miktar</label>
+                    <input type="number" id="sarfMalzemeKullanilanMiktar" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="sarfMalzemeIslemTuru">İşlem Türü</label>
+                    <select id="sarfMalzemeIslemTuru">
+                        <option value="Kullanım">Kullanım</option>
+                        <option value="Fire" class="hidden-option">Fire</option>
+                        <option value="İade" class="hidden-option">İade</option>
+                        <option value="Ek" class="hidden-option">Stok Ekleme</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="sarfMalzemeKullanimAlani">Kullanım Alanı</label>
+                    <select id="sarfMalzemeKullanimAlani" onchange="toggleMakineSection()">
+                        <option value="FasonImalat">Fason İmalat</option>
+                        <option value="MakineImalat">Makine İmalat</option>
+                        <option value="IskartaUrun" style="display: none;">Iskarta Ürün</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sarfMalzemeProjeSecimi">Proje</label>
+                    <div class="project-selection">
+                        <select id="sarfMalzemeProjeSecimi">
+                            <option value="">-- Proje Seçin --</option>
+                            <!-- Projeler burada listelenecek -->
+                        </select>
+                        <button type="button" id="sarfMalzemeYeniProjeEkleBtn" class="btn-secondary">
+                            <i class="fas fa-plus"></i> Yeni
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- YENİ: Makine ve Çalışan seçim alanları -->
+            <div class="form-row" id="sarfMakineCalisanSection" style="display:none;">
+                <div class="form-group">
+                    <label for="sarfMalzemeMakineSecimi">Makine</label>
+                    <select id="sarfMalzemeMakineSecimi">
+                        <option value="">-- Makine Seçin --</option>
+                        <option value="X6020">X6020</option>
+                        <option value="X4020">X4020</option>
+                        <option value="X8030">X8030</option>
+                        <option value="CNC Freze">CNC Freze</option>
+                        <option value="CNC Torna">CNC Torna</option>
+                        <option value="Büküm Makinesi">Büküm Makinesi</option>
+                        <option value="Testere">Testere</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sarfMalzemeCalisanSecimi">Alan Kişi</label>
+                    <select id="sarfMalzemeCalisanSecimi">
+                        <option value="">-- Çalışan Seçin --</option>
+                        <!-- Çalışanlar burada listelenecek -->
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-buttons">
+                <button id="sarfMalzemeIslemKaydetBtn" class="btn-primary">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Yarı Mamul Listesi Modalı -->
+<div class="page" id="yari-mamul-listesi">
+    <h1>Yarı Mamul Listesi</h1>
+    
+    <div class="search-bar">
+        <div class="search-row">
+          <input type="text" id="yariMamulAra" placeholder="Stok kodu veya yarı mamul adı ara...">
+          <select id="yariMamulDurumSecimi">
+            <option value="">Tüm Durumlar</option>
+            <option value="STOKTA_VAR">Stokta Var</option>
+            <option value="AZ_KALDI">Az Kaldı</option>
+            <option value="STOKTA_YOK">Stokta Yok</option>
+          </select>
+          <button id="yariMamulAraBtn" class="search-button">
+            <i class="fas fa-search"></i> Ara
+          </button>
+        </div>
+      </div>
+
+    <div class="table-container">
+        <table id="yariMamulTable">
+            <thead>
+                <tr>
+                    <th>Stok Kodu</th>
+                    <th>Malzeme Adı</th>
+                   
+                    <th>Kalan</th>
+                    <th>Barkod</th>
+                    <th>Durumu</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Yarı mamul verileri burada listelenecek -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+
+<div class="modal" id="yariMamulGirisModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Yarı Mamul Giriş</h2>
+            <span class="close" onclick="closeModal('yariMamulGirisModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="yariMamulGirisForm">
+                <input type="hidden" id="yariMamulGirisYariMamulId">
+                
+                <div class="form-group">
+                    <label for="yariMamulGirisMiktar">Miktar:</label>
+                    <input type="number" step="0.01" id="yariMamulGirisMiktar" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="yariMamulGirisKritikSeviye">Kritik Seviye:</label>
+                    <input type="number" step="0.01" id="yariMamulGirisKritikSeviye" min="0" required>
+                </div>
+                
+                <div id="yariMamulGirisModal-error" class="error-message"></div>
+                <div id="yariMamulGirisModal-success" class="success-message"></div>
+                
+                <div class="form-actions">
+                    <button type="button" id="yariMamulGirisKaydetBtn" class="btn">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- Yarı Mamul Detay Modalı -->
+<div class="modal" id="yariMamulDetayModal">
+    <div class="modal-content large-modal">
+        <span class="close">&times;</span>
+        <h2>Yarı Mamul Detayları</h2>
+        
+        <div id="yariMamulDetay" class="detay-container">
+            <!-- Detaylar buraya gelecek -->
+        </div>
+        
+        <div class="tab-container">
+            <div class="tab-header">
+                <div class="tab-button" data-tab="yari-mamul-giris-gecmisi-tab">Malzeme Giriş Geçmişi</div>
+                <div class="tab-button active" data-tab="yari-mamul-islem-gecmisi-tab">İşlem Geçmişi</div>
+                
+            </div>
+            
+            <div id="yari-mamul-islem-gecmisi-tab" class="tab-content active">
+                <div class="action-buttons">
+                    <button class="btn-primary" id="yariMamulIslemYapBtn">
+                        <i class="fas fa-plus"></i> İşlem Yap
+                    </button>
+                </div>
+                
+                <div class="table-container">
+                    <table id="yariMamulIslemGecmisiTable">
+                        <thead>
+                            <tr>
+                                <th>Tarih</th>
+                                <th>İşlem Türü</th>
+                                <th>Miktar</th>
+                                <th>Kullanım Alanı</th>
+                                <th>Proje</th>
+                                <th>Kullanıcı</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- İşlem geçmişi burada listelenecek -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+              <!-- Add new tab content for Material Entry History -->
+    <div id="yari-mamul-giris-gecmisi-tab" class="tab-content">
+        <div class="action-buttons">
+            <button class="btn-primary" id="yariMamulYeniGirisBtn">
+                <i class="fas fa-plus"></i> Yeni Giriş Ekle
+            </button>
+        </div>
+        
+        <div class="table-container">
+            <table id="yariMamulGirisGecmisiTable">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Miktar</th>
+                        <th>Birim</th>
+                        <th>Kaynak</th>
+                        <th>Ekleyen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Giriş geçmişi burada listelenecek -->
+                    <tr>
+                        <td colspan="5" class="text-center">Veri yükleniyor...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+            
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- Yarı Mamul İşlem Modalı -->
+<div class="modal" id="yariMamulIslemModal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Yarı Mamul İşlemi Yap - <span id="yariMamulIslemHeader"></span></h2>
+        
+        <!-- Hata ve başarı mesajları için alanlar -->
+        <div class="alert error" id="yariMamulIslemModal-error" style="display: none;"></div>
+        <div class="alert success" id="yariMamulIslemModal-success" style="display: none;"></div>
+        
+        <div class="yari-mamul-islem-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="yariMamulKullanilanMiktar">Kullanılan Miktar</label>
+                    <input type="number" id="yariMamulKullanilanMiktar" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="yariMamulIslemTuru">İşlem Türü</label>
+                    <select id="yariMamulIslemTuru">
+                        <option value="Kullanım">Kullanım</option>
+                        <option value="Fire" style="display: none;">Fire</option>
+                        <option value="İade" style="display: none;">İade</option>
+                        <option value="Ek" style="display: none;" >Ek</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="yariMamulKullanimAlani">Kullanım Alanı</label>
+                    <select id="yariMamulKullanimAlani" onchange="toggleYariMamulMakineSection()">
+                        <option value="FasonImalat">Fason İmalat</option>
+                        <option value="MakineImalat">Makine İmalat</option>
+                        <option value="IskartaUrun" style="display: none;">Iskarta Ürün</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="yariMamulProjeSecimi">Proje</label>
+                    <div class="project-selection">
+                        <select id="yariMamulProjeSecimi">
+                            <option value="">-- Proje Seçin --</option>
+                            <!-- Projeler burada listelenecek -->
+                        </select>
+                        <button type="button" id="yariMamulYeniProjeEkleBtn" class="btn-secondary">
+                            <i class="fas fa-plus"></i> Yeni
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- YENİ: Makine ve Çalışan seçim alanları -->
+            <div class="form-row" id="yariMamulMakineCalisanSection" style="display:none;">
+                <div class="form-group">
+                    <label for="yariMamulMakineSecimi">Makine</label>
+                    <select id="yariMamulMakineSecimi">
+                        <option value="">-- Makine Seçin --</option>
+                        <option value="X6020">X6020</option>
+                        <option value="X4020">X4020</option>
+                        <option value="X8030">X8030</option>
+                        <option value="CNC Freze">CNC Freze</option>
+                        <option value="CNC Torna">CNC Torna</option>
+                        <option value="Büküm Makinesi">Büküm Makinesi</option>
+                        <option value="Testere">Testere</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="yariMamulCalisanSecimi">Alan Kişi</label>
+                    <select id="yariMamulCalisanSecimi">
+                        <option value="">-- Çalışan Seçin --</option>
+                        <!-- Çalışanlar burada listelenecek -->
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-buttons">
+                <button id="yariMamulIslemKaydetBtn" class="btn-primary">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+            <!-- Fason İmalat -->
+            <div class="page" id="fason-imalat">
+                <h1>Fason İmalat</h1>
+
+
+                <div class="search-panel">
+                    <div class="search-section">
+                      <div class="search-row">
+                        <div class="search-group">
+                          <input type="text" id="imalatArama" class="search-input" placeholder="Malzeme adı, stok kodu veya kişi adı ara...">
+                        </div>
+                        <div class="search-group">
+                          <select id="malzemeTuruSecimi" class="search-select">
+                            <option value="">Tüm Malzeme Türleri</option>
+                            <option value="sac">Sac</option>
+                            <option value="boru">Boru</option>
+                            <option value="mil">Mil</option>
+                            <option value="sarf_malzeme">Sarf Malzeme</option>
+                            <option value="yari_mamul">Yarı Mamul</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="search-row">
+                        <div class="search-group">
+                          <select id="pprojeSecimi" class="search-select">
+                            <option value="">Tüm Projeler</option>
+                            <!-- Projeler dinamik olarak doldurulacak -->
+                          </select>
+                        </div>
+                        <div class="search-group date-range">
+                          <input type="date" id="baslangicTarihi" class="search-date" placeholder="Başlangıç Tarihi">
+                          <span>-</span>
+                          <input type="date" id="bitisTarihi" class="search-date" placeholder="Bitiş Tarihi">
+                        </div>
+                        <button id="imalatAraBtn" class="search-button">
+                          <i class="fas fa-search"></i> Ara
+                        </button>
+                        <button id="filtreSifirlaBtn" class="search-button reset-btn">
+                          <i class="fas fa-undo"></i> Sıfırla
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+
+
+
+                <div class="table-container">
+                    <table id="fasonTable">
+                        <thead>
+                            <tr>
+                                <th>Stok Kodu</th>
+                                <th>Malzeme</th>
+                                <th>Proje</th>
+                                <th>İşlem</th>
+                                <th>Alan Kişi</th>
+                                <th>Miktar</th>
+                                <th>Makine</th>
+                                <th>Kullanıcı</th>
+                                <th>Tarih</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Fason imalat verileri burada listelenecek -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Makine İmalat -->
+            <div class="page" id="makine-imalat">
+                <h1>Makine İmalat</h1>
+
+
+                <div class="search-panel">
+                    <div class="search-section">
+                      <div class="search-row">
+                        <div class="search-group">
+                          <input type="text" id="imalatArama" class="search-input" placeholder="Malzeme adı, stok kodu veya kişi adı ara...">
+                        </div>
+                        <div class="search-group">
+                          <select id="malzemeTuruSecimi" class="search-select">
+                            <option value="">Tüm Malzeme Türleri</option>
+                            <option value="sac">Sac</option>
+                            <option value="boru">Boru</option>
+                            <option value="mil">Mil</option>
+                            <option value="sarf_malzeme">Sarf Malzeme</option>
+                            <option value="yari_mamul">Yarı Mamul</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="search-row">
+                        <div class="search-group">
+                          <select id="pprojeSecimi" class="search-select">
+                            <option value="">Tüm Projeler</option>
+                            <!-- Projeler dinamik olarak doldurulacak -->
+                          </select>
+                        </div>
+                        <div class="search-group date-range">
+                          <input type="date" id="baslangicTarihi" class="search-date" placeholder="Başlangıç Tarihi">
+                          <span>-</span>
+                          <input type="date" id="bitisTarihi" class="search-date" placeholder="Bitiş Tarihi">
+                        </div>
+                        <button id="imalatAraBtn" class="search-button">
+                          <i class="fas fa-search"></i> Ara
+                        </button>
+                        <button id="filtreSifirlaBtn" class="search-button reset-btn">
+                          <i class="fas fa-undo"></i> Sıfırla
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+
+                <div class="table-container">
+                    <table id="makineTable">
+                        <thead>
+                            <tr>
+                                <th>Stok Kodu</th>
+                                <th>Malzeme</th>
+                                <th>Proje</th>
+                                <th>İşlem</th>
+                                <th>Alan Kişi</th>
+                                <th>Miktar</th>
+                                <th>Kullanıcı</th>
+                                <th>Tarih</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Makine imalat verileri burada listelenecek -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+
+            <!-- Iskarta Ürünler sayfası -->
+<div class="page" id="iskarta-urunler">
+    <h1>Iskarta Ürünler</h1>
+    <div class="search-panel">
+        <div class="search-section">
+          <div class="search-row">
+            <div class="search-group">
+             
+              <input type="text" id="iskartaArama" class="search-input" placeholder="Stok kodu, malzeme adı veya işlem yapan...">
+            </div>
+            <div class="search-group">
+             
+              <select id="iskartaMalzemeTuruSecimi" class="search-select">
+                <option value="">Tümü</option>
+                <option value="sac">Sac</option>
+                <option value="boru">Boru</option>
+                <option value="mil">Mil</option>
+                <option value="sarf_malzeme">Sarf Malzeme</option>
+                <option value="yari_mamul">Yarı Mamul</option>
+              </select>
+            </div>
+          </div>
+          <div class="search-row">
+            <div class="search-group">
+         
+              <select id="iskartaProjeSecimi" class="search-select">
+                <option value="">Tüm Projeler</option>
+              </select>
+            </div>
+            <div class="search-group date-range">
+          
+              <input type="date" id="iskartaBaslangicTarihi" class="search-date">
+              <span>-</span>
+          
+              <input type="date" id="iskartaBitisTarihi" class="search-date">
+            </div>
+            <button id="iskartaAraBtn" class="search-button">
+              <i class="fas fa-search"></i> Ara
+            </button>
+            <button id="iskartaFiltreSifirlaBtn" class="search-button reset-btn">
+              <i class="fas fa-undo"></i> Sıfırla
+            </button>
+          </div>
+        </div>
+      </div>
+    
+    <div class="table-container">
+        <table id="iskartaTable">
+            <thead>
+                <tr>
+                    <th>Stok Kodu</th>
+                    <th>Malzeme</th>
+                    <th>Proje</th>
+                    <th>İşlem</th>
+                    <th>Miktar</th>
+                    <th>Alan</th>
+                    <th>Kullanıcı</th>
+                    <th>Tarih</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Iskarta ürün verileri burada listelenecek -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<div class="modal" id="islemDuzenleModal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>İşlem Düzenle - <span id="islemDuzenleHeader"></span></h2>
+        
+        <!-- Hata ve başarı mesajları için alanlar -->
+        <div class="alert error" id="islemDuzenleModal-error" style="display: none;"></div>
+        <div class="alert success" id="islemDuzenleModal-success" style="display: none;"></div>
+        
+        <!-- Gizli alan - işlem ID'si -->
+        <input type="hidden" id="duzenleIslemId">
+        
+        <div class="islem-duzenle-form">
+            <div class="form-row" style="display: none;">
+                <div class="form-group">
+                    <label for="duzenleIslemTuru">İşlem Türü</label>
+                    <select id="duzenleIslemTuru">
+                        <option value="LazerKesim">Lazer Kesim</option>
+                        <option value="KaynakliImalat">Kaynaklı İmalat</option>
+                        <option value="TalasliImalat">Talaşlı İmalat</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="duzenleKullanimAlani">Kullanım Alanı</label>
+                    <select id="duzenleKullanimAlani">
+                        <option value="FasonImalat">Fason İmalat</option>
+                        <option value="MakineImalat">Makine İmalat</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row" >
+                <div class="form-group" id="duzenleIskartaUrunSecimiContainer">
+                    <label>
+                        <input type="checkbox" id="duzenleIskartaUrunSecimi">
+                        Iskarta ürün listesine ekle
+                    </label>
+                    <p class="info-text">İşaretlerseniz, bu işlem iskarta ürün listesine eklenecektir.</p>
+                </div>
+            </div>
+            
+            <div class="form-row" style="display: none;">
+                <div class="form-group">
+                    <label for="duzenleProjeSecimi">Proje</label>
+                    <select id="duzenleProjeSecimi">
+                        <option value="">-- Proje Seçin --</option>
+                        <!-- Projeler burada listelenecek -->
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-buttons">
+                <button id="islemGuncelleBtn" class="btn-primary" onclick="updateIslem()">Güncelle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal" id="yeniTedarikciModal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Yeni Tedarikçi Ekle</h2>
+        <form id="yeniTedarikciForm">
+            <div class="form-group">
+                <label for="tedarikciAdi">Tedarikçi Adı</label>
+                <input type="text" id="tedarikciAdi" required>
+            </div>
+            <div class="form-buttons">
+                <button type="submit" class="btn-primary">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+<div class="page" id="tedarikci-listesi">
+    <h1>Tedarikçi Listesi</h1>
+    <div class="action-bar">
+        <button id="yeniTedarikciBtn" class="btn-primary"><i class="fas fa-plus"></i> Yeni Tedarikçi</button>
+    </div>
+    <div class="table-container">
+        <table id="tedarikciTable">
+            <thead>
+                <tr>
+                    <th>Tedarikçi Adı</th>
+                    <th>Oluşturma Tarihi</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Tedarikçiler burada listelenecek -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+<div id="calisan-listesi" class="page">
+    <div class="page-header">
+        <h2>Çalışan Listesi</h2>
+    </div>
+
+    <div class="search-bar">
+        <div class="search-row">
+            <button id="yeniCalisanBtn" class="primary-btn">
+                <i class="fas fa-plus"></i> Yeni Çalışan Ekle
+            </button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table id="calisanTable" class="data-table">
+            <thead>
+                <tr>
+                    <th>Ad</th>
+                    <th>Soyad</th>
+                    <th>Oluşturma Tarihi</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Çalışan listesi buraya JavaScript ile eklenecek -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+   
+            <!-- Projeler -->
+            <div class="page" id="projeler">
+                <h1>Projeler</h1>
+                <div class="action-bar">
+                    <button id="yeniProjeBtn" class="btn-primary"><i class="fas fa-plus"></i> Yeni Proje</button>
+                </div>
+                <div class="table-container">
+                    <table id="projelerTable">
+                        <thead>
+                            <tr>
+                                <th>Proje Kodu</th>
+                                <th>Proje Adı</th>
+                                <th>Oluşturma Tarihi</th>
+                                <th>Ekleyen Kişi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Projeler burada listelenecek -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+
+        </div>
+    </div>
+    
+    <!-- Modaller -->
+    
+    <!-- Parça İşlem Modalı -->
+    <!-- Parça İşlem Modalı - Güncellenmiş -->
+<div class="modal" id="islemModal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>İşlem Yap - <span id="parcaHeader"></span></h2>
+        
+        <!-- Hata ve başarı mesajları için alanlar -->
+        <div class="alert error" id="islemModal-error" style="display: none;"></div>
+        <div class="alert success" id="islemModal-success" style="display: none;"></div>
+        
+        <div class="parca-islem-form" id="islemForm">
+            <!-- İşlem formu içeriği buraya gelecek - Dinamik olarak JS ile doldurulacak -->
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="kullanilanMiktar">Kullanılan Miktar (kg)</label>
+                    <input type="number" id="kullanilanMiktar" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="hurdaMiktar">Çıkan Hurda (kg)</label>
+                    <input type="number" id="hurdaMiktar" step="0.01" min="0" value="0">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="islemTuru">İşlem Türü</label>
+                    <select id="islemTuru">
+                        <option value="LazerKesim">Lazer Kesim</option>
+                        <option value="KaynakliImalat">Kaynaklı İmalat</option>
+                        <option value="TalasliImalat">Talaşlı İmalat</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="kullanimAlani">Kullanım Alanı</label>
+                    <select id="kullanimAlani">
+                        <option value="FasonImalat">Fason İmalat</option>
+                        <option value="MakineImalat">Makine İmalat</option>
+                        <option value="IskartaUrun" style="display: none;">Iskarta Ürün</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- YENİ: Makine ve Çalışan seçimi -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="makineSecimi">Makine</label>
+                    <select id="makineSecimi">
+                        <option value="">-- Makine Seçin --</option>
+                        <option value="X6020">X6020</option>
+                        <option value="X4020">X4020</option>
+                        <option value="X8030">X8030</option>
+                        <option value="CNC Freze">CNC Freze</option>
+                        <option value="CNC Torna">CNC Torna</option>
+                        <option value="Büküm Makinesi">Büküm Makinesi</option>
+                        <option value="Testere">Testere</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="calisanSecimi">İşleyen Kişi</label>
+                    <select id="calisanSecimi">
+                        <option value="">-- Çalışan Seçin --</option>
+                        <!-- Çalışanlar dinamik olarak doldurulacak -->
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="projeSecimi">Proje</label>
+                    <div class="project-selection">
+                        <select id="projeSecimi">
+                            <option value="">-- Proje Seçin --</option>
+                            <!-- Projeler burada listelenecek -->
+                        </select>
+                        <button type="button" id="yeniProjeEkleBtn" class="btn-secondary">
+                            <i class="fas fa-plus"></i> Yeni
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- YENİ: Fason İmalat için Müşteri Seçimi -->
+            <div id="musteriPanel" class="form-row" style="display: none;">
+                <div class="form-group">
+                    <label for="musteriSecimi">Müşteri</label>
+                    <div class="customer-selection">
+                        <select id="musteriSecimi">
+                            <option value="">-- Müşteri Seçin --</option>
+                            <!-- Müşteriler burada listelenecek -->
+                        </select>
+                        <button type="button" id="yeniMusteriEkleBtn" class="btn-secondary">
+                            <i class="fas fa-plus"></i> Yeni
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Yarı Mamul Paneli - Makine İmalat seçildiğinde görünecek -->
+            <div id="yariMamulPanel" style="display: none;" class="panel">
+                <h3>Yarı Mamul Bilgileri</h3>
+                <p class="info-text">Bu işlem sonucunda üretilen yarı mamul bilgilerini giriniz.</p>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="yariMamulAdi">Yarı Mamul Adı</label>
+                        <input type="text" id="yariMamulAdi" placeholder="Örn: Sac Kapak, Metal Profil vs.">
+                    </div>
+                    <div class="form-group">
+                        <label for="yariMamulBirim">Birim</label>
+                        <select id="yariMamulBirim">
+                            <option value="adet">Adet</option>
+                            <option value="kg">Kilogram (kg)</option>
+                            <option value="m">Metre (m)</option>
+                            <option value="m2">Metrekare (m²)</option>
+                            <option value="m3">Metreküp (m³)</option>
+                            <option value="lt">Litre (lt)</option>
+                            <option value="kutu">Kutu</option>
+                            <option value="paket">Paket</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="yariMamulMiktar">Miktar</label>
+                        <input type="number" id="yariMamulMiktar" step="0.01" min="0.01">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-buttons">
+                <button id="islemKaydetBtn" class="btn-primary">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+    
+    <!-- Yeni Proje Modalı -->
+    <div class="modal" id="yeniProjeModal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Yeni Proje Ekle</h2>
+            <form id="yeniProjeForm">
+                <div class="form-group">
+                    <label for="projeAdi">Proje Adı</label>
+                    <input type="text" id="projeAdi" required>
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" class="btn-primary">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Hammadde Detay Modalı -->
+    <!-- Updated Hammadde Detay Modal -->
+    <div class="modal" id="detayModal">
+        <div class="modal-content large-modal">
+            <span class="close">&times;</span>
+            <h2>Hammadde Detayları</h2>
+            <div id="hammaddeDetay" class="detay-container">
+                <!-- Hammadde detayları burada gösterilecek -->
+            </div>
+            
+            <!-- Tab Sistemi -->
+            <div class="tab-container">
+                <div class="tab-header">
+                    <div class="tab-button" data-tab="plakalar-tab">Plakalar</div>
+                    <div class="tab-button" data-tab="parcalar-tab">Parçalar</div>
+                    <div class="tab-button" data-tab="giris-gecmisi-tab">Malzeme Giriş Geçmişi</div>
+                    <div class="tab-button" data-tab="islem-gecmisi-tab">İşlem Geçmişi</div>
+                </div>
+                
+                <!-- Plakalar Tab - Yeni Eklenen -->
+                <div id="plakalar-tab" class="tab-content">
+                    <div class="action-bar">
+                        <button id="yeniPlakaEkleBtn" class="btn-primary">
+                            <i class="fas fa-plus"></i> Yeni Plaka Ekle
+                        </button>
+                    </div>
+                    <h3>Plakalar</h3>
+                    <div class="table-container">
+                        <table id="plakalarTable">
+                            <thead>
+                                <tr>
+                                    <th>Plaka No</th>
+                                    <th>En x Boy</th>
+                                    <th>Durum</th>
+                                    <th>Orijinal Kilo</th>
+                                    <th>Kalan Kilo</th>
+                                    <th>Kullanım Oranı</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Plakalar burada listelenecek -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Parçalar Tab -->
+                <div id="parcalar-tab" class="tab-content">
+                    <h3>Parçalar</h3>
+                    <div class="table-container">
+                        <table id="parcalarTable">
+                            <thead>
+                                <tr>
+                                    <th>Parça No</th>
+                    <th>Plaka No</th>
+                    <th>En x Boy</th> <!-- Yeni eklenen sütun -->
+                    <th>Durum</th>
+                    <th>Orijinal Kilo</th>
+                    <th>Kalan Kilo</th>
+                    <th>Kullanım Oranı</th>
+                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Parçalar burada listelenecek -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Malzeme Giriş Geçmişi Tab -->
+                <div id="giris-gecmisi-tab" class="tab-content">
+                    <div class="action-bar">
+                        <button id="yeniHammaddeGirisBtn" class="btn-primary">
+                            <i class="fas fa-plus"></i> Yeni Giriş Ekle
+                        </button>
+                    </div>
+                    <h3>Malzeme Giriş Geçmişi</h3>
+                    <div class="table-container">
+                        <table id="girisGecmisiTable">
+                            <thead>
+                                <tr>
+                                    <th>Tarih</th>
+                                    <th>Miktar</th>
+                                    <th>Birim Fiyat</th>
+                                    <th>Toplam Tutar</th>
+                                    <th>Tedarikçi</th>
+                                    <th>Ana Barkod</th>
+                                    <th>Ekleyen</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Malzeme giriş geçmişi burada listelenecek -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- İşlem Geçmişi Tab -->
+                <div id="islem-gecmisi-tab" class="tab-content">
+                    <h3>İşlem Geçmişi</h3>
+                    <div class="table-container">
+                        <table id="islemGecmisiTable">
+                            <thead>
+                                <tr>
+                                    <th>Tarih</th>
+                                    <th>Plaka/Parça</th>
+                                    <th>İşlem</th>
+                                    <th>Kullanılan</th>
+                                    <th>Hurda</th>
+                                    <th>Kullanım Alanı</th>
+                                    <th>Proje</th>
+                                    <th>Makine</th>
+                                    <th>İşleyen Kişi</th>
+                                    <th>Müşteri</th>
+                                    <th>Kullanıcı</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- İşlem geçmişi burada listelenecek -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+
+
+<!-- Hammadde Giriş Modalı -->
+<!-- Hammadde Giriş Modalı HTML - Zorunlu alanlar için güncellenmiş -->
+<div id="hammaddeGirisModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Hammadde Giriş</h2>
+        <span class="close" onclick="closeModal('hammaddeGirisModal')">&times;</span>
+      </div>
+      <div class="modal-body">
+        <form id="hammaddeGirisForm">
+          <input type="hidden" id="hammaddeGirisHammaddeId">
+          <input type="hidden" id="hammaddeGirisTuruDegeri">
+          
+          <!-- Gizli alanlar - hesaplama için -->
+          <input type="hidden" id="sacKalinlik">
+          <input type="hidden" id="sacEn">
+          <input type="hidden" id="sacBoy">
+          <input type="hidden" id="sacYogunluk">
+          <input type="hidden" id="boruCap">
+          <input type="hidden" id="boruKalinlik">
+          <input type="hidden" id="boruUzunluk">
+          <input type="hidden" id="boruYogunluk">
+          <input type="hidden" id="milCap">
+          <input type="hidden" id="milUzunluk">
+          <input type="hidden" id="milYogunluk">
+          
+          <div class="form-group">
+            <label for="hammaddeGirisMiktar">Miktar (kg):</label>
+            <input type="number" step="0.01" id="hammaddeGirisMiktar" min="0" required>
+          </div>
+  
+          <div id="hammaddeGirisHesaplamaAlani" style="display: none;">
+            <button type="button" id="modalParcaHesaplaBtn" class="btn" style="display: none;">Hesapla</button>
+            <div id="hammaddeGirisHesaplamaSonucu" class="calculation-result"></div>
+          </div>
+          
+          
+          
+          <div class="form-group">
+            <label for="hammaddeGirisBirimFiyat">Birim Fiyat (TL/kg):</label>
+            <input type="number" step="0.01" id="hammaddeGirisBirimFiyat" min="0" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="hammaddeGirisBirimFiyatTuru">Para Birimi:</label>
+            <select id="hammaddeGirisBirimFiyatTuru" required>
+              <option value="TRY">TL (₺)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+            </select>
+          </div>
+          
+       <!-- Hammadde Giriş Modalında Tedarikçi Seçimi -->
+<div class="form-group">
+    <label for="hammaddeGirisTedarikci">Tedarikçi: <span class="required-field">*</span></label>
+    <div class="project-selection">
+        <input 
+            type="text" 
+            id="hammaddeGirisTedarikci" 
+            list="tedarikciListesi" 
+            placeholder="Tedarikçi seçin veya ara..."
+            required
+        >
+        <datalist id="tedarikciListesi">
+            <!-- Tedarikçiler dinamik olarak eklenecek -->
+        </datalist>
+        <button type="button" id="yeniTedarikciEkleBtn" class="btn-secondary">
+            <i class="fas fa-plus"></i> Yeni
+        </button>
+    </div>
+</div>
+<div class="form-group">
+  <label for="hammaddeGirisAnaBarkod">Ana Barkod: <span class="required-field">*</span></label>
+  <input type="text" id="hammaddeGirisAnaBarkod" required>
+</div>
+          
+          <div class="form-group">
+            <label for="hammaddeGirisKritikSeviye">Kritik Seviye (kg): <span class="required-field">*</span></label>
+            <input type="number" step="0.01" id="hammaddeGirisKritikSeviye" min="0" required>
+          </div>
+          
+          <div id="hammaddeGirisModal-error" class="error-message"></div>
+          <div id="hammaddeGirisModal-success" class="success-message"></div>
+          
+          <div class="form-actions">
+            <button type="button" id="hammaddeGirisKaydetBtn" class="btn">Kaydet</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+<!-- Sarf Malzeme Giriş Güncelleme Modalı -->
+<div id="sarfMalzemeGirisGuncelleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="sarfMalzemeGirisGuncelleHeader">Sarf Malzeme Giriş Güncelleme</h2>
+            <span class="close" onclick="closeModal('sarfMalzemeGirisGuncelleModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="sarfMalzemeGirisGuncelleModal-error" class="error-message" style="display: none;"></div>
+            <div id="sarfMalzemeGirisGuncelleModal-success" class="success-message" style="display: none;"></div>
+            
+            <form id="sarfMalzemeGirisGuncelleForm" class="form">
+                <input type="hidden" id="sarfMalzemeGirisGuncelleSarfMalzemeId">
+                <input type="hidden" id="sarfMalzemeGirisGuncelleGirisId">
+                
+                <div class="form-group info-box">
+                    <div class="info-text">
+                        <strong>Dikkat:</strong> Sadece son girişten sonra herhangi bir işlem yapılmamışsa güncelleme yapabilirsiniz.
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Mevcut Miktar:</label>
+                    <div id="sarfMalzemeGunceleMevcutMiktar" class="form-control-static"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sarfMalzemeGirisGuncelleMiktar">Yeni Miktar:</label>
+                    <input type="number" id="sarfMalzemeGirisGuncelleMiktar" class="form-control" step="0.01" min="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sarfMalzemeGirisGuncelleBirimFiyat">Birim Fiyat:</label>
+                    <input type="number" id="sarfMalzemeGirisGuncelleBirimFiyat" class="form-control" step="0.01" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="sarfMalzemeGirisGuncelleBirimFiyatTuru">Para Birimi:</label>
+                    <select id="sarfMalzemeGirisGuncelleBirimFiyatTuru" class="form-control">
+                        <option value="TRY">TL (₺)</option>
+                        <option value="USD">Dolar ($)</option>
+                        <option value="EUR">Euro (€)</option>
+                        <option value="GBP">Sterlin (£)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="sarfMalzemeGirisGuncelleTedarikci">Tedarikçi:</label>
+                    <div style="display: flex; align-items: center;">
+                        <input type="text" id="sarfMalzemeGirisGuncelleTedarikci" class="form-control" list="tedarikciListesi" style="flex-grow: 1; margin-right: 10px;">
+                        <button type="button" id="sarfMalzemeGirisGuncelleYeniTedarikciEkleBtn" class="btn btn-sm btn-outline-primary" style="width: auto; flex-shrink: 0;">
+                            <i class="fas fa-plus-circle"></i> Yeni Tedarikçi Ekle
+                        </button>
+                    </div>
+                    <datalist id="tedarikciListesi"></datalist>
+                </div>
+                
+                
+                
+                
+                <div class="form-group">
+                    <label for="sarfMalzemeGirisGuncelleKritikSeviye">Kritik Seviye:</label>
+                    <input type="number" id="sarfMalzemeGirisGuncelleKritikSeviye" class="form-control" step="0.01" min="0">
+                </div>
+                
+                <div class="form-buttons">
+                    <button type="button" id="sarfMalzemeGirisGuncelleKaydetBtn" class="btn btn-primary">Güncelle</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('sarfMalzemeGirisGuncelleModal')">İptal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bu modali index.html dosyasına ekleyin -->
+<!-- Hammadde Giriş Güncelleme Modalı HTML -->
+<div id="hammaddeGirisGuncelleModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="hammaddeGirisGuncelleHeader">Hammadde Giriş Güncelleme</h2>
+            <span class="close" onclick="closeModal('hammaddeGirisGuncelleModal')">&times;</span>
+        </div>
+        
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Mevcut Miktar</label>
+                <div id="hammaddeGunceleMevcutMiktar" class="current-value"></div>
+            </div>
+            
+            <div class="form-group">
+                <label for="hammaddeGirisGuncelleMiktar">Yeni Miktar (kg/adet)</label>
+                <input 
+                    type="number" 
+                    id="hammaddeGirisGuncelleMiktar" 
+                    class="form-control" 
+                    step="0.01" 
+                    min="0"
+                >
+            </div>
+            
+            <!-- Ana Barkod alanı eklendi -->
+            <div class="form-group">
+                <label for="hammaddeGirisGuncelleAnaBarkod">Ana Barkod</label>
+                <input 
+                    type="text" 
+                    id="hammaddeGirisGuncelleAnaBarkod" 
+                    class="form-control"
+                    required
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="hammaddeGirisGuncelleBirimFiyat">Birim Fiyat</label>
+                <input 
+                    type="number" 
+                    id="hammaddeGirisGuncelleBirimFiyat" 
+                    class="form-control" 
+                    step="0.01" 
+                    min="0"
+                >
+            </div>
+            
+            <div class="form-group">
+                <label for="hammaddeGirisGuncelleBirimFiyatTuru">Para Birimi</label>
+                <select id="hammaddeGirisGuncelleBirimFiyatTuru" class="form-control">
+                    <option value="TRY">TL (₺)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EURO (€)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="hammaddeGirisGuncelleTedarikci">Tedarikçi</label>
+                <div style="display: flex; align-items: center;">
+                    <input 
+                        type="text" 
+                        id="hammaddeGirisGuncelleTedarikci" 
+                        class="form-control" 
+                        list="tedarikciListesi" 
+                        style="flex-grow: 1; margin-right: 10px;">
+                    <button id="hammaddeGirisGuncelleYeniTedarikciEkleBtn" class="small-btn btn btn-sm btn-outline-primary" type="button" style="width: auto; flex-shrink: 0;">
+                        <i class="fas fa-plus"></i> Yeni Tedarikçi
+                    </button>
+                </div>
+                <datalist id="tedarikciListesi"></datalist>
+            </div>
+            
+            
+            <div class="form-group">
+                <label for="hammaddeGirisGuncelleKritikSeviye">Kritik Seviye (kg)</label>
+                <input 
+                    type="number" 
+                    id="hammaddeGirisGuncelleKritikSeviye" 
+                    class="form-control" 
+                    step="0.01" 
+                    min="0"
+                >
+            </div>
+            
+            <div id="hammaddeGirisGuncelleSonuc" class="result-area"></div>
+            <div id="hammaddeGirisGuncelleModal-error" class="error-message"></div>
+            <div id="hammaddeGirisGuncelleModal-success" class="success-message"></div>
+        </div>
+        
+        <div class="modal-footer" style="display: flex; justify-content: flex-start; gap: 10px;">
+            <button 
+                id="hammaddeGirisGuncelleKaydetBtn" 
+                class="btn btn-primary"
+            >
+                Kaydet
+            </button>
+            <button 
+                class="btn btn-secondary" 
+                onclick="closeModal('hammaddeGirisGuncelleModal')"
+            >
+                İptal
+            </button>
+        </div>
+        
+    </div>
+</div>
+
+
+<!-- Yeni Çalışan Ekle Modal -->
+<div id="yeniCalisanModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Yeni Çalışan Ekle</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <!-- Hata mesajları için alan -->
+            <div id="yeniCalisanModal-error" class="modal-error"></div>
+            <div id="yeniCalisanModal-success" class="modal-success"></div>
+
+            <form id="yeniCalisanForm">
+                <div class="form-group">
+                    <label for="calisanAdi">Ad:</label>
+                    <input type="text" id="calisanAdi" name="calisanAdi" required placeholder="Çalışanın adı">
+                </div>
+                <div class="form-group">
+                    <label for="calisanSoyadi">Soyad:</label>
+                    <input type="text" id="calisanSoyadi" name="calisanSoyadi" required placeholder="Çalışanın soyadı">
+                </div>
+                <div class="form-group form-buttons">
+                    <button type="submit" class="primary-btn">Kaydet</button>
+                    <button type="button" class="secondary-btn" onclick="closeModal('yeniCalisanModal')">İptal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Plaka İşlem Modal - Kompakt Versiyon -->
+<div class="modal" id="plakaIslemModal">
+    <div class="modal-content large-modal">
+        <span class="close">&times;</span>
+        <h2>Plaka İşlemi Yap - <span id="plakaHeader"></span></h2>
+        
+        <div class="plaka-islem-form">
+            <!-- GRID YAPILANDIRMASI -->
+            <div class="form-grid">
+                
+                <!-- SOL KOLON: Form Alanları -->
+                <div class="form-column">
+                    <!-- Hata ve başarı mesajları üstte -->
+                    <div class="alert error" id="plakaIslemModal-error" style="display: none;"></div>
+                    <div class="alert success" id="plakaIslemModal-success" style="display: none;"></div>
+                    
+                    <!-- Kullanım Bilgisi -->
+                    <div class="form-section">
+                        <h3>Kullanım Bilgisi</h3>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="plakaKullanilanMiktar">Kullanılan Miktar (kg)</label>
+                                <input type="number" id="plakaKullanilanMiktar" step="0.01" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="plakaHurdaMiktar">Çıkan Hurda (kg)</label>
+                                <input type="number" id="plakaHurdaMiktar" step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- İşlem Bilgileri -->
+                    <div class="form-section">
+                        <h3>İşlem Bilgileri</h3>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="plakaIslemTuru">İşlem Türü</label>
+                                <select id="plakaIslemTuru">
+                                    <option value="LazerKesim">Lazer Kesim</option>
+                                    <option value="KaynakliImalat">Kaynaklı İmalat</option>
+                                    <option value="TalasliImalat">Talaşlı İmalat</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="plakaKullanimAlani">Kullanım Alanı</label>
+                                <select id="plakaKullanimAlani" onchange="togglePlakaFormSections()">
+                                    <option value="FasonImalat">Fason İmalat</option>
+                                    <option value="MakineImalat">Makine İmalat</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Makine ve Personel -->
+                    <div class="form-section">
+                        <h3>Makine ve Personel</h3>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="plakaMakineSecimi">Makine</label>
+                                <select id="plakaMakineSecimi">
+                                    <option value="">-- Makine Seçin --</option>
+                                    <option value="X6020">X6020</option>
+                                    <option value="X4020">X4020</option>
+                                    <option value="X8030">X8030</option>
+                                    <option value="CNC Freze">CNC Freze</option>
+                                    <option value="CNC Torna">CNC Torna</option>
+                                    <option value="Büküm Makinesi">Büküm Makinesi</option>
+                                    <option value="Testere">Testere</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="plakaCalisanSecimi">İşleyen Kişi</label>
+                                <select id="plakaCalisanSecimi">
+                                    <option value="">-- Çalışan Seçin --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proje Seçimi -->
+                    <div class="form-section">
+                        <h3>Proje Bilgisi</h3>
+                        <div class="form-group">
+                            <label for="plakaProjeSecimi">Proje</label>
+                            <div class="project-selection">
+                                <select id="plakaProjeSecimi">
+                                    <option value="">-- Proje Seçin --</option>
+                                </select>
+                                <button type="button" id="plakaYeniProjeEkleBtn" class="btn-secondary">
+                                    <i class="fas fa-plus"></i> Yeni
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div id="plakaMusteriPanel" class="form-section" style="display: none;">
+                        <h3>Müşteri Bilgisi</h3>
+                        <div class="form-group">
+                            <label for="plakaMusteriSecimi">Müşteri</label>
+                            <div class="customer-selection">
+                                <select id="plakaMusteriSecimi">
+                                    <option value="">-- Müşteri Seçin --</option>
+                                </select>
+                                <button type="button" id="plakaYeniMusteriEkleBtn" class="btn-secondary">
+                                    <i class="fas fa-plus"></i> Yeni
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Yarı Mamul Paneli -->
+                    <div id="plakaYariMamulPanel" style="display: none;" class="form-section">
+                        <h3>Yarı Mamul Bilgileri</h3>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="plakaYariMamulAdi">Yarı Mamul Adı</label>
+                                <input type="text" id="plakaYariMamulAdi" placeholder="Sac Kapak, Profil vs.">
+                            </div>
+                            <div class="form-group">
+                                <label for="plakaYariMamulBirim">Birim</label>
+                                <select id="plakaYariMamulBirim">
+                                    <option value="adet">Adet</option>
+                                    <option value="kg">kg</option>
+                                    <option value="m">m</option>
+                                    <option value="m2">m²</option>
+                                    <option value="m3">m³</option>
+                                    <option value="lt">lt</option>
+                                    <option value="kutu">Kutu</option>
+                                    <option value="paket">Paket</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="plakaYariMamulMiktar">Miktar</label>
+                                <input type="number" id="plakaYariMamulMiktar" step="0.01" min="0.01">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SAĞ KOLON: Kalan Parça Paneli -->
+                <div class="form-column">
+                    <div class="panel sticky-panel">
+                        <div class="panel-header">
+                            <h3>Kalan Parça Oluştur</h3>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="kalanParcaSwitch" class="toggle-input" onchange="toggleKalanParcaPanel()">
+                                <label for="kalanParcaSwitch" class="toggle-label"></label>
+                            </div>
+                        </div>
+                        
+                        <div id="kalanParcaPanel" style="display: none;" class="panel-content">
+                            <div class="form-row-two">
+                                <div class="form-group">
+                                    <label for="kalanParcaEn">En (mm)</label>
+                                    <input type="number" id="kalanParcaEn" step="0.01" min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label for="kalanParcaBoy">Boy (mm)</label>
+                                    <input type="number" id="kalanParcaBoy" step="0.01" min="1">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <button type="button" id="hesaplaKalanParcaBtn" class="btn-secondary">
+                                    <i class="fas fa-calculator"></i> Hesapla
+                                </button>
+                                <button type="button" id="ekleKalanParcaBtn" class="btn-primary" disabled>
+                                    <i class="fas fa-plus"></i> Parça Ekle
+                                </button>
+                            </div>
+                            
+                            <div id="kalanParcaHesapSonucu" class="calculation-result" style="display: none;">
+                                <!-- Hesaplama sonucu burada gösterilecek -->
+                            </div>
+                            
+                            <div id="kalanParcaListesiContainer" style="display: none;">
+                                <h4>Oluşturulacak Parçalar</h4>
+                                <div class="info-text">
+                                    <span>Toplam: <span id="toplamKullanilanAgirlik">0</span> kg</span>
+                                    <span>Kalan: <span id="toplamKalanAgirlik">0</span> kg</span>
+                                </div>
+                                <div id="kalanParcaListesi" class="parca-listesi">
+                                    <!-- Parçalar burada listelenecek -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-buttons">
+                <button id="plakaIslemKaydetBtn" class="btn-primary">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Plaka Ekleme Modalı - Güncellenmiş -->
+<div class="modal" id="yeniPlakaModal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Yeni Plaka Ekle</h2>
+        
+        <!-- Hata ve başarı mesajları için alanlar -->
+        <div class="alert error" id="yeniPlakaModal-error" style="display: none;"></div>
+        <div class="alert success" id="yeniPlakaModal-success" style="display: none;"></div>
+        
+        <div class="yeni-plaka-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="plakaEn">En (mm)</label>
+                    <input type="number" id="plakaEn" step="0.01" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="plakaBoy">Boy (mm)</label>
+                    <input type="number" id="plakaBoy" step="0.01" min="1" required>
+                </div>
+            </div>
+            
+            <!-- YENİ EKLENEN ALAN: Toplam Kilo -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="plakaTotalKilo">Toplam Kilo (kg)</label>
+                    <input type="number" id="plakaTotalKilo" step="0.01" min="0.1" required>
+                </div>
+                <!-- Barkod bilgisi -->
+                <div class="form-group">
+                    <label for="plakaBarkod">Barkod (Opsiyonel)</label>
+                    <input type="text" id="plakaBarkod" placeholder="SL12345">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="plakaTedarikci">Tedarikçi</label>
+                    <div class="project-selection">
+                        <input 
+                            type="text" 
+                            id="plakaTedarikci" 
+                            list="tedarikciListesi" 
+                            placeholder="Tedarikçi seçin veya ara..."
+                            required
+                        >
+                        <datalist id="tedarikciListesi">
+                            <!-- Tedarikçiler dinamik olarak eklenecek -->
+                        </datalist>
+                        <button type="button" id="plakaYeniTedarikciEkleBtn" class="btn-secondary">
+                            <i class="fas fa-plus"></i> Yeni
+                        </button>
+                    </div>
+                </div>
+                <input type="hidden" id="plakaTolerancePercentage" value="1">
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="plakaBirimFiyat">Birim Fiyat</label>
+                    <input type="number" id="plakaBirimFiyat" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="plakaBirimFiyatTuru">Para Birimi</label>
+                    <select id="plakaBirimFiyatTuru">
+                        <option value="TRY">TL (₺)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EURO (€)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <button type="button" id="hesaplaPlakaBtn" class="btn-secondary">
+                    <i class="fas fa-calculator"></i> Hesapla
+                </button>
+            </div>
+            
+            <div id="plakaHesapSonucu" class="calculation-result" style="display: none;">
+                <!-- Hesaplama sonucu burada gösterilecek -->
+            </div>
+            
+            <!-- Plaka listesi container -->
+            <div id="plakalarContainer" style="display: none;">
+                <h4>Oluşturulacak Plakalar</h4>
+                <div id="plakaListesi" class="parca-listesi">
+                    <!-- Plakalar burada listelenecek -->
+                </div>
+            </div>
+            
+            <div class="form-buttons">
+                <button id="plakaKaydetBtn" class="btn-primary" disabled>Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- Yeni Proje Modalı -->
+<div id="yeniProjeModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Yeni Proje Ekle</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <!-- Hata mesajları için alan -->
+            <div id="yeniProjeModal-error" class="modal-error"></div>
+            <div id="yeniProjeModal-success" class="modal-success"></div>
+        <form id="yeniProjeForm">
+            <div class="form-group">
+                <label for="projeAdi">Proje Adı:</label>
+                <input type="text" id="projeAdi" name="projeAdi" required placeholder="Proje adını girin">
+            </div>
+            <div class="form-group form-buttons">
+                <button type="submit" class="primary-btn">Kaydet</button>
+                <button type="button" class="secondary-btn" onclick="closeModal('yeniProjeModal')">İptal</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+
+
+<!-- Parça İşlem Modal - İyileştirilmiş Versiyon -->
+<div class="modal" id="parcaIslemModal">
+    <div class="modal-content large-modal">
+        <span class="close">&times;</span>
+        <h2>Parça İşlemi Yap - <span id="parcaDetayHeader"></span></h2>
+        
+        <div class="parca-islem-form">
+            <!-- GRID YAPILANDIRMASI -->
+            <div class="form-grid">
+                
+                <!-- SOL KOLON: Form Alanları -->
+                <div class="form-column">
+                    <!-- Hata ve başarı mesajları üstte -->
+                    <div class="alert error" id="parcaIslemModal-error" style="display: none;"></div>
+                    <div class="alert success" id="parcaIslemModal-success" style="display: none;"></div>
+                    
+                    <!-- Kullanım Bilgisi -->
+                    <div class="form-section">
+                        <h3>Kullanım Bilgisi</h3>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="parcaKullanilanMiktar">Kullanılan Miktar (kg)</label>
+                                <input type="number" id="parcaKullanilanMiktar" step="0.01" min="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="parcaHurdaMiktar">Çıkan Hurda (kg)</label>
+                                <input type="number" id="parcaHurdaMiktar" step="0.01" min="0" value="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- İşlem Bilgileri -->
+                    <div class="form-section">
+                        <h3>İşlem Bilgileri</h3>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="parcaIslemTuru">İşlem Türü</label>
+                                <select id="parcaIslemTuru">
+                                    <option value="LazerKesim">Lazer Kesim</option>
+                                    <option value="KaynakliImalat">Kaynaklı İmalat</option>
+                                    <option value="TalasliImalat">Talaşlı İmalat</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="parcaKullanimAlani">Kullanım Alanı</label>
+                                <select id="parcaKullanimAlani" onchange="toggleParcaFormSections()">
+                                    <option value="FasonImalat">Fason İmalat</option>
+                                    <option value="MakineImalat">Makine İmalat</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Makine ve Personel -->
+                    <div class="form-section">
+                        <h3>Makine ve Personel</h3>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="parcaMakineSecimi">Makine</label>
+                                <select id="parcaMakineSecimi">
+                                    <option value="">-- Makine Seçin --</option>
+                                    <option value="X6020">X6020</option>
+                                    <option value="X4020">X4020</option>
+                                    <option value="X8030">X8030</option>
+                                    <option value="CNC Freze">CNC Freze</option>
+                                    <option value="CNC Torna">CNC Torna</option>
+                                    <option value="Büküm Makinesi">Büküm Makinesi</option>
+                                    <option value="Testere">Testere</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="parcaCalisanSecimi">İşleyen Kişi</label>
+                                <select id="parcaCalisanSecimi">
+                                    <option value="">-- Çalışan Seçin --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proje Seçimi -->
+                    <div class="form-section">
+                        <h3>Proje Bilgisi</h3>
+                        <div class="form-group">
+                            <label for="parcaProjeSecimi">Proje</label>
+                            <div class="project-selection">
+                                <select id="parcaProjeSecimi">
+                                    <option value="">-- Proje Seçin --</option>
+                                </select>
+                                <button type="button" id="parcaYeniProjeEkleBtn" class="btn-secondary">
+                                    <i class="fas fa-plus"></i> Yeni
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Müşteri Bilgisi (Fason İmalat için) -->
+                    <div id="parcaMusteriPanel" class="form-section" style="display: none;">
+                        <h3>Müşteri Bilgisi</h3>
+                        <div class="form-group">
+                            <label for="parcaMusteriSecimi">Müşteri</label>
+                            <div class="customer-selection">
+                                <select id="parcaMusteriSecimi">
+                                    <option value="">-- Müşteri Seçin --</option>
+                                </select>
+                                <button type="button" id="parcaYeniMusteriEkleBtn" class="btn-secondary">
+                                    <i class="fas fa-plus"></i> Yeni
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Yarı Mamul Paneli -->
+                    <div id="parcaYariMamulPanel" style="display: none;" class="form-section">
+                        <h3>Yarı Mamul Bilgileri</h3>
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="parcaYariMamulAdi">Yarı Mamul Adı</label>
+                                <input type="text" id="parcaYariMamulAdi" placeholder="Sac Kapak, Profil vs.">
+                            </div>
+                            <div class="form-group">
+                                <label for="parcaYariMamulBirim">Birim</label>
+                                <select id="parcaYariMamulBirim">
+                                    <option value="adet">Adet</option>
+                                    <option value="kg">kg</option>
+                                    <option value="m">m</option>
+                                    <option value="m2">m²</option>
+                                    <option value="m3">m³</option>
+                                    <option value="lt">lt</option>
+                                    <option value="kutu">Kutu</option>
+                                    <option value="paket">Paket</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="parcaYariMamulMiktar">Miktar</label>
+                                <input type="number" id="parcaYariMamulMiktar" step="0.01" min="0.01">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SAĞ KOLON: Kalan Parça Paneli -->
+                <div class="form-column">
+                    <div class="panel sticky-panel">
+                        <div class="panel-header">
+                            <h3>Kalan Parça Oluştur</h3>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="parcaKalanParcaSwitch" class="toggle-input" onchange="toggleParcaKalanParcaPanel()">
+                                <label for="parcaKalanParcaSwitch" class="toggle-label"></label>
+                            </div>
+                        </div>
+                        
+                        <div id="parcaKalanParcaPanel" style="display: none;" class="panel-content">
+                            <div class="form-row-two">
+                                <div class="form-group">
+                                    <label for="parcaKalanParcaEn">En (mm)</label>
+                                    <input type="number" id="parcaKalanParcaEn" step="0.01" min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label for="parcaKalanParcaBoy">Boy (mm)</label>
+                                    <input type="number" id="parcaKalanParcaBoy" step="0.01" min="1">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <button type="button" id="hesaplaParcaKalanParcaBtn" class="btn-secondary">
+                                    <i class="fas fa-calculator"></i> Hesapla
+                                </button>
+                                <button type="button" id="ekleParcaKalanParcaBtn" class="btn-primary" disabled>
+                                    <i class="fas fa-plus"></i> Parça Ekle
+                                </button>
+                            </div>
+                            
+                            <div id="parcaKalanParcaHesapSonucu" class="calculation-result" style="display: none;">
+                                <!-- Hesaplama sonucu burada gösterilecek -->
+                            </div>
+                            
+                            <div id="parcaKalanParcaListesiContainer" style="display: none;">
+                                <h4>Oluşturulacak Parçalar</h4>
+                                <div class="info-text">
+                                    <span>Toplam: <span id="parcaToplamKullanilanAgirlik">0</span> kg</span>
+                                    <span>Kalan: <span id="parcaToplamKalanAgirlik">0</span> kg</span>
+                                </div>
+                                <div id="parcaKalanParcaListesi" class="parca-listesi">
+                                    <!-- Parçalar burada listelenecek -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-buttons">
+                <button id="parcaIslemKaydetBtn" class="btn-primary">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Müşteri Ekleme Modalı -->
+<div class="modal" id="yeniMusteriModal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Yeni Müşteri Ekle</h2>
+      <form id="yeniMusteriForm">
+        <div class="form-group">
+          <label for="musteriAdi">Müşteri Adı</label>
+          <input type="text" id="musteriAdi" required>
+        </div>
+  
+        <!-- Hata ve Başarı Mesajları -->
+        <div id="yeniMusteriModal-error" style="color: red; margin-top: 10px;"></div>
+        <div id="yeniMusteriModal-success" style="color: green; margin-top: 10px;"></div>
+  
+        <div class="form-buttons" style="margin-top: 15px;">
+          <button type="submit" class="btn-primary">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+
+
+
+
+<script>
+
+
+// Add this script to the end of your index.html file, before the closing </body> tag
+document.addEventListener('DOMContentLoaded', function() {
+    // Yeni proje formu submit event listener
+    const yeniProjeForm = document.getElementById('yeniProjeForm');
+    if (yeniProjeForm) {
+        yeniProjeForm.addEventListener('submit', saveYeniProje);
+    }
+
+    // Proje ekleme butonlarına click event listener
+    const yeniProjeEkleBtnler = [
+        document.getElementById('plakaYeniProjeEkleBtn'),
+        document.getElementById('yeniProjeEkleBtn'),
+        document.getElementById('sarfMalzemeYeniProjeEkleBtn'),
+        document.getElementById('yariMamulYeniProjeEkleBtn')
+    ];
+
+    yeniProjeEkleBtnler.forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', function() {
+                const sourceModalId = btn.closest('.modal')?.id || null;
+                openYeniProjeModal(sourceModalId);
+            });
+        }
+    });
+
+    // Sayfa yüklendiğinde proje listesini yükle
+    loadProjeler();
+});
+
+// Proje kaydetme fonksiyonu (zaten main.js içinde tanımlı)
+async function saveYeniProje(event) {
+    event.preventDefault();
+    
+    const projeAdi = document.getElementById('projeAdi').value.trim();
+    const errorArea = document.getElementById('yeniProjeModal-error');
+    const successArea = document.getElementById('yeniProjeModal-success');
+    
+    // Validasyon
+    if (!projeAdi) {
+        errorArea.textContent = 'Proje adı boş bırakılamaz.';
+        return;
+    }
+    
+    try {
+        // Projeyi kaydet
+        const result = await window.electronAPI.invoke.database.addProje({
+            adi: projeAdi,
+            ekleyen_id: currentUser ? currentUser.id : null
+        });
+        
+        if (result.success) {
+            // Başarılı ise
+            successArea.textContent = 'Proje başarıyla eklendi.';
+            
+            // Proje listesini güncelle
+            await loadProjeler();
+            
+            // Gerekli alanlara yeni projeyi seç
+            const projeSecimleri = [
+                document.getElementById('plakaProjeSecimi'),
+                document.getElementById('projeSecimi'),
+                document.getElementById('sarfMalzemeProjeSecimi'),
+                document.getElementById('yariMamulProjeSecimi')
+            ];
+            
+            projeSecimleri.forEach(select => {
+                if (select) {
+                    // Yeni eklenen projeyi seç
+                    select.value = result.proje.id;
+                }
+            });
+            
+            // Kısa bir süre sonra modalı kapat
+            setTimeout(() => {
+                closeModal('yeniProjeModal');
+            }, 1000);
+        } else {
+            // Başarısız ise
+            errorArea.textContent = result.message || 'Proje eklenirken bir hata oluştu.';
+        }
+    } catch (error) {
+        console.error('Proje ekleme hatası:', error);
+        errorArea.textContent = 'Proje eklenirken bir hata oluştu.';
+    }
+}
+
+// Yeni proje modalını açma fonksiyonu
+function openYeniProjeModal(sourceModal = null) {
+    // Modal içeriğini sıfırla
+    document.getElementById('projeAdi').value = '';
+    
+    // Hata ve başarı alanlarını temizle
+    const errorArea = document.getElementById('yeniProjeModal-error');
+    const successArea = document.getElementById('yeniProjeModal-success');
+    if (errorArea) errorArea.innerHTML = '';
+    if (successArea) successArea.innerHTML = '';
+    
+    // Modalı aç
+    openModal('yeniProjeModal');
+    
+    // Kaynak modalı kapatma
+    if (sourceModal) {
+        closeModal(sourceModal);
+    }
+}
+
+
+
+    // Yeni proje formu submit event listener
+    document.getElementById('yeniProjeForm').addEventListener('submit', saveYeniProje);
+
+    // Proje ekleme butonlarına click event listener
+    const yeniProjeEkleBtnler = [
+        document.getElementById('plakaYeniProjeEkleBtn'),
+        document.getElementById('yeniProjeEkleBtn'),
+        document.getElementById('sarfMalzemeYeniProjeEkleBtn'),
+        document.getElementById('yariMamulYeniProjeEkleBtn')
+    ];
+
+    yeniProjeEkleBtnler.forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', () => {
+                const sourceModalId = btn.closest('.modal')?.id || null;
+                openYeniProjeModal(sourceModalId);
+            });
+        }
+    });
+
+  
+</script>
+
+<script>
+    // Plaka Hesaplama
+    document.getElementById('hesaplaPlakaBtn').addEventListener('click', function() {
+        const en = parseFloat(document.getElementById('plakaEn').value);
+        const boy = parseFloat(document.getElementById('plakaBoy').value);
+        const kalinlik = currentHammadde.kalinlik; // Global değişkenden alınacak
+        const yogunluk = currentHammadde.yogunluk; // Global değişkenden alınacak
+        
+        if (!en || !boy || isNaN(en) || isNaN(boy)) {
+            document.getElementById('plakaHesapSonucu').innerHTML = 
+                '<div class="error">Lütfen geçerli en ve boy değerleri girin.</div>';
+            document.getElementById('plakaHesapSonucu').style.display = 'block';
+            return;
+        }
+        
+        // Hacim hesapla (m³)
+        const hacim = (en / 1000) * (boy / 1000) * (kalinlik / 1000);
+        
+        // Ağırlık hesapla (kg)
+        const agirlik = hacim * yogunluk;
+        
+        // Sonucu göster
+        document.getElementById('plakaHesapSonucu').innerHTML = `
+            <div class="calculation-details">
+                <div class="detail-row">
+                    <span>En x Boy:</span>
+                    <span>${en} mm x ${boy} mm</span>
+                </div>
+                <div class="detail-row">
+                    <span>Kalınlık:</span>
+                    <span>${kalinlik} mm</span>
+                </div>
+                <div class="detail-row">
+                    <span>Hesaplanan Ağırlık:</span>
+                    <span>${agirlik.toFixed(2)} kg</span>
+                </div>
+            </div>
+        `;
+        document.getElementById('plakaHesapSonucu').style.display = 'block';
+    });
+    
+    // Plaka Kaydet
+    document.getElementById('plakaKaydetBtn').addEventListener('click', savePlaka);
+    
+    async function savePlaka() {
+        try {
+            // Form değerlerini al
+            const en = parseFloat(document.getElementById('plakaEn').value);
+            const boy = parseFloat(document.getElementById('plakaBoy').value);
+            const barkod = document.getElementById('plakaBarkod').value.trim();
+            const tedarikci = document.getElementById('plakaTedarikci').value.trim();
+            const birimFiyat = parseFloat(document.getElementById('plakaBirimFiyat').value);
+            const birimFiyatTuru = document.getElementById('plakaBirimFiyatTuru').value;
+            
+            // Validasyon
+            if (!en || !boy || isNaN(en) || isNaN(boy)) {
+                showModalError('yeniPlakaModal', 'Lütfen geçerli en ve boy değerleri girin.');
+                return;
+            }
+            
+            if (!tedarikci) {
+                showModalError('yeniPlakaModal', 'Lütfen tedarikçi bilgisini girin.');
+                return;
+            }
+            
+            if (!birimFiyat || birimFiyat <= 0) {
+                showModalError('yeniPlakaModal', 'Lütfen geçerli bir birim fiyat girin.');
+                return;
+            }
+            
+            // Hacim ve ağırlık hesapla
+            const kalinlik = currentHammadde.kalinlik;
+            const yogunluk = currentHammadde.yogunluk;
+            const hacim = (en / 1000) * (boy / 1000) * (kalinlik / 1000);
+            const agirlik = hacim * yogunluk;
+            
+            // Plaka verisi
+            const plakaData = {
+                hammadde_id: currentHammaddeId,
+                en: en,
+                boy: boy,
+                kalinlik: kalinlik,
+                barkod: barkod || null,
+                tedarikci: tedarikci,
+                birim_fiyat: birimFiyat,
+                birim_fiyat_turu: birimFiyatTuru,
+                hesaplanan_agirlik: agirlik,
+                ekleyen_id: currentUser.id
+            };
+            
+            // İşlem kaydediliyor mesajını göster
+            showModalSuccess('yeniPlakaModal', 'Plaka kaydediliyor...');
+            
+            // Plakayı kaydet
+            const result = await window.electronAPI.invoke.database.addPlaka(plakaData);
+            
+            if (result.success) {
+                showToast('Plaka başarıyla eklendi.', 'success');
+                
+                // Modalı kapat
+                closeModal('yeniPlakaModal');
+                
+                // Dashboard'ı güncelle
+                await updateDashboard();
+                
+                // Hammadde listesini güncelle
+                await loadHammaddeListesi();
+                
+                // Hammadde detayını yeniden yükle
+                if (currentHammaddeId) {
+                    await viewHammaddeDetail(currentHammaddeId);
+                }
+            } else {
+                showModalError('yeniPlakaModal', 'Hata: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Plaka kaydetme hatası:', error);
+            showModalError('yeniPlakaModal', 'Plaka kaydedilirken bir hata oluştu: ' + error.message);
+        }
+    }
+    
+    // Yeni tedarikçi ekle butonu için event listener
+    document.getElementById('plakaYeniTedarikciEkleBtn').addEventListener('click', function() {
+        openNewTedarikciModal('yeniPlakaModal');
+    });
+    </script>
+
+<script>
+    // Kalan Parça Panelini Aç/Kapat
+    function toggleKalanParcaPanel() {
+        const kalanParcaSwitch = document.getElementById('kalanParcaSwitch');
+        const kalanParcaPanel = document.getElementById('kalanParcaPanel');
+        
+        if (kalanParcaSwitch.checked) {
+            kalanParcaPanel.style.display = 'block';
+        } else {
+            kalanParcaPanel.style.display = 'none';
+        }
+    }
+    
+    // Yarı Mamul Panelini Aç/Kapat
+    function toggleYariMamulPanel(prefix) {
+        const kullanimAlani = document.getElementById(prefix + 'KullanimAlani').value;
+        const yariMamulPanel = document.getElementById(prefix + 'YariMamulPanel');
+        const musteriPanel = document.getElementById(prefix + 'MusteriPanel');
+        
+        if (kullanimAlani === 'MakineImalat') {
+            yariMamulPanel.style.display = 'block';
+            if (musteriPanel) musteriPanel.style.display = 'none';
+        } else if (kullanimAlani === 'FasonImalat') {
+            yariMamulPanel.style.display = 'none';
+            if (musteriPanel) musteriPanel.style.display = 'block';
+        } else {
+            yariMamulPanel.style.display = 'none';
+            if (musteriPanel) musteriPanel.style.display = 'none';
+        }
+    }
+    
+    // Kalan Parça Hesaplama
+    document.getElementById('hesaplaKalanParcaBtn').addEventListener('click', function() {
+        const en = parseFloat(document.getElementById('kalanParcaEn').value);
+        const boy = parseFloat(document.getElementById('kalanParcaBoy').value);
+        const kalinlik = currentPlaka.kalinlik; // Global değişkenden alınacak
+        const yogunluk = currentPlaka.yogunluk; // Global değişkenden alınacak
+        
+        if (!en || !boy || isNaN(en) || isNaN(boy)) {
+            document.getElementById('kalanParcaHesapSonucu').innerHTML = 
+                '<div class="error">Lütfen geçerli en ve boy değerleri girin.</div>';
+            document.getElementById('kalanParcaHesapSonucu').style.display = 'block';
+            return;
+        }
+        
+        // Hacim hesapla (m³)
+        const hacim = (en / 1000) * (boy / 1000) * (kalinlik / 1000);
+        
+        // Ağırlık hesapla (kg)
+        const agirlik = hacim * yogunluk;
+        
+        // Sonucu göster
+        document.getElementById('kalanParcaHesapSonucu').innerHTML = `
+            <div class="calculation-details">
+                <div class="detail-row">
+                    <span>En x Boy:</span>
+                    <span>${en} mm x ${boy} mm</span>
+                </div>
+                <div class="detail-row">
+                    <span>Kalınlık:</span>
+                    <span>${kalinlik} mm</span>
+                </div>
+                <div class="detail-row">
+                    <span>Hesaplanan Ağırlık:</span>
+                    <span>${agirlik.toFixed(2)} kg</span>
+                </div>
+            </div>
+        `;
+        document.getElementById('kalanParcaHesapSonucu').style.display = 'block';
+    });
+    
+    // Plaka İşlemi Kaydet
+    document.getElementById('plakaIslemKaydetBtn').addEventListener('click', savePlakaIslem);
+    
+    async function savePlakaIslem() {
+        try {
+            // Form değerlerini al
+            const kullanilanMiktar = parseFloat(document.getElementById('plakaKullanilanMiktar').value);
+            const hurdaMiktar = parseFloat(document.getElementById('plakaHurdaMiktar').value) || 0;
+            const islemTuru = document.getElementById('plakaIslemTuru').value;
+            const kullanimAlani = document.getElementById('plakaKullanimAlani').value;
+            const projeId = document.getElementById('plakaProjeSecimi').value;
+            const musteriId = document.getElementById('plakaMusteriSecimi')?.value;
+            
+            // Validasyon
+            if (!kullanilanMiktar || kullanilanMiktar <= 0) {
+                showModalError('plakaIslemModal', 'Lütfen geçerli bir kullanılan miktar girin.');
+                return;
+            }
+            
+            if (!projeId) {
+                showModalError('plakaIslemModal', 'Lütfen bir proje seçin veya yeni bir proje oluşturun.');
+                return;
+            }
+            
+            // Kalan parça bilgileri
+            let kalanParcaData = null;
+            if (document.getElementById('kalanParcaSwitch').checked) {
+                const en = parseFloat(document.getElementById('kalanParcaEn').value);
+                const boy = parseFloat(document.getElementById('kalanParcaBoy').value);
+                
+                if (!en || !boy || isNaN(en) || isNaN(boy)) {
+                    showModalError('plakaIslemModal', 'Lütfen kalan parça için geçerli en ve boy değerleri girin.');
+                    return;
+                }
+                
+                // Hacim ve ağırlık hesapla
+                const kalinlik = currentPlaka.kalinlik;
+                const yogunluk = currentPlaka.yogunluk;
+                const hacim = (en / 1000) * (boy / 1000) * (kalinlik / 1000);
+                const agirlik = hacim * yogunluk;
+                
+                kalanParcaData = {
+                    en: en,
+                    boy: boy,
+                    kalinlik: kalinlik,
+                    hesaplanan_agirlik: agirlik,
+                    hammadde_id: currentPlaka.hammadde_id,
+                    plaka_id: currentPlaka.id
+                };
+            }
+            
+            // Yarı mamul bilgileri
+            let yariMamulData = null;
+            if (kullanimAlani === 'MakineImalat') {
+                const yariMamulAdi = document.getElementById('plakaYariMamulAdi').value?.trim();
+                const yariMamulBirim = document.getElementById('plakaYariMamulBirim').value;
+                const yariMamulMiktar = parseFloat(document.getElementById('plakaYariMamulMiktar').value);
+                
+                if (!yariMamulAdi) {
+                    showModalError('plakaIslemModal', 'Lütfen yarı mamul adı girin.');
+                    return;
+                }
+                
+                if (!yariMamulMiktar || yariMamulMiktar <= 0) {
+                    showModalError('plakaIslemModal', 'Lütfen geçerli bir yarı mamul miktarı girin.');
+                    return;
+                }
+                
+                yariMamulData = {
+                    adi: yariMamulAdi,
+                    birim: yariMamulBirim,
+                    miktar: yariMamulMiktar
+                };
+            }
+            
+            // İşlem verisi
+            const islemData = {
+                plaka_id: currentPlaka.id,
+                islem_turu: islemTuru,
+                kullanim_alani: kullanimAlani,
+                kullanilanMiktar: kullanilanMiktar,
+                hurdaMiktar: hurdaMiktar,
+                proje_id: projeId,
+                musteri_id: musteriId,
+                kullanici_id: currentUser.id,
+                kalan_parca: kalanParcaData,
+                yari_mamul: yariMamulData
+            };
+            
+            // İşlem kaydediliyor mesajını göster
+            showModalSuccess('plakaIslemModal', 'İşlem kaydediliyor...');
+            
+            // İşlemi kaydet
+            const result = await window.electronAPI.invoke.database.addPlakaIslem(islemData);
+            
+            if (result.success) {
+                showToast('Plaka işlemi başarıyla kaydedildi.', 'success');
+                
+                // Modalı kapat
+                closeModal('plakaIslemModal');
+                
+                // Dashboard'ı güncelle
+                await updateDashboard();
+                
+                // Hammadde listesini güncelle
+                await loadHammaddeListesi();
+                
+                // Kullanım alanına göre ilgili sayfayı güncelle
+                if (kullanimAlani === 'FasonImalat') {
+                    await loadFasonIslemler();
+                } else if (kullanimAlani === 'MakineImalat') {
+                    await loadMakineIslemler();
+                    // Yarı mamul listesini de güncelle
+                    await loadYariMamulListesi();
+                }
+                
+                // Hammadde detayını yeniden yükle
+                if (currentHammaddeId) {
+                    await viewHammaddeDetail(currentHammaddeId);
+                }
+            } else {
+                showModalError('plakaIslemModal', 'Hata: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Plaka işlemi kaydetme hatası:', error);
+            showModalError('plakaIslemModal', 'İşlem kaydedilirken bir hata oluştu: ' + error.message);
+        }
+    }
+    </script>
+
+<script>
+    // Tab sistemi için event listener'lar
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tab butonlarına click event'i ekle
+        const tabButtons = document.querySelectorAll('.tab-button');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Aktif tab butonunu değiştir
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                // İlgili tab içeriğini göster
+                const tabId = this.getAttribute('data-tab');
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // İlk tab'ı aktif et
+        if (tabButtons.length > 0) {
+            // Hammadde türüne göre başlangıç tab'ı değişecek
+            // Sac için plakalar tab'ı, diğerleri için parçalar tab'ı
+            const hammaddeTuru = currentHammadde?.hammadde_turu || 'sac';
+            
+            if (hammaddeTuru === 'sac') {
+                const plakalarTab = document.querySelector('.tab-button[data-tab="plakalar-tab"]');
+                if (plakalarTab) {
+                    plakalarTab.click();
+                }
+            } else {
+                const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
+                if (parcalarTab) {
+                    parcalarTab.click();
+                }
+            }
+        }
+        
+        // Yeni Plaka Ekle butonuna click event'i ekle
+        const yeniPlakaEkleBtn = document.getElementById('yeniPlakaEkleBtn');
+        if (yeniPlakaEkleBtn) {
+            yeniPlakaEkleBtn.addEventListener('click', openYeniPlakaModal);
+        }
+    });
+    
+    // Hammadde tipine göre UI elementlerini göster/gizle
+    function updateHammaddeDetailUI(hammaddeTuru) {
+        const plakalarTab = document.querySelector('.tab-button[data-tab="plakalar-tab"]');
+        const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
+        
+        if (hammaddeTuru === 'sac') {
+            // Sac için plakalar tabını göster, parçalar tabını gizle
+            if (plakalarTab) plakalarTab.style.display = 'block';
+            if (parcalarTab) parcalarTab.style.display = 'block';
+        } else {
+            // Boru ve mil için plakalar tabını gizle, parçalar tabını göster
+            if (plakalarTab) plakalarTab.style.display = 'none';
+            if (parcalarTab) parcalarTab.style.display = 'block';
+            
+            // Direkt olarak parçalar tabına git
+            if (parcalarTab) parcalarTab.click();
+        }
+    }
+    </script>
+
+
+
+<style>
+    /* Proje seçim alanları için özel stil */
+    #plakaProjeSecimi option, 
+    #parcaProjeSecimi option,
+    #projeSecimi option,
+    #sarfMalzemeProjeSecimi option,
+    #yariMamulProjeSecimi option
+     {
+      color: #333 !important;
+      background-color: #fff !important;
+      padding: 4px 8px;
+    }
+    
+    /* Select elementleri */
+    select {
+      color: #333 !important;
+      background-color: #fff;
+    }
+    
+    /* Select elementi içindeki options */
+    select option {
+      color: #333 !important;
+      background-color: #fff !important;
+    }
+  </style>
+  
+  <!-- Proje select elementleri için JavaScript düzeltmesi -->
+  <script>
+    // Proje seçim elementlerinin stilini düzeltmek için yardımcı fonksiyon
+    function fixSelectElementStyles() {
+      // Tüm select elementlerini bul
+      const projectSelectors = [
+        'plakaProjeSecimi',
+        'parcaProjeSecimi',
+        'projeSecimi',
+        'sarfMalzemeProjeSecimi',
+        'yariMamulProjeSecimi'
+      ];
+      
+      // Her bir select elementine stili uygula
+      projectSelectors.forEach(id => {
+        const select = document.getElementById(id);
+        if (select) {
+          // Select elementinin stilini düzelt
+          select.style.color = '#333';
+          select.style.backgroundColor = '#fff';
+          
+          // Option elementlerinin stilini düzelt
+          Array.from(select.options).forEach(option => {
+            option.style.color = '#333';
+            option.style.backgroundColor = '#fff';
+          });
+          
+          // Event listener ekleyerek, select açıldığında option stillerini düzelt
+          select.addEventListener('focus', function() {
+            setTimeout(() => {
+              Array.from(this.options).forEach(option => {
+                option.style.color = '#333';
+                option.style.backgroundColor = '#fff';
+              });
+            }, 10);
+          });
+          
+          // Bir option seçildiğinde stilini düzelt
+          select.addEventListener('change', function() {
+            Array.from(this.options).forEach(option => {
+              if (option.selected) {
+                option.style.color = '#333';
+                option.style.backgroundColor = '#f0f0f0';
+              } else {
+                option.style.color = '#333';
+                option.style.backgroundColor = '#fff';
+              }
+            });
+          });
+        }
+      });
+    }
+    
+    // Sayfa yüklendiğinde stil düzeltmelerini uygula
+    document.addEventListener('DOMContentLoaded', function() {
+      // Sayfa yüklendikten hemen sonra
+      fixSelectElementStyles();
+      
+      // Sayfa tam yüklendikten sonra, bileşenler yerleştikten sonra tekrar uygula
+      setTimeout(fixSelectElementStyles, 500);
+      
+      // Modallar açıldığında da uygula
+      const modals = document.querySelectorAll('.modal');
+      modals.forEach(modal => {
+        const observer = new MutationObserver(mutations => {
+          mutations.forEach(mutation => {
+            if (mutation.attributeName === 'style' && 
+                modal.style.display === 'block') {
+              setTimeout(fixSelectElementStyles, 100);
+            }
+          });
+        });
+        
+        observer.observe(modal, { attributes: true });
+      });
+      
+      // loadProjeler fonksiyonu varsa, çağrıldıktan sonra stil düzeltmelerini uygula
+      const originalLoadProjeler = window.loadProjeler;
+      if (typeof originalLoadProjeler === 'function') {
+        window.loadProjeler = async function() {
+          const result = await originalLoadProjeler.apply(this, arguments);
+          setTimeout(fixSelectElementStyles, 100);
+          return result;
+        };
+      }
+    });
+    
+    // Projeleri modala yüklemek için ana fonksiyonu doğrudan buraya ekleyelim
+    if (!window.loadProjelerForModal) {
+      window.loadProjelerForModal = async function(selectId) {
+        try {
+          // Projeleri veritabanından al
+          const result = await window.electronAPI.invoke.database.getAllProjeler();
+          
+          // Belirtilen select elementini bul
+          const selectElement = document.getElementById(selectId);
+          if (!selectElement) return;
+          
+          // Mevcut içeriği temizle
+          selectElement.innerHTML = '<option value="">-- Proje Seçin --</option>';
+          
+          // Projeleri ekle
+          if (result.success && result.projeler && result.projeler.length > 0) {
+            result.projeler.forEach(proje => {
+              const option = document.createElement('option');
+              option.value = proje.id;
+              option.textContent = proje.proje_adi || proje.adi;
+              option.style.color = '#333';
+              option.style.backgroundColor = '#fff';
+              selectElement.appendChild(option);
+            });
+          }
+          
+          // Select elementinin kendisine stil ekle
+          selectElement.style.color = '#333';
+          selectElement.style.backgroundColor = '#fff';
+          
+          // Tüm option elementlerine stili bir kez daha uygula
+          setTimeout(() => {
+            Array.from(selectElement.options).forEach(option => {
+              option.style.color = '#333';
+              option.style.backgroundColor = '#fff';
+            });
+          }, 50);
+          
+          return result;
+        } catch (error) {
+          console.error('Proje listesi yükleme hatası (Modal):', error);
+          return { success: false, message: 'Proje listesi alınamadı.', projeler: [] };
+        }
+      };
+    }
+    
+    // Modal açma fonksiyonlarına projeleri yükleme eklentisi
+    const modalActions = [
+      { modalFunc: 'openPlakaIslemModal', selectId: 'plakaProjeSecimi' },
+      { modalFunc: 'openParcaIslemModal', selectId: 'parcaProjeSecimi' }
+    ];
+    
+    modalActions.forEach(item => {
+      const originalFunction = window[item.modalFunc];
+      if (typeof originalFunction === 'function') {
+        window[item.modalFunc] = async function() {
+          // Orijinal fonksiyonu çağır
+          const result = originalFunction.apply(this, arguments);
+          
+          // Modal açıldıktan sonra projeleri yükle
+          setTimeout(async () => {
+            await window.loadProjelerForModal(item.selectId);
+            
+            // Stil düzeltmelerini uygula
+            fixSelectElementStyles();
+          }, 300);
+          
+          return result;
+        };
+      }
+    });
+  </script>
+  <script>
+    // Mükerrer form gönderimlerini engelleme script'i
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Form düzeltme script yüklendi');
+      
+      // Formu tamamen değiştir
+      const form = document.getElementById('yeniProjeForm');
+      if (form) {
+        // Formun kopyasını oluşturun ve tüm eski event listener'ları temizleyin
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+        
+        // Yeni form referansı
+        const currentForm = document.getElementById('yeniProjeForm');
+        
+        // Forma tek bir submit event listener ekleyin
+        currentForm.addEventListener('submit', function(event) {
+          event.preventDefault();
+          event.stopPropagation();
+          
+          console.log('Proje formu submit edildi');
+          
+          // Form verilerini çıkarın
+          const projeAdi = document.getElementById('projeAdi').value.trim();
+          
+          // Validasyon
+          if (!projeAdi) {
+            const errorArea = document.getElementById('yeniProjeModal-error');
+            if (errorArea) errorArea.textContent = 'Proje adı boş bırakılamaz.';
+            return;
+          }
+          
+          // Submit butonu durumunu güncelle
+          const submitBtn = currentForm.querySelector('button[type="submit"]');
+          if (submitBtn) {
+            // Butonun daha önce disable edilip edilmediğini kontrol et
+            if (submitBtn.disabled) {
+              console.log('Buton zaten disabled durumda, işlem engellendi');
+              return; // Daha önce tıklanmışsa çık
+            }
+            
+            // Butonu disable et
+            submitBtn.disabled = true;
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = 'İşleniyor...';
+            
+            // İşlemi yap
+            console.log('Proje ekleniyor:', projeAdi);
+            
+            // Electron API çağrısı
+            const ekleyenId = window.currentUser && window.currentUser.id ? 
+              parseInt(window.currentUser.id) : null;
+            
+            window.electronAPI.invoke.database.addProje({
+              adi: projeAdi,
+              proje_adi: projeAdi,
+              ekleyen_id: ekleyenId
+            })
+            .then(result => {
+              console.log('API yanıtı:', result);
+              
+              if (result.success) {
+                // Başarılı işlem
+                const successArea = document.getElementById('yeniProjeModal-success');
+                if (successArea) successArea.textContent = 'Proje başarıyla eklendi.';
+                
+                // Proje listesini güncelle
+                if (typeof window.loadProjeler === 'function') {
+                  window.loadProjeler().then(() => {
+                    console.log('Proje listesi güncellendi');
+                    
+                    // Proje seçimlerini güncelle
+                    const projeSecimleri = [
+                      'plakaProjeSecimi',
+                      'projeSecimi',
+                      'parcaProjeSecimi',
+                      'sarfMalzemeProjeSecimi',
+                      'yariMamulProjeSecimi'
+                    ];
+                    
+                    projeSecimleri.forEach(id => {
+                      const select = document.getElementById(id);
+                      if (select) select.value = result.proje.id;
+                    });
+                    
+                    // Modal kapatma
+                    setTimeout(() => {
+                      // Modal fonksiyonu kontrolü
+                      if (typeof closeModal === 'function') {
+                        closeModal('yeniProjeModal');
+                      } else {
+                        const modal = document.getElementById('yeniProjeModal');
+                        if (modal) modal.style.display = 'none';
+                      }
+                      
+                      // Butonu yeniden aktifleştir
+                      submitBtn.disabled = false;
+                      submitBtn.innerHTML = originalText;
+                    }, 1000);
+                  });
+                } else {
+                  // loadProjeler fonksiyonu yoksa
+                  setTimeout(() => {
+                    // Modal fonksiyonu kontrolü
+                    if (typeof closeModal === 'function') {
+                      closeModal('yeniProjeModal');
+                    } else {
+                      const modal = document.getElementById('yeniProjeModal');
+                      if (modal) modal.style.display = 'none';
+                    }
+                    
+                    // Butonu yeniden aktifleştir
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                  }, 1000);
+                }
+              } else {
+                // Hata durumu
+                const errorArea = document.getElementById('yeniProjeModal-error');
+                if (errorArea) errorArea.textContent = result.message || 'Proje eklenirken bir hata oluştu.';
+                
+                // Butonu yeniden aktifleştir
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+              }
+            })
+            .catch(error => {
+              console.error('API hatası:', error);
+              
+              // Hata mesajı göster
+              const errorArea = document.getElementById('yeniProjeModal-error');
+              if (errorArea) {
+                errorArea.textContent = 'Proje eklenirken bir hata oluştu: ' + 
+                  (error.message || 'Bilinmeyen hata');
+              }
+              
+              // Butonu yeniden aktifleştir
+              submitBtn.disabled = false;
+              submitBtn.innerHTML = originalText;
+            });
+          } else {
+            console.warn('Submit butonu bulunamadı');
+          }
+        });
+        
+        console.log('Form listener yeniden eklendi');
+      } else {
+        console.warn('yeniProjeForm formu bulunamadı');
+      }
+    });
+    </script>
+
+
+<script src="../modules/globals.js"></script>
+
+
+<script src="../modules/utils/tab-events.js"></script>
+
+<script src="../modules/utils/loadProjeler.js"></script>
+
+<script src="../modules/dashboard/domEvents.js"></script>
+
+<script src="../modules/inventory-types/raw-metarials/ui-controllers.js"></script>
+
+<script src="../modules/utils/loadMusteriler.js"></script>
+<script src="../modules/bulk-operations/bulk-operations.js"></script>
+
+<script src="../modules/utils/open-modals.js"></script>
+
+<script src="../modules/employees/employees.js"></script>
+
+
+<script src="../modules/utils/saveFunctions.js"></script>
+<script src="../modules/utils/resetFunctions.js"></script>
+<script src="../modules/inventory-types/raw-metarials/plates.js"></script>
+<script src="../modules/inventory-types/raw-metarials/hammaddeFunctions.js"></script>
+<script src="../modules/inventory-types/raw-metarials/plate-pieces.js"></script>
+<script src="../modules/dashboard/dashboard-events.js"></script>
+<script src="../modules/transactions/fasonMakineIslemler.js"></script>
+<script src="../modules/inventory-types/sarf-malzemeler.js"></script>
+<script src="../modules/inventory-types/yariMamulFunctions.js"></script>
+<script src="../modules/utils/toggles.js"></script>
+<script src="../modules/suppliers/tedarikciler.js"></script>
+<script src="../modules/messages/messages.js"></script>
+<script src="../modules/messages/deleteMessage.js"></script>
+
+<script src="../modules/main.js"></script>
+<script src="../modules/inventory-types/raw-metarials/plakaSearch.js"></script>
+<script src="../modules/inventory-types/raw-metarials/processRawMaterial.js"></script>
+
+<script src="../modules/global-user-data.js"></script>
+<script src="../modules/deleteModal/deleteConfirmationModal.js"></script>
+<script src="../modules/utils/pdf-print-code.js"></script>
+</body>
+</html>

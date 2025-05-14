@@ -1,0 +1,37 @@
+{
+  "name": "karatasstokapp",
+  "version": "1.0.0",
+  "description": "Lazer Kesim ve Makine İmalat Fabrikası Stok Takip Uygulaması",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder"
+  },
+  "author": "Karataş Makine",
+  "license": "ISC",
+  "dependencies": {
+    "@electron/remote": "^2.1.2",
+    "bcryptjs": "^3.0.2",
+    "electron-store": "^10.0.1",
+    "mysql2": "^3.12.0",
+    "nodemailer": "^6.10.0",
+    "notiflix": "^3.2.8"
+  },
+  "devDependencies": {
+    "electron": "^26.3.0",
+    "electron-builder": "^25.1.8",
+    "electron-packager": "^17.1.2"
+  },
+  "build": {
+    "appId": "com.karatas.stok",
+    "productName": "Karataş Stok",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "src/assets/icons/icon.ico"
+    }
+  }
+}

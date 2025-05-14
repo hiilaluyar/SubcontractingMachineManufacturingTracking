@@ -1,0 +1,16 @@
+window.currentUser = null;
+window.parcaSayisi = 0;
+window.currentPartsData = null;
+window.currentHammaddeId = null;
+window.currentParcaId = null;
+window.currentProjeId = null;
+window.currentYariMamulId = null;
+window.currentTedarikciId = null;
+window.currentHammadde = null;
+window.currentPlakaId = null;
+window.currentPlaka = null;
+window.kalanParcalar = []; // Plaka için kalan parçalar listesi
+window.parcaKalanParcalar = []; // Parça için kalan parçalar listesi
+window.selectedPlakas = []; // Seçilen plakalar 
+window.currentBulkPlakas = null; //Toplu işlem için yardımcı
+window.currentModalId = null;

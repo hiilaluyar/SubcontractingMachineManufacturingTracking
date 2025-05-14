@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karataş Stok - Giriş</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../assets/styles/login.css">
+ 
+</head>
+<body>
+    <div class="container">
+        <div class="form-container" id="login-form">
+            <div class="logo">
+                <div class="logo-container">
+                    <img src="../../logo/karatas-makine-logo.png" alt="Karataş Makine Logo">
+                </div>
+                <h1>Karataş Stok</h1>
+                <p>Lazer Kesim ve Makine İmalat Fabrikası Stok Takip Uygulaması</p>
+            </div>
+            
+            <h2>Giriş Yap</h2>
+            
+            <div class="alert error" id="login-error" style="display: none;"></div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username"><i class="fas fa-user"></i> Kullanıcı Adı</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password"><i class="fas fa-lock"></i> Şifre</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <button type="submit" class="btn-primary">Giriş Yap</button>
+            </form>
+            
+            <p class="form-switch">Hesabınız yok mu? <a href="#" id="showRegister">Kayıt Ol</a></p>
+        </div>
+        
+        <div class="form-container" id="register-form" style="display: none;">
+            <div class="logo">
+                <div class="logo-container">
+                    <img src="../../logo/karatas-makine-logo.png" alt="Karataş Makine Logo">
+                </div>
+                <h1>Karataş Stok</h1>
+                <p>Lazer Kesim ve Makine İmalat Fabrikası Stok Takip Uygulaması</p>
+            </div>
+            
+            <h2>Kayıt Ol</h2>
+            
+            <div class="alert error" id="register-error" style="display: none;"></div>
+            <div class="alert success" id="register-success" style="display: none;"></div>
+            
+            <form id="registerForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="registerAd"><i class="fas fa-user"></i> Ad</label>
+                        <input type="text" id="registerAd" name="ad" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="registerSoyad"><i class="fas fa-user"></i> Soyad</label>
+                        <input type="text" id="registerSoyad" name="soyad" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="registerUsername"><i class="fas fa-user-tag"></i> Kullanıcı Adı</label>
+                    <input type="text" id="registerUsername" name="kullanici_adi" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="registerPassword"><i class="fas fa-lock"></i> Şifre</label>
+                        <input type="password" id="registerPassword" name="sifre" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="registerPasswordConfirm"><i class="fas fa-lock"></i> Şifre Tekrar</label>
+                        <input type="password" id="registerPasswordConfirm" name="sifreTekrar" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="registerRole"><i class="fas fa-user-shield"></i> Rol</label>
+                    <select id="registerRole" name="rol">
+                        <option value="kullanici">Kullanıcı</option>
+                        <option value="yonetici">Yönetici</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-primary">Kayıt Ol</button>
+            </form>
+            
+            <p class="form-switch">Zaten hesabınız var mı? <a href="#" id="showLogin">Giriş Yap</a></p>
+        </div>
+        
+        <div class="form-container" id="verification-form" style="display: none;">
+            <div class="logo">
+                <div class="logo-container">
+                    <img src="../../logo/karatas-makine-logo.png" alt="Karataş Makine Logo">
+                </div>
+                <h1>Karataş Stok</h1>
+                <p>Yönetici Hesabı Doğrulama</p>
+            </div>
+            
+            <div class="alert info" id="verification-info" style="display: none;"></div>
+            <div class="alert error" id="verification-error" style="display: none;"></div>
+            <div class="alert success" id="verification-success" style="display: none;"></div>
+            
+            <form id="verificationForm">
+                <div class="form-group">
+                    <label for="verificationCode"><i class="fas fa-key"></i> Doğrulama Kodu</label>
+                    <input type="text" id="verificationCode" name="code" placeholder="6 haneli kodu giriniz" maxlength="6" required>
+                </div>
+                
+                <button type="submit" class="btn-primary">Doğrula</button>
+            </form>
+            
+            <p class="form-switch">Geri dön <a href="#" id="backToRegister">Kayıt Ekranı</a></p>
+        </div>
+    </div>
+    
+
+  <script src="../modules/auth/login.js"></script>
+</body>
+</html>
