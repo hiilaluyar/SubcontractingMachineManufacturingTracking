@@ -2858,6 +2858,7 @@ async function getYariMamulIslemById(islemId) {
   }
 }
 
+
 async function updateYariMamulIslem(islemId, islemData) {
   const connection = await pool.getConnection();
   
@@ -2911,12 +2912,12 @@ async function updateYariMamulIslem(islemId, islemData) {
       const islemMiktar = parseFloat(islemInfo.miktar);
       
       // Geri yükleme miktarını doğrula
-     if (geriYukleMiktar > islemMiktar) {
-  return { 
-    success: false, 
-    message: `Geri yükleme miktarı (${geriYukleMiktar}) işlem miktarından (${islemMiktar}) büyük olamaz.` 
-  };
-}
+      if (geriYukleMiktar > islemMiktar) {
+        return { 
+          success: false, 
+          message: `Geri yükleme miktarı (${geriYukleMiktar}) işlem miktarından (${islemMiktar}) büyük olamaz.` 
+        };
+      }
       
       // Yarı mamul kalan miktarını güncelle
       const yeniKalanMiktar = parseFloat(yariMamul.kalan_miktar) + geriYukleMiktar;
@@ -2928,7 +2929,7 @@ async function updateYariMamulIslem(islemId, islemData) {
         [yeniKalanMiktar, islemInfo.yari_mamul_id]
       );
       
-      // İade işlemini kaydet
+      // İade işlemini kaydet - tablo yapısına göre düzeltildi
       await connection.execute(
         `INSERT INTO yari_mamul_islemleri (
           yari_mamul_id, islem_turu, kullanim_alani, miktar, kullanici_id
@@ -2938,8 +2939,7 @@ async function updateYariMamulIslem(islemId, islemData) {
           'İade',
           'StokGeriYukleme',
           geriYukleMiktar,
-          islemInfo.kullanici_id || 1,
-          `İşlem #${islemId} den stoğa geri dönen miktar`
+          islemInfo.kullanici_id || 1
         ]
       );
     }
@@ -2959,7 +2959,6 @@ async function updateYariMamulIslem(islemId, islemData) {
     connection.release();
   }
 }
-
 
 
 async function getAllTedarikci() {
