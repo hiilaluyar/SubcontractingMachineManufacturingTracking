@@ -232,124 +232,125 @@ async function updateYariMamulIslem() {
 // İstek durumunu takip etmek için global flag
 let isStockReturnProcessing = false;
 
-// updateIslem fonksiyonunu düzenleyelim (main dosyası)
 async function updateIslem() {
-  // İşlem devam ediyorsa, tekrar çağrılmasını engelle
-  if (isStockReturnProcessing) {
-    console.log('İşlem devam ediyor, lütfen bekleyin...');
-    return;
-  }
-  
-  try {
-    // İşlem başladı, flag'i true yap
-    isStockReturnProcessing = true;
-    
-    const islemId = document.getElementById('duzenleIslemId').value;
-    const islemTuru = document.getElementById('duzenleIslemTuru').value;
-    const kullanimAlani = document.getElementById('duzenleKullanimAlani').value;
-    
-    // ÖNEMLI: Bu iki seçenek aynı anda aktif olamaz
-    const isStogaGeriYukle = document.getElementById('duzenleStogaGeriYukleSecimi').checked;
-    const isIskartaUrun = !isStogaGeriYukle && document.getElementById('duzenleIskartaUrunSecimi').checked;
-    
-    const geriYukleMiktar = document.getElementById('duzenleGeriYukleMiktar').value;
-    const projeId = document.getElementById('duzenleProjeSecimi').value;
-    
-    // Geri yükleme seçiliyse miktar kontrolü yap
-    if (isStogaGeriYukle) {
-      if (!geriYukleMiktar || parseFloat(geriYukleMiktar) <= 0) {
-        showToast('Lütfen geçerli bir geri yükleme miktarı girin.', 'error');
-        isStockReturnProcessing = false; // Flag'i sıfırla
+    // İşlem devam ediyorsa, tekrar çağrılmasını engelle
+    if (isStockReturnProcessing) {
+        console.log('İşlem devam ediyor, lütfen bekleyin...');
         return;
-      }
     }
     
-    // API kontrolü
-    if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
-      console.error('Database invoke metodu bulunamadı');
-      showToast('İşlem kaydedilemedi. API erişimi yok.', 'error');
-      isStockReturnProcessing = false; // Flag'i sıfırla
-      return;
-    }
+    try {
+        // İşlem başladı, flag'i true yap
+        isStockReturnProcessing = true;
+        
+        const islemId = document.getElementById('duzenleIslemId').value;
+        const islemTuru = document.getElementById('duzenleIslemTuru').value;
+        const kullanimAlani = document.getElementById('duzenleKullanimAlani').value;
+        
+        // ÖNEMLI: Bu iki seçenek aynı anda aktif olamaz
+        const isStogaGeriYukle = document.getElementById('duzenleStogaGeriYukleSecimi').checked;
+        const isIskartaUrun = !isStogaGeriYukle && document.getElementById('duzenleIskartaUrunSecimi').checked;
+        
+        const geriYukleMiktar = document.getElementById('duzenleGeriYukleMiktar').value;
+        const projeId = document.getElementById('duzenleProjeSecimi').value;
+        
+        // Geri yükleme seçiliyse miktar kontrolü yap
+        if (isStogaGeriYukle) {
+            if (!geriYukleMiktar || parseFloat(geriYukleMiktar) <= 0) {
+                showToast('Lütfen geçerli bir geri yükleme miktarı girin.', 'error');
+                isStockReturnProcessing = false; // Flag'i sıfırla
+                return;
+            }
+        }
+        
+        // API kontrolü
+        if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+            console.error('Database invoke metodu bulunamadı');
+            showToast('İşlem kaydedilemedi. API erişimi yok.', 'error');
+            isStockReturnProcessing = false; // Flag'i sıfırla
+            return;
+        }
 
-    let result;
-    
-    // Operation type for tracking
-    let operationType = '';
-    if (isIskartaUrun) {
-      operationType = 'IskartaUrun';
-    } else if (isStogaGeriYukle) {
-      operationType = 'StogaGeriYukle';
-    } else {
-      operationType = 'Normal';
+        let result;
+        
+        // Operation type for tracking
+        let operationType = '';
+        if (isIskartaUrun) {
+            operationType = 'IskartaUrun';
+        } else if (isStogaGeriYukle) {
+            operationType = 'StogaGeriYukle';
+        } else {
+            operationType = 'Normal';
+        }
+        
+        // İşlem verisi hazırla - stoga_geri_yukle ve geri_yukle_miktar alanları eklendi
+        const islemData = {
+            islem_turu: islemTuru,
+            kullanim_alani: kullanimAlani,
+            proje_id: projeId || null,
+            iskarta_urun: isIskartaUrun,
+            stoga_geri_yukle: isStogaGeriYukle,
+            geri_yukle_miktar: isStogaGeriYukle ? parseFloat(geriYukleMiktar) : 0,
+            orijinal_proje_id: projeId || null // Orijinal proje bilgisi eklendi
+        };
+        
+        console.log('Gönderilen işlem verisi:', islemData);
+        
+        // Modalı önceden kapat - çoklu mesaj sorununun önüne geçmek için
+        closeModal('islemDuzenleModal');
+        
+        // İşlem türüne göre doğru API çağrısını yap
+        if (window.currentIslemType === 'hammadde') {
+            result = await window.electronAPI.invoke.database.updateIslem(islemId, islemData);
+            
+            if (result.success) {
+                markItemAsEdited('hammadde', islemId, operationType);
+            }
+        } else if (window.currentIslemType === 'sarf_malzeme') {
+            result = await window.electronAPI.invoke.database.updateSarfMalzemeIslem(islemId, islemData);
+            
+            if (result.success) {
+                markItemAsEdited('sarf_malzeme', islemId, operationType);
+            }
+        } else if (window.currentIslemType === 'yari_mamul') {
+            result = await window.electronAPI.invoke.database.updateYariMamulIslem(islemId, islemData);
+            
+            if (result.success) {
+                markItemAsEdited('yari_mamul', islemId, operationType);
+            }
+        } else {
+            throw new Error('Geçersiz işlem türü: ' + window.currentIslemType);
+        }
+        
+        if (result.success) {
+            // İşlem türüne göre mesaj belirle
+            let message = 'İşlem başarıyla güncellendi.';
+            
+            if (isIskartaUrun) {
+                message = 'Ürün başarıyla ıskarta listesine gönderildi.';
+            } else if (isStogaGeriYukle) {
+                message = `${geriYukleMiktar} birim ürün başarıyla orjinal stoğa geri yüklendi.`;
+            }
+            
+            // Sadece bir bildirim göster (toast veya notify, ikisi birden değil)
+            showToast(message, 'success');
+            
+            // Listeleri güncelle
+            loadFasonIslemler();
+            loadMakineIslemler();
+            loadIskartaUrunler();
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (error) {
+        console.error('İşlem güncelleme hatası:', error);
+        showToast('İşlem güncellenirken bir hata oluştu: ' + error.message, 'error');
+    } finally {
+        // İşlem bitti, flag'i sıfırla
+        isStockReturnProcessing = false;
     }
-    
-    // İşlem verisi hazırla - stoga_geri_yukle ve geri_yukle_miktar alanları eklendi
-    const islemData = {
-      islem_turu: islemTuru,
-      kullanim_alani: kullanimAlani,
-      proje_id: projeId || null,
-      iskarta_urun: isIskartaUrun,
-      stoga_geri_yukle: isStogaGeriYukle,
-      geri_yukle_miktar: isStogaGeriYukle ? parseFloat(geriYukleMiktar) : 0
-    };
-    
-    console.log('Gönderilen işlem verisi:', islemData);
-    
-    // Modalı önceden kapat - çoklu mesaj sorununun önüne geçmek için
-    closeModal('islemDuzenleModal');
-    
-    // İşlem türüne göre doğru API çağrısını yap
-    if (window.currentIslemType === 'hammadde') {
-      result = await window.electronAPI.invoke.database.updateIslem(islemId, islemData);
-      
-      if (result.success) {
-        markItemAsEdited('hammadde', islemId, operationType);
-      }
-    } else if (window.currentIslemType === 'sarf_malzeme') {
-      result = await window.electronAPI.invoke.database.updateSarfMalzemeIslem(islemId, islemData);
-      
-      if (result.success) {
-        markItemAsEdited('sarf_malzeme', islemId, operationType);
-      }
-    } else if (window.currentIslemType === 'yari_mamul') {
-      result = await window.electronAPI.invoke.database.updateYariMamulIslem(islemId, islemData);
-      
-      if (result.success) {
-        markItemAsEdited('yari_mamul', islemId, operationType);
-      }
-    } else {
-      throw new Error('Geçersiz işlem türü: ' + window.currentIslemType);
-    }
-    
-    if (result.success) {
-      // İşlem türüne göre mesaj belirle
-      let message = 'İşlem başarıyla güncellendi.';
-      
-      if (isIskartaUrun) {
-        message = 'Ürün başarıyla ıskarta listesine gönderildi.';
-      } else if (isStogaGeriYukle) {
-        message = `${geriYukleMiktar} birim ürün başarıyla orjinal stoğa geri yüklendi.`;
-      }
-      
-      // Sadece bir bildirim göster (toast veya notify, ikisi birden değil)
-      showToast(message, 'success');
-      
-      // Listeleri güncelle
-      loadFasonIslemler();
-      loadMakineIslemler();
-      loadIskartaUrunler();
-    } else {
-      showToast(result.message, 'error');
-    }
-  } catch (error) {
-    console.error('İşlem güncelleme hatası:', error);
-    showToast('İşlem güncellenirken bir hata oluştu: ' + error.message, 'error');
-  } finally {
-    // İşlem bitti, flag'i sıfırla
-    isStockReturnProcessing = false;
-  }
 }
+
 
 // editSarfMalzemeIslem fonksiyonunu düzelt
 async function editSarfMalzemeIslem(islemId) {

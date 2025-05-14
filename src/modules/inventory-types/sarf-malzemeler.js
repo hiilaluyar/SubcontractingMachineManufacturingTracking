@@ -1071,6 +1071,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+
 async function viewSarfMalzemeDetail(id) {
     try {
         // Modalı önce açalım ki kullanıcı bir şeylerin yüklendiğini görsün
@@ -1134,6 +1135,9 @@ async function viewSarfMalzemeDetail(id) {
             // Giriş geçmişini yükle
             loadSarfMalzemeGirisGecmisi(id);
             
+            // Stoğa Geri Dönenler tabını yükle - YENİ
+            loadSarfMalzemeStokGeriDonenler(id);
+            
             // İşlem geçmişini doldur
             const islemGecmisiTable = document.getElementById('sarfMalzemeIslemGecmisiTable').getElementsByTagName('tbody')[0];
             islemGecmisiTable.innerHTML = '';
@@ -1143,6 +1147,12 @@ async function viewSarfMalzemeDetail(id) {
                 row.innerHTML = '<td colspan="6" class="text-center">İşlem geçmişi bulunamadı</td>';
             } else {
                 result.islemler.forEach(islem => {
+                    // Eğer işlem "İade" ve kullanım alanı "StokGeriYukleme" ise, bu işlemi gösterme
+                    // Bu işlemler artık ayrı bir tabda gösterilecek
+                    if (islem.islem_turu === 'İade' && islem.kullanim_alani === 'StokGeriYukleme') {
+                        return; // bu işlemi atla
+                    }
+                    
                     const row = islemGecmisiTable.insertRow();
                     
                     // Tarih
@@ -1166,6 +1176,9 @@ async function viewSarfMalzemeDetail(id) {
                             break;
                         case 'MakineImalat':
                             cell4.textContent = 'Makine İmalat';
+                            break;
+                        case 'StokGeriYukleme':
+                            cell4.textContent = 'Stok Geri Yükleme';
                             break;
                         default:
                             cell4.textContent = islem.kullanim_alani;
@@ -1308,6 +1321,117 @@ function openSarfMalzemeIslemModal(id) {
     }
   }
 
+
+  // Sarf Malzeme için Stoğa Geri Dönenler verilerini yükleme fonksiyonu
+async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
+    try {
+        if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+            console.error('Database invoke metodu bulunamadı');
+            return;
+        }
+
+        // API call to get data - Burada işlem geçmişini çekip filtreleyeceğiz
+        const result = await window.electronAPI.invoke.database.getSarfMalzemeIslemleri(sarfMalzemeId);
+
+        const stokGeriDonenlerTable = document.getElementById('sarfMalzemeStokGeriDonenlerTable');
+        if (!stokGeriDonenlerTable) {
+            console.error('sarfMalzemeStokGeriDonenlerTable elementi bulunamadı!');
+            return;
+        }
+        
+        const tableBody = stokGeriDonenlerTable.getElementsByTagName('tbody')[0];
+        tableBody.innerHTML = '';
+        
+        if (!result.success || !result.islemler || result.islemler.length === 0) {
+            const row = tableBody.insertRow();
+            row.innerHTML = '<td colspan="5" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
+            return;
+        }
+        
+        // Sadece İade işlemlerini ve kullanım alanı "StokGeriYukleme" olanları filtrele
+        const geriDonenler = result.islemler.filter(islem => 
+            islem.islem_turu === 'İade' && islem.kullanim_alani === 'StokGeriYukleme'
+        );
+        
+        if (geriDonenler.length === 0) {
+            const row = tableBody.insertRow();
+            row.innerHTML = '<td colspan="5" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
+            return;
+        }
+        
+        // Her bir geri dönen işlem için orijinal işlemi bul
+        const processedItems = []; // İşlenmiş işlemler
+        
+        for (const geriDonen of geriDonenler) {
+            // Tüm işlemleri tarihe göre sırala
+            const sortedIslemler = result.islemler
+                .filter(i => i.id !== geriDonen.id) // Kendisini hariç tut
+                .filter(i => i.islem_turu !== 'İade') // Diğer iadeleri hariç tut
+                .sort((a, b) => new Date(b.islem_tarihi) - new Date(a.islem_tarihi)); // Son yapılandan ilk yapılana sırala
+            
+            // Geri dönen işlemden önce yapılmış en yakın işlemi bul
+            const geriDonenTarih = new Date(geriDonen.islem_tarihi);
+            const oncekiIslemler = sortedIslemler.filter(i => new Date(i.islem_tarihi) < geriDonenTarih);
+            
+            let originalIslem = null;
+            if (oncekiIslemler.length > 0) {
+                originalIslem = oncekiIslemler[0]; // En yakın işlem
+            }
+            
+            // Eğer orijinal işlem bulunamazsa, bu işlemi atla
+            if (!originalIslem) continue;
+            
+            const row = tableBody.insertRow();
+            
+            // Tarih
+            const cell1 = row.insertCell(0);
+            const date = new Date(geriDonen.islem_tarihi);
+            cell1.textContent = date.toLocaleString('tr-TR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            // Alınan Miktar (Orijinal işlemin miktarı)
+            const cell2 = row.insertCell(1);
+            cell2.textContent = `${Number(originalIslem.miktar).toFixed(2)}`;
+            
+            // Geri Dönen Miktar
+            const cell3 = row.insertCell(2);
+            cell3.textContent = `${Number(geriDonen.miktar).toFixed(2)}`;
+            
+            // Proje
+            const cell4 = row.insertCell(3);
+            cell4.textContent = originalIslem.proje_adi || geriDonen.proje_adi || 'Belirtilmemiş';
+            
+            // İşlemi Yapan
+            const cell5 = row.insertCell(4);
+            cell5.textContent = `${geriDonen.kullanici_ad || ''} ${geriDonen.kullanici_soyad || ''}`.trim() || 'Bilinmiyor';
+            
+            // Bu işlemi işlenmiş olarak işaretle
+            processedItems.push(geriDonen.id);
+        }
+        
+        // Eğer hiçbir işlem bulunamazsa
+        if (processedItems.length === 0) {
+            const row = tableBody.insertRow();
+            row.innerHTML = '<td colspan="5" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
+        }
+    } catch (error) {
+        console.error('Sarf malzeme stok geri dönenler yükleme hatası:', error);
+        
+        const stokGeriDonenlerTable = document.getElementById('sarfMalzemeStokGeriDonenlerTable');
+        if (stokGeriDonenlerTable) {
+            const tableBody = stokGeriDonenlerTable.getElementsByTagName('tbody')[0];
+            if (tableBody) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Stok geri dönenler yüklenirken hata oluştu</td></tr>';
+            }
+        }
+    }
+}
+
 window.loadSarfMalzemeListesi = loadSarfMalzemeListesi;
 window.saveSarfMalzeme = saveSarfMalzeme;
 window.loadSarfMalzemeGirisGecmisi = loadSarfMalzemeGirisGecmisi;
@@ -1322,3 +1446,4 @@ window.viewSarfMalzemeDetail = viewSarfMalzemeDetail;
 window.searchSarfMalzeme = searchSarfMalzeme;
 window.deleteSarfMalzemeIslem = deleteSarfMalzemeIslem;
 window.openSarfMalzemeIslemModal = openSarfMalzemeIslemModal;
+window.loadSarfMalzemeStokGeriDonenler=loadSarfMalzemeStokGeriDonenler;
