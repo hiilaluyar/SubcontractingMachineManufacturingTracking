@@ -1,4 +1,3 @@
-
 window.editedItems = window.editedItems || {
     hammadde: {},
     sarf_malzeme: {},
@@ -17,7 +16,7 @@ window.editedItems = window.editedItems || {
     }
   }
 
-  
+
   // Save edited items to localStorage
   function saveEditedItems() {
     try {
@@ -56,7 +55,7 @@ window.editedItems = window.editedItems || {
   document.addEventListener('DOMContentLoaded', loadEditedItems);
 
 
-// Updated editIslem function to check iskarta_urun flag
+// editIslem fonksiyonunu düzelt
 async function editIslem(islemId, islemTuru = 'hammadde') {
   try {
     // Check if the item has already been edited
@@ -69,9 +68,11 @@ async function editIslem(islemId, islemTuru = 'hammadde') {
       
       if (operation === 'IskartaUrun') {
         message = 'Bu işlem daha önce ıskarta ürün olarak işaretlenmiş.';
+      } else if (operation === 'StogaGeriYukle') {
+        message = 'Bu işlem için daha önce stok iadesi yapılmış.';
       }
       
-      Notiflix.Notify.info(message + ' Tekrar düzenlenemez.');
+      showToast(message + ' Tekrar düzenlenemez.', 'info');
       return;
     }
     
@@ -79,7 +80,7 @@ async function editIslem(islemId, islemTuru = 'hammadde') {
     // API kontrolü
     if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
       console.error('Database invoke metodu bulunamadı');
-      alert('İşlem bilgileri alınamadı. API erişimi yok.');
+      showToast('İşlem bilgileri alınamadı. API erişimi yok.', 'error');
       return;
     }
 
@@ -94,7 +95,7 @@ async function editIslem(islemId, islemTuru = 'hammadde') {
       result = await window.electronAPI.invoke.database.getYariMamulIslemById(islemId);
     } else {
       console.error('Geçersiz işlem türü:', islemTuru);
-      alert('Geçersiz işlem türü.');
+      showToast('Geçersiz işlem türü.', 'error');
       return;
     }
     
@@ -116,13 +117,16 @@ async function editIslem(islemId, islemTuru = 'hammadde') {
       // Iskarta ürün checkbox'ını ayarla
       document.getElementById('duzenleIskartaUrunSecimi').checked = islem.iskarta_urun === 1 || false;
       
-      // İkincil stok ile ilgili elementleri gizle
-      if (document.getElementById('duzenleIkincilStokSecimiContainer')) {
-        document.getElementById('duzenleIkincilStokSecimiContainer').style.display = 'none';
-      }
+      // Stoğa Geri Yükleme checkbox'ını sıfırla
+      document.getElementById('duzenleStogaGeriYukleSecimi').checked = false;
+      
+      // Geri Yükleme miktar alanını gizle ve sıfırla
+      document.getElementById('duzenleGeriYukleMiktarContainer').style.display = 'none';
+      document.getElementById('duzenleGeriYukleMiktar').value = '';
       
       // Iskarta ürün container'ı her zaman görünür olmalı
       document.getElementById('duzenleIskartaUrunSecimiContainer').style.display = 'block';
+      document.getElementById('duzenleStogaGeriYukleContainer').style.display = 'block';
       
       // Proje listesini yükle
       loadProjeler().then(() => {
@@ -156,15 +160,15 @@ async function editIslem(islemId, islemTuru = 'hammadde') {
       // Modalı aç
       openModal('islemDuzenleModal');
     } else {
-      alert('İşlem bilgileri alınamadı: ' + result.message);
+      showToast('İşlem bilgileri alınamadı: ' + result.message, 'error');
     }
   } catch (error) {
     console.error('İşlem bilgileri alınırken hata:', error);
-    alert('İşlem bilgileri alınırken bir hata oluştu.');
+    showToast('İşlem bilgileri alınırken bir hata oluştu.', 'error');
   }
 }
-  
 
+  // updateYariMamulIslem fonksiyonunu düzelt  
 async function updateYariMamulIslem() {
   try {
     const islemId = document.getElementById('duzenleYariMamulIslemId').value;
@@ -175,7 +179,7 @@ async function updateYariMamulIslem() {
     
     if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
       console.error('Database invoke metodu bulunamadı');
-      showErrorMessage('Hata', 'İşlem kaydedilemedi. API erişimi yok.');
+      showToast('İşlem kaydedilemedi. API erişimi yok.', 'error');
       return;
     }
     
@@ -205,7 +209,6 @@ async function updateYariMamulIslem() {
       
       if (isIskartaUrun) {
         message = 'Ürün başarıyla ıskarta listesine gönderildi.';
-        Notiflix.Notify.success('Ürün başarıyla ıskarta listesine gönderildi.');
       }
       
       showToast(message, 'success');
@@ -218,67 +221,100 @@ async function updateYariMamulIslem() {
       loadMakineIslemler();
       loadIskartaUrunler();
     } else {
-      showErrorMessage('Hata', 'İşlem güncellenirken bir hata oluştu: ' + result.message);
+      showToast(result.message, 'error');
     }
   } catch (error) {
     console.error('Yarı mamul işlemi güncelleme hatası:', error);
-    showErrorMessage('Hata', 'İşlem güncellenirken bir hata oluştu: ' + error.message);
+    showToast('İşlem güncellenirken bir hata oluştu: ' + error.message, 'error');
   }
 }
 
+// İstek durumunu takip etmek için global flag
+let isStockReturnProcessing = false;
 
+// updateIslem fonksiyonunu düzenleyelim (main dosyası)
 async function updateIslem() {
+  // İşlem devam ediyorsa, tekrar çağrılmasını engelle
+  if (isStockReturnProcessing) {
+    console.log('İşlem devam ediyor, lütfen bekleyin...');
+    return;
+  }
+  
   try {
+    // İşlem başladı, flag'i true yap
+    isStockReturnProcessing = true;
+    
     const islemId = document.getElementById('duzenleIslemId').value;
     const islemTuru = document.getElementById('duzenleIslemTuru').value;
-    
-    // Orijinal kullanım alanını koru
     const kullanimAlani = document.getElementById('duzenleKullanimAlani').value;
     
-    // Flag for iskarta operation
-    const isIskartaUrun = document.getElementById('duzenleIskartaUrunSecimi').checked;
+    // ÖNEMLI: Bu iki seçenek aynı anda aktif olamaz
+    const isStogaGeriYukle = document.getElementById('duzenleStogaGeriYukleSecimi').checked;
+    const isIskartaUrun = !isStogaGeriYukle && document.getElementById('duzenleIskartaUrunSecimi').checked;
     
+    const geriYukleMiktar = document.getElementById('duzenleGeriYukleMiktar').value;
     const projeId = document.getElementById('duzenleProjeSecimi').value;
+    
+    // Geri yükleme seçiliyse miktar kontrolü yap
+    if (isStogaGeriYukle) {
+      if (!geriYukleMiktar || parseFloat(geriYukleMiktar) <= 0) {
+        showToast('Lütfen geçerli bir geri yükleme miktarı girin.', 'error');
+        isStockReturnProcessing = false; // Flag'i sıfırla
+        return;
+      }
+    }
     
     // API kontrolü
     if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
       console.error('Database invoke metodu bulunamadı');
-      showErrorMessage('Hata', 'İşlem kaydedilemedi. API erişimi yok.');
+      showToast('İşlem kaydedilemedi. API erişimi yok.', 'error');
+      isStockReturnProcessing = false; // Flag'i sıfırla
       return;
     }
 
     let result;
     
     // Operation type for tracking
-    let operationType = isIskartaUrun ? 'IskartaUrun' : 'Normal';
+    let operationType = '';
+    if (isIskartaUrun) {
+      operationType = 'IskartaUrun';
+    } else if (isStogaGeriYukle) {
+      operationType = 'StogaGeriYukle';
+    } else {
+      operationType = 'Normal';
+    }
     
-    // İşlem verisi hazırla - iskarta_urun flagini ekle
+    // İşlem verisi hazırla - stoga_geri_yukle ve geri_yukle_miktar alanları eklendi
     const islemData = {
       islem_turu: islemTuru,
-      kullanim_alani: kullanimAlani, // Kullanım alanını koru
+      kullanim_alani: kullanimAlani,
       proje_id: projeId || null,
-      iskarta_urun: isIskartaUrun, // Iskarta ürün flagini ekle
+      iskarta_urun: isIskartaUrun,
+      stoga_geri_yukle: isStogaGeriYukle,
+      geri_yukle_miktar: isStogaGeriYukle ? parseFloat(geriYukleMiktar) : 0
     };
+    
+    console.log('Gönderilen işlem verisi:', islemData);
+    
+    // Modalı önceden kapat - çoklu mesaj sorununun önüne geçmek için
+    closeModal('islemDuzenleModal');
     
     // İşlem türüne göre doğru API çağrısını yap
     if (window.currentIslemType === 'hammadde') {
       result = await window.electronAPI.invoke.database.updateIslem(islemId, islemData);
       
-      // Mark the hammadde item as edited
       if (result.success) {
         markItemAsEdited('hammadde', islemId, operationType);
       }
     } else if (window.currentIslemType === 'sarf_malzeme') {
       result = await window.electronAPI.invoke.database.updateSarfMalzemeIslem(islemId, islemData);
       
-      // Mark the sarf_malzeme item as edited
       if (result.success) {
         markItemAsEdited('sarf_malzeme', islemId, operationType);
       }
     } else if (window.currentIslemType === 'yari_mamul') {
       result = await window.electronAPI.invoke.database.updateYariMamulIslem(islemId, islemData);
       
-      // Mark the yari_mamul item as edited
       if (result.success) {
         markItemAsEdited('yari_mamul', islemId, operationType);
       }
@@ -287,34 +323,35 @@ async function updateIslem() {
     }
     
     if (result.success) {
-      // Customize the message based on the operation
+      // İşlem türüne göre mesaj belirle
       let message = 'İşlem başarıyla güncellendi.';
       
       if (isIskartaUrun) {
         message = 'Ürün başarıyla ıskarta listesine gönderildi.';
-        Notiflix.Notify.success('Ürün başarıyla ıskarta listesine gönderildi.');
+      } else if (isStogaGeriYukle) {
+        message = `${geriYukleMiktar} birim ürün başarıyla orjinal stoğa geri yüklendi.`;
       }
       
+      // Sadece bir bildirim göster (toast veya notify, ikisi birden değil)
       showToast(message, 'success');
-      
-      // Modalı kapat
-      closeModal('islemDuzenleModal');
       
       // Listeleri güncelle
       loadFasonIslemler();
       loadMakineIslemler();
       loadIskartaUrunler();
     } else {
-      showErrorMessage('Hata', 'İşlem güncellenirken bir hata oluştu: ' + result.message);
+      showToast(result.message, 'error');
     }
   } catch (error) {
     console.error('İşlem güncelleme hatası:', error);
-    showErrorMessage('Hata', 'İşlem güncellenirken bir hata oluştu: ' + error.message);
+    showToast('İşlem güncellenirken bir hata oluştu: ' + error.message, 'error');
+  } finally {
+    // İşlem bitti, flag'i sıfırla
+    isStockReturnProcessing = false;
   }
 }
 
-
-// Updated editSarfMalzemeIslem function
+// editSarfMalzemeIslem fonksiyonunu düzelt
 async function editSarfMalzemeIslem(islemId) {
   try {
     // Check if the item has already been edited
@@ -329,14 +366,14 @@ async function editSarfMalzemeIslem(islemId) {
         message = 'Bu işlem daha önce ıskarta ürün olarak işaretlenmiş.';
       }
       
-      Notiflix.Notify.info(message + ' Tekrar düzenlenemez.');
+      showToast(message + ' Tekrar düzenlenemez.', 'info');
       return;
     }
     
     // API kontrolü
     if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
       console.error('Database invoke metodu bulunamadı');
-      alert('İşlem bilgileri alınamadı. API erişimi yok.');
+      showToast('İşlem bilgileri alınamadı. API erişimi yok.', 'error');
       return;
     }
   
@@ -404,80 +441,110 @@ async function editSarfMalzemeIslem(islemId) {
       // Modalı aç
       openModal('sarfMalzemeIslemDuzenleModal');
     } else {
-      alert('İşlem bilgileri alınamadı: ' + sarfMalzemeIslemResult.message);
+      showToast('İşlem bilgileri alınamadı: ' + sarfMalzemeIslemResult.message, 'error');
     }
   } catch (error) {
     console.error('İşlem bilgileri alınırken hata:', error);
-    alert('İşlem bilgileri alınırken bir hata oluştu.');
+    showToast('İşlem bilgileri alınırken bir hata oluştu.', 'error');
   }
 }
 
-// Sarf malzeme işlemini güncelleme
-async function updateSarfMalzemeIslem() {
+async function updateSarfMalzemeIslem(islemId, islemData) {
+  const connection = await pool.getConnection();
+  
   try {
-    const islemId = document.getElementById('duzenleSarfMalzemeIslemId').value;
-    const islemTuru = document.getElementById('duzenleSarfMalzemeIslemTuru').value;
-    const kullanimAlani = document.getElementById('duzenleSarfMalzemeKullanimAlani').value;
-    const projeId = document.getElementById('duzenleSarfMalzemeProjeSecimi').value;
+    await connection.beginTransaction();
     
-    // YENİ: Makine ve çalışan bilgilerini al
-    const makine = document.getElementById('duzenleSarfMalzemeMakineSecimi').value;
-    const calisanId = document.getElementById('duzenleSarfMalzemeCalisanSecimi').value;
+    // First, get the current operation data and sarf_malzeme info
+    const [currentIslem] = await connection.execute(
+      `SELECT islem_turu, sarf_malzeme_id, miktar FROM sarf_malzeme_islemleri WHERE id = ?`,
+      [islemId]
+    );
     
-    // Iskarta ürün checkbox değerini al
-    const isIskartaUrun = document.getElementById('duzenleSarfMalzemeIskartaUrunSecimi').checked;
-    
-    // API kontrolü
-    if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
-      console.error('Database invoke metodu bulunamadı');
-      showErrorMessage('Hata', 'İşlem kaydedilemedi. API erişimi yok.');
-      return;
+    if (currentIslem.length === 0) {
+      throw new Error('İşlem bulunamadı.');
     }
     
-    // İşlem verisi
-    const islemData = {
-      islem_turu: islemTuru,
-      kullanim_alani: kullanimAlani,
-      proje_id: projeId || null,
-      iskarta_urun: isIskartaUrun,
-      // YENİ: Makine ve çalışan alanları
-      makine: (kullanimAlani === 'FasonImalat') ? makine : null,
-      calisan_id: (kullanimAlani === 'FasonImalat' || kullanimAlani === 'MakineImalat') ? calisanId : null
+    const islemInfo = currentIslem[0];
+    
+    // Get sarf_malzeme information to update stock
+    const [sarfMalzemeRows] = await connection.execute(
+      'SELECT kalan_miktar FROM sarf_malzemeler WHERE id = ?',
+      [islemInfo.sarf_malzeme_id]
+    );
+    
+    if (sarfMalzemeRows.length === 0) {
+      throw new Error('Sarf malzeme bulunamadı.');
+    }
+    
+    const sarfMalzeme = sarfMalzemeRows[0];
+    
+    // Only update islem_turu if it's explicitly provided in islemData
+    const islemTuru = islemData.islem_turu || islemInfo.islem_turu;
+    
+    // Update the operation flags in database
+    await connection.execute(
+      `UPDATE sarf_malzeme_islemleri SET 
+       islem_turu = ?, proje_id = ?, iskarta_urun = ?
+       WHERE id = ?`,
+      [
+        islemTuru,
+        islemData.proje_id || null,
+        islemData.iskarta_urun ? 1 : 0,
+        islemId
+      ]
+    );
+    
+    // Handle return to original stock if requested
+    if (islemData.stoga_geri_yukle && islemData.geri_yukle_miktar > 0) {
+      const geriYukleMiktar = parseFloat(islemData.geri_yukle_miktar);
+      const islemMiktar = parseFloat(islemInfo.miktar);
+      
+      // Validate return amount
+     if (geriYukleMiktar > islemMiktar) {
+  return { 
+    success: false, 
+    message: `Geri yükleme miktarı (${geriYukleMiktar}) işlem miktarından (${islemMiktar}) büyük olamaz.` 
+  };
+}
+      
+      // Update the sarf_malzeme kalan_miktar (increment by return amount)
+      const yeniKalanMiktar = parseFloat(sarfMalzeme.kalan_miktar) + geriYukleMiktar;
+      
+      await connection.execute(
+        'UPDATE sarf_malzemeler SET kalan_miktar = ? WHERE id = ?',
+        [yeniKalanMiktar, islemInfo.sarf_malzeme_id]
+      );
+      
+      // Record the return operation in islemler table
+      await connection.execute(
+        `INSERT INTO sarf_malzeme_islemleri (
+          sarf_malzeme_id, islem_turu, kullanim_alani, miktar, kullanici_id, aciklama
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          islemInfo.sarf_malzeme_id,
+          'İade', // Return operation
+          'StokGeriYukleme',
+          geriYukleMiktar,
+          islemData.kullanici_id || 1, // Default to admin user if not provided
+          `İşlem #${islemId} den stoğa geri dönen miktar`
+        ]
+      );
+    }
+    
+    await connection.commit();
+    return { 
+      success: true, 
+      message: islemData.stoga_geri_yukle ? 
+        `İşlem güncellendi ve ${islemData.geri_yukle_miktar} birim orjinal stoğa geri yüklendi.` : 
+        'Sarf malzeme işlemi başarıyla güncellendi.' 
     };
-    
-    // İşlemi güncelle
-    const result = await window.electronAPI.invoke.database.updateSarfMalzemeIslem(islemId, islemData);
-    
-    if (result.success) {
-      // Iskarta ürün seçeneği işaretli ise
-      if (isIskartaUrun) {
-        // İşlemi işlenmiş olarak işaretle
-        markItemAsEdited('sarf_malzeme', islemId, 'IskartaUrun');
-        
-        showToast('İşlem başarıyla güncellendi ve ıskarta olarak işaretlendi.', 'success');
-      }
-      // Normal güncelleme yapıldıysa
-      else {
-        // İşlemi işlenmiş olarak işaretle
-        markItemAsEdited('sarf_malzeme', islemId, 'Normal');
-        
-        showToast('İşlem başarıyla güncellendi.', 'success');
-      }
-      
-      // Modalı kapat
-      closeModal('sarfMalzemeIslemDuzenleModal');
-      
-      // Listeleri güncelle
-      loadFasonIslemler();
-      loadMakineIslemler();
-      loadIskartaUrunler();
-      
-    } else {
-      showErrorMessage('Hata', 'İşlem güncellenirken bir hata oluştu: ' + result.message);
-    }
   } catch (error) {
-    console.error('İşlem güncelleme hatası:', error);
-    showErrorMessage('Hata', 'İşlem güncellenirken bir hata oluştu: ' + error.message);
+    await connection.rollback();
+    console.error('Sarf malzeme işlemi güncelleme hatası:', error);
+    return { success: false, message: 'İşlem güncellenirken bir hata oluştu: ' + error.message };
+  } finally {
+    connection.release();
   }
 }
 
@@ -485,13 +552,9 @@ async function updateSarfMalzemeIslem() {
 window.editIslem = editIslem;
 window.updateIslem = updateIslem;
 
-// Sarf malzeme fonksiyonları
-
 
 window.editSarfMalzemeIslem = editSarfMalzemeIslem;
 window.updateSarfMalzemeIslem = updateSarfMalzemeIslem;
-
-
 
 function updateFasonMakineIslemlerButtons() {
   const fasonTable = document.getElementById('fasonTable');
@@ -569,11 +632,6 @@ function updateFasonMakineIslemlerButtons() {
   }
 }
 
-
-
-
-
-
 // Bu fonksiyon processedItems içindeki verileri editedItems'a senkronize eder
 // Mevcut kodları değiştirmek yerine, bu iki localStorage değişkeni arasında veri senkronizasyonu sağlar
 
@@ -605,8 +663,6 @@ function syncProcessedItemsToEditedItems() {
   }
   
 
-
-
   // Radio butonlarını ayarlayalım
 document.addEventListener('DOMContentLoaded', function() {
   // İkincil stok seçimini tamamen kaldırdık
@@ -622,7 +678,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-  
   // İşlenmiş öğeleri işaretlemek için yeni bir fonksiyon
   function markItemAsProcessed(type, id, operationType) {
     try {
@@ -653,37 +708,27 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
 
-
-
-
-// İşlenmiş öğeleri localStorage'da saklayan fonksiyon
-function markItemAsProcessed(type, id, operationType) {
-    try {
-      // LocalStorage'dan mevcut işlenmiş öğeleri al
-      const processedItems = JSON.parse(localStorage.getItem('processedItems') || '{}');
-      
-      // İlgili türde veri yoksa oluştur
-      if (!processedItems[type]) {
-        processedItems[type] = {};
-      }
-      
-      // Öğeyi işaretleme yerine, işlenmiş durumunu belirt
-      // Ancak kopyalama işlemi olduğu için taşındı olarak değil, işlendi olarak kaydet
-      processedItems[type][id] = {
-        processed: true,
-        operationType: operationType,
-        timestamp: new Date().toISOString(),
-        duplicated: true // Bu öğe taşınmadı, kopyalandı
-      };
-      
-      // LocalStorage'a kaydet
-      localStorage.setItem('processedItems', JSON.stringify(processedItems));
-      
-      console.log(`Öğe işlendi olarak işaretlendi: ${type} - ${id} - ${operationType}`);
-    } catch (error) {
-      console.error('Öğe işaretleme hatası:', error);
-    }
-  }
-
-
+  // Show/hide return quantity field based on checkbox
+document.addEventListener('DOMContentLoaded', function() {
+  const stogaGeriYukleSecimi = document.getElementById('duzenleStogaGeriYukleSecimi');
+  const geriYukleMiktarContainer = document.getElementById('duzenleGeriYukleMiktarContainer');
   
+  if (stogaGeriYukleSecimi && geriYukleMiktarContainer) {
+    stogaGeriYukleSecimi.addEventListener('change', function() {
+      geriYukleMiktarContainer.style.display = this.checked ? 'block' : 'none';
+      
+      // Ensure both options aren't selected at the same time
+      if (this.checked) {
+        document.getElementById('duzenleIskartaUrunSecimi').checked = false;
+      }
+    });
+    
+    // Also prevent both options from being selected
+    document.getElementById('duzenleIskartaUrunSecimi').addEventListener('change', function() {
+      if (this.checked) {
+        document.getElementById('duzenleStogaGeriYukleSecimi').checked = false;
+        geriYukleMiktarContainer.style.display = 'none';
+      }
+    });
+  }
+});

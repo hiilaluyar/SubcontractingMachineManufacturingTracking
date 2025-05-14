@@ -1746,9 +1746,9 @@ div[id^="NotiflixConfirmWrap"] div[class*="confirm-buttons"] div[id^="NotiflixCo
 
 
 
-/* Sadece islemDuzenleModal içindeki checkbox container için özel stiller */
-#islemDuzenleModal #duzenleIkincilStokSecimiContainer,
-#islemDuzenleModal #duzenleIskartaUrunSecimiContainer {
+/* Checkbox container'lar için ortak stiller */
+#islemDuzenleModal #duzenleIskartaUrunSecimiContainer,
+#islemDuzenleModal #duzenleStogaGeriYukleContainer {
   background-color: #f9f9f9 !important;
   padding: 12px 15px !important;
   border-radius: 4px !important;
@@ -1757,8 +1757,8 @@ div[id^="NotiflixConfirmWrap"] div[class*="confirm-buttons"] div[id^="NotiflixCo
 }
 
 /* Checkbox ve label düzeni */
-#islemDuzenleModal #duzenleIkincilStokSecimiContainer label,
-#islemDuzenleModal #duzenleIskartaUrunSecimiContainer label {
+#islemDuzenleModal #duzenleIskartaUrunSecimiContainer label,
+#islemDuzenleModal #duzenleStogaGeriYukleContainer label {
   display: flex !important;
   align-items: center !important;
   font-weight: 500 !important;
@@ -1767,8 +1767,8 @@ div[id^="NotiflixConfirmWrap"] div[class*="confirm-buttons"] div[id^="NotiflixCo
 }
 
 /* Checkbox görünümü */
-#islemDuzenleModal #duzenleIkincilStokSecimiContainer input[type="checkbox"],
-#islemDuzenleModal #duzenleIskartaUrunSecimiContainer input[type="checkbox"] {
+#islemDuzenleModal #duzenleIskartaUrunSecimiContainer input[type="checkbox"],
+#islemDuzenleModal #duzenleStogaGeriYukleContainer input[type="checkbox"] {
   appearance: none; /* Varsayılan mavi stil kaldırıldı */
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -1783,15 +1783,15 @@ div[id^="NotiflixConfirmWrap"] div[class*="confirm-buttons"] div[id^="NotiflixCo
 }
 
 /* Checkbox işaretlendiğinde özel stil */
-#islemDuzenleModal #duzenleIkincilStokSecimiContainer input[type="checkbox"]:checked,
-#islemDuzenleModal #duzenleIskartaUrunSecimiContainer input[type="checkbox"]:checked {
+#islemDuzenleModal #duzenleIskartaUrunSecimiContainer input[type="checkbox"]:checked,
+#islemDuzenleModal #duzenleStogaGeriYukleContainer input[type="checkbox"]:checked {
   background-color: #61993b !important;
   border-color: #61993b !important;
 }
 
 /* Checkbox içine tik ekleme */
-#islemDuzenleModal #duzenleIkincilStokSecimiContainer input[type="checkbox"]:checked::after,
-#islemDuzenleModal #duzenleIskartaUrunSecimiContainer input[type="checkbox"]:checked::after {
+#islemDuzenleModal #duzenleIskartaUrunSecimiContainer input[type="checkbox"]:checked::after,
+#islemDuzenleModal #duzenleStogaGeriYukleContainer input[type="checkbox"]:checked::after {
   content: '✔';
   font-size: 14px;
   color: white !important;
@@ -1809,11 +1809,39 @@ div[id^="NotiflixConfirmWrap"] div[class*="confirm-buttons"] div[id^="NotiflixCo
   font-style: italic !important;
 }
 
+/* Geri yükleme miktar alanı container için özel stiller */
+#islemDuzenleModal #duzenleGeriYukleMiktarContainer {
+  padding: 8px 15px 8px 28px !important; /* Sol taraftan girinti */
+  margin: 0 0 15px 0 !important;
+}
+
+/* Miktar giriş alanı etiketi */
+#islemDuzenleModal #duzenleGeriYukleMiktarContainer label {
+  display: block !important;
+  font-weight: 500 !important;
+  margin-bottom: 5px !important;
+  color: #61993b !important; /* Aynı yeşil ton */
+}
+
+/* Miktar giriş alanı */
+#islemDuzenleModal #duzenleGeriYukleMiktar {
+  width: 100% !important;
+  padding: 8px 10px !important;
+  border: 1px solid #ccc !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+}
+
+/* Miktar giriş alanı odaklandığında */
+#islemDuzenleModal #duzenleGeriYukleMiktar:focus {
+  border-color: #61993b !important; /* Aynı yeşil ton */
+  box-shadow: 0 0 3px rgba(97, 153, 59, 0.3) !important; /* Aynı yeşil ton */
+  outline: none !important;
+}
 
 .hidden-option {
   display: none;
 }
-
 
 
 /* Add these styles to your existing CSS */

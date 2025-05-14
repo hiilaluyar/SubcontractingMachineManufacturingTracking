@@ -448,58 +448,130 @@ async function addHammadde(hammaddeData) {
   }
 }
 
-// Update updateIslem function to handle iskarta_urun flag
+
 async function updateIslem(islemId, islemData) {
   const connection = await pool.getConnection();
   
   try {
     await connection.beginTransaction();
     
-    // Update the islemler record, including iskarta_urun field
-    await connection.execute(
-      `UPDATE islemler SET 
-       islem_turu = ?, proje_id = ?, iskarta_urun = ?
-       WHERE id = ?`,
-      [
-        islemData.islem_turu,
-        islemData.proje_id || null,
-        islemData.iskarta_urun ? 1 : 0, // Boolean to int conversion
-        islemId
-      ]
+    // İlk olarak mevcut işlem verilerini al
+    const [currentIslem] = await connection.execute(
+      `SELECT islem_turu, hammadde_id, miktar, kullanici_id FROM islemler WHERE id = ?`,
+      [islemId]
     );
     
+    if (currentIslem.length === 0) {
+      throw new Error('İşlem bulunamadı.');
+    }
+    
+    const islemInfo = currentIslem[0];
+    
+    // Hammadde bilgilerini al
+    const [hammaddeRows] = await connection.execute(
+      'SELECT kalan_miktar FROM hammaddeler WHERE id = ?',
+      [islemInfo.hammadde_id]
+    );
+    
+    if (hammaddeRows.length === 0) {
+      throw new Error('Hammadde bulunamadı.');
+    }
+    
+    const hammadde = hammaddeRows[0];
+    
+    // Stoğa geri yükleme işlemi mi kontrol et
+    const isStogaGeriYukle = islemData.stoga_geri_yukle === true || islemData.stoga_geri_yukle === 1;
+    
+    // Eğer stoğa geri yükleme değilse, normal güncelleme yap
+    if (!isStogaGeriYukle) {
+      // İşlem türünü koru
+      const islemTuru = islemData.islem_turu || islemInfo.islem_turu;
+      
+      // İşlemi güncelle
+      await connection.execute(
+        `UPDATE islemler SET 
+         islem_turu = ?, kullanim_alani = ?, proje_id = ?, iskarta_urun = ?
+         WHERE id = ?`,
+        [
+          islemTuru,
+          islemData.kullanim_alani || islemInfo.kullanim_alani,
+          islemData.proje_id || null,
+          islemData.iskarta_urun ? 1 : 0,
+          islemId
+        ]
+      );
+    }
+    
     // Orjinal stoğa geri yükleme işlemi
-    if (islemData.stoga_geri_yukle && islemData.geri_yukle_miktar > 0) {
+    if (isStogaGeriYukle && islemData.geri_yukle_miktar > 0) {
       const geriYukleMiktar = parseFloat(islemData.geri_yukle_miktar);
       const islemMiktar = parseFloat(islemInfo.miktar);
       
       // Geri yükleme miktarını doğrula
       if (geriYukleMiktar > islemMiktar) {
-        throw new Error(`Geri yükleme miktarı (${geriYukleMiktar}) işlem miktarından (${islemMiktar}) büyük olamaz.`);
+  return { 
+    success: false, 
+    message: `Geri yükleme miktarı (${geriYukleMiktar}) işlem miktarından (${islemMiktar}) büyük olamaz.` 
+  };
+}
+      
+      // İkili kaydı önlemek için son 5 saniye içinde aynı işlem yapılmış mı kontrol et
+      const [existingReturns] = await connection.execute(
+        `SELECT COUNT(*) AS count FROM islemler 
+         WHERE hammadde_id = ? 
+         AND islem_turu = 'İade' 
+         AND kullanim_alani = 'StokGeriYukleme' 
+         AND miktar = ? 
+         AND islem_tarihi > DATE_SUB(NOW(), INTERVAL 5 SECOND)`,
+        [islemInfo.hammadde_id, geriYukleMiktar]
+      );
+      
+      // Eğer son 5 saniye içinde aynı işlem yapılmışsa, tekrar yapma
+      if (existingReturns[0].count > 0) {
+        console.log('Son 5 saniye içinde aynı işlem zaten yapılmış, tekrar yapılmayacak.');
+      } else {
+        // Hammadde kalan miktarını güncelle
+        const yeniKalanMiktar = parseFloat(hammadde.kalan_miktar) + geriYukleMiktar;
+        
+        await connection.execute(
+          'UPDATE hammaddeler SET kalan_miktar = ? WHERE id = ?',
+          [yeniKalanMiktar, islemInfo.hammadde_id]
+        );
+        
+        // İade işlemini kaydet - aciklama sütunu olmadığı varsayımıyla
+        await connection.execute(
+          `INSERT INTO islemler (
+            hammadde_id, islem_turu, kullanim_alani, miktar, kullanici_id
+          ) VALUES (?, ?, ?, ?, ?)`,
+          [
+            islemInfo.hammadde_id,
+            'İade',
+            'StokGeriYukleme',
+            geriYukleMiktar,
+            islemInfo.kullanici_id || 1
+          ]
+        );
       }
-      
-      // Hammadde kalan miktarını güncelle
-      const yeniKalanMiktar = parseFloat(hammadde.kalan_miktar) + geriYukleMiktar;
-      
-      console.log(`Hammadde stoğa geri yükleniyor: Eski miktar=${hammadde.kalan_miktar}, Geri yüklenen=${geriYukleMiktar}, Yeni miktar=${yeniKalanMiktar}`);
-      
-      await connection.execute(
-        'UPDATE hammaddeler SET kalan_miktar = ? WHERE id = ?',
-        [yeniKalanMiktar, islemInfo.hammadde_id]
-    );
-    
-    // İkincil stok ile ilgili tüm kod kaldırıldı
+    }
     
     await connection.commit();
-    return { success: true, message: 'İşlem başarıyla güncellendi.' };
+    return { 
+      success: true, 
+      message: isStogaGeriYukle ? 
+        `${islemData.geri_yukle_miktar} birim orjinal stoğa geri yüklendi.` : 
+        'İşlem başarıyla güncellendi.' 
+    };
   } catch (error) {
     await connection.rollback();
     console.error('İşlem güncelleme hatası:', error);
-    return { success: false, message: error.message };
+    return { success: false, message: 'İşlem güncellenirken bir hata oluştu: ' + error.message };
   } finally {
     connection.release();
   }
 }
+
+
+
 // Updated getAllHammadde function to display material type specific information
 // Hammadde listesini getirme fonksiyonunu güncelleyelim
 async function getAllHammadde() {
@@ -1536,42 +1608,118 @@ async function getSarfMalzemeById(id) {
   }
 }
 
-
-// Sarf malzeme işlemini güncelle
-// Fix for updateSarfMalzemeIslem function
 async function updateSarfMalzemeIslem(islemId, islemData) {
   const connection = await pool.getConnection();
   
   try {
     await connection.beginTransaction();
     
-    // First, get the current operation data to preserve islem_turu if not provided
+    // First, get the current operation data and sarf_malzeme info
     const [currentIslem] = await connection.execute(
-      `SELECT islem_turu FROM sarf_malzeme_islemleri WHERE id = ?`,
+      `SELECT islem_turu, sarf_malzeme_id, miktar, kullanici_id FROM sarf_malzeme_islemleri WHERE id = ?`,
       [islemId]
     );
     
-    // Only update islem_turu if it's explicitly provided in islemData
-    // This ensures we don't overwrite the original operation type
-    const islemTuru = islemData.islem_turu || (currentIslem.length > 0 ? currentIslem[0].islem_turu : 'Standart');
-        
-    // Update the operation - preserve islem_turu, add iskarta_urun flag
-    await connection.execute(
-      `UPDATE sarf_malzeme_islemleri SET 
-       islem_turu = ?, proje_id = ?, iskarta_urun = ?
-       WHERE id = ?`,
-      [
-        islemTuru, // Use preserved operation type
-        islemData.proje_id || null,
-        islemData.iskarta_urun ? 1 : 0,
-        islemId
-      ]
+    if (currentIslem.length === 0) {
+      throw new Error('İşlem bulunamadı.');
+    }
+    
+    const islemInfo = currentIslem[0];
+    
+    // Get sarf_malzeme information to update stock
+    const [sarfMalzemeRows] = await connection.execute(
+      'SELECT kalan_miktar FROM sarf_malzemeler WHERE id = ?',
+      [islemInfo.sarf_malzeme_id]
     );
     
-    // İkincil stok ile ilgili tüm kodlar kaldırıldı
+    if (sarfMalzemeRows.length === 0) {
+      throw new Error('Sarf malzeme bulunamadı.');
+    }
+    
+    const sarfMalzeme = sarfMalzemeRows[0];
+    
+    // Only update islem_turu if it's explicitly provided in islemData
+    const islemTuru = islemData.islem_turu || islemInfo.islem_turu;
+    
+    // Önce isStogaGeriYukle kontrolü yap, eğer true ise normal güncelleme yapmayacağız
+    const isStogaGeriYukle = islemData.stoga_geri_yukle === true || islemData.stoga_geri_yukle === 1;
+    
+    // Eğer "Stoğa Geri Yükle" işlemi değilse, normal güncellemeyi yap
+    if (!isStogaGeriYukle) {
+      // Update the operation flags in database
+      await connection.execute(
+        `UPDATE sarf_malzeme_islemleri SET 
+         islem_turu = ?, proje_id = ?, iskarta_urun = ?
+         WHERE id = ?`,
+        [
+          islemTuru,
+          islemData.proje_id || null,
+          islemData.iskarta_urun ? 1 : 0,
+          islemId
+        ]
+      );
+    }
+    
+    // Handle return to original stock if requested
+    if (isStogaGeriYukle && islemData.geri_yukle_miktar > 0) {
+      const geriYukleMiktar = parseFloat(islemData.geri_yukle_miktar);
+      const islemMiktar = parseFloat(islemInfo.miktar);
+      
+      // Validate return amount
+     // Şununla değiştirin:
+if (geriYukleMiktar > islemMiktar) {
+  return { 
+    success: false, 
+    message: `Geri yükleme miktarı (${geriYukleMiktar}) işlem miktarından (${islemMiktar}) büyük olamaz.` 
+  };
+}
+      
+      // ÖNEMLİ: İkili kaydı önlemek için, son 5 saniye içinde aynı işlem yapılmış mı kontrol et
+      const [existingReturns] = await connection.execute(
+        `SELECT COUNT(*) AS count FROM sarf_malzeme_islemleri 
+         WHERE sarf_malzeme_id = ? 
+         AND islem_turu = 'İade' 
+         AND kullanim_alani = 'StokGeriYukleme' 
+         AND miktar = ? 
+         AND islem_tarihi > DATE_SUB(NOW(), INTERVAL 5 SECOND)`,
+        [islemInfo.sarf_malzeme_id, geriYukleMiktar]
+      );
+      
+      // Eğer son 5 saniye içinde aynı işlem yapılmışsa, tekrar yapma
+      if (existingReturns[0].count > 0) {
+        console.log('Son 5 saniye içinde aynı işlem zaten yapılmış, tekrar yapılmayacak.');
+      } else {
+        // Update the sarf_malzeme kalan_miktar (increment by return amount)
+        const yeniKalanMiktar = parseFloat(sarfMalzeme.kalan_miktar) + geriYukleMiktar;
+        
+        await connection.execute(
+          'UPDATE sarf_malzemeler SET kalan_miktar = ? WHERE id = ?',
+          [yeniKalanMiktar, islemInfo.sarf_malzeme_id]
+        );
+        
+        // Tablonun yapısına uygun şekilde INSERT yapalım (aciklama sütunu olmadan)
+        await connection.execute(
+          `INSERT INTO sarf_malzeme_islemleri 
+           (sarf_malzeme_id, islem_turu, kullanim_alani, miktar, kullanici_id) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            islemInfo.sarf_malzeme_id,
+            'İade', // Return operation
+            'StokGeriYukleme',
+            geriYukleMiktar,
+            islemInfo.kullanici_id || 1
+          ]
+        );
+      }
+    }
     
     await connection.commit();
-    return { success: true, message: 'Sarf malzeme işlemi başarıyla güncellendi.' };
+    return { 
+      success: true, 
+      message: isStogaGeriYukle ? 
+        `${islemData.geri_yukle_miktar} birim orjinal stoğa geri yüklendi.` : 
+        'Sarf malzeme işlemi başarıyla güncellendi.' 
+    };
   } catch (error) {
     await connection.rollback();
     console.error('Sarf malzeme işlemi güncelleme hatası:', error);
@@ -1580,6 +1728,7 @@ async function updateSarfMalzemeIslem(islemId, islemData) {
     connection.release();
   }
 }
+
 
 // Sarf malzeme güncelleme
 async function updateSarfMalzeme(id, sarfMalzemeData) {
@@ -2715,41 +2864,93 @@ async function updateYariMamulIslem(islemId, islemData) {
   try {
     await connection.beginTransaction();
     
-    // İşlem verilerini al
+    // İlk olarak mevcut işlem verilerini al
     const [currentIslem] = await connection.execute(
-      `SELECT ymi.*, ym.malzeme_adi, ym.birim 
-       FROM yari_mamul_islemleri ymi
-       JOIN yari_mamuller ym ON ymi.yari_mamul_id = ym.id
-       WHERE ymi.id = ?`,
+      `SELECT islem_turu, yari_mamul_id, miktar, kullanici_id FROM yari_mamul_islemleri WHERE id = ?`,
       [islemId]
     );
     
     if (currentIslem.length === 0) {
-      throw new Error('İşlem bulunamadı');
+      throw new Error('İşlem bulunamadı.');
     }
     
-    const islem = currentIslem[0];
+    const islemInfo = currentIslem[0];
+    
+    // Yarı mamul bilgilerini al
+    const [yariMamulRows] = await connection.execute(
+      'SELECT kalan_miktar FROM yari_mamuller WHERE id = ?',
+      [islemInfo.yari_mamul_id]
+    );
+    
+    if (yariMamulRows.length === 0) {
+      throw new Error('Yarı mamul bulunamadı.');
+    }
+    
+    const yariMamul = yariMamulRows[0];
     
     // İşlem türünü koru
-    const islemTuru = islemData.islem_turu || islem.islem_turu;
+    const islemTuru = islemData.islem_turu || islemInfo.islem_turu;
     
-    // İşlem kaydını güncelle
+    // İşlemi güncelle
     await connection.execute(
       `UPDATE yari_mamul_islemleri SET 
-       islem_turu = ?, proje_id = ?, iskarta_urun = ?
+       islem_turu = ?, kullanim_alani = ?, proje_id = ?, iskarta_urun = ?
        WHERE id = ?`,
       [
         islemTuru,
+        islemData.kullanim_alani || islemInfo.kullanim_alani,
         islemData.proje_id || null,
         islemData.iskarta_urun ? 1 : 0,
         islemId
       ]
     );
     
-    // İkincil stok ile ilgili tüm kod kaldırıldı
+    // Orjinal stoğa geri yükleme işlemi
+    if (islemData.stoga_geri_yukle && islemData.geri_yukle_miktar > 0) {
+      const geriYukleMiktar = parseFloat(islemData.geri_yukle_miktar);
+      const islemMiktar = parseFloat(islemInfo.miktar);
+      
+      // Geri yükleme miktarını doğrula
+     if (geriYukleMiktar > islemMiktar) {
+  return { 
+    success: false, 
+    message: `Geri yükleme miktarı (${geriYukleMiktar}) işlem miktarından (${islemMiktar}) büyük olamaz.` 
+  };
+}
+      
+      // Yarı mamul kalan miktarını güncelle
+      const yeniKalanMiktar = parseFloat(yariMamul.kalan_miktar) + geriYukleMiktar;
+      
+      console.log(`Yarı mamul stoğa geri yükleniyor: Eski miktar=${yariMamul.kalan_miktar}, Geri yüklenen=${geriYukleMiktar}, Yeni miktar=${yeniKalanMiktar}`);
+      
+      await connection.execute(
+        'UPDATE yari_mamuller SET kalan_miktar = ? WHERE id = ?',
+        [yeniKalanMiktar, islemInfo.yari_mamul_id]
+      );
+      
+      // İade işlemini kaydet
+      await connection.execute(
+        `INSERT INTO yari_mamul_islemleri (
+          yari_mamul_id, islem_turu, kullanim_alani, miktar, kullanici_id
+        ) VALUES (?, ?, ?, ?, ?)`,
+        [
+          islemInfo.yari_mamul_id,
+          'İade',
+          'StokGeriYukleme',
+          geriYukleMiktar,
+          islemInfo.kullanici_id || 1,
+          `İşlem #${islemId} den stoğa geri dönen miktar`
+        ]
+      );
+    }
     
     await connection.commit();
-    return { success: true, message: 'Yarı mamul işlemi başarıyla güncellendi.' };
+    return { 
+      success: true, 
+      message: islemData.stoga_geri_yukle ? 
+        `İşlem güncellendi ve ${islemData.geri_yukle_miktar} birim orjinal stoğa geri yüklendi.` : 
+        'İşlem başarıyla güncellendi.' 
+    };
   } catch (error) {
     await connection.rollback();
     console.error('Yarı mamul işlemi güncelleme hatası:', error);
