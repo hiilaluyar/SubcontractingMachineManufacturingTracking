@@ -1,0 +1,23 @@
+# PowerShell ile .gitignore dosyası oluştur
+@"
+# Bağımlılıklar
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Derlenmiş dosyalar
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Derleme klasörleri
+dist/
+build/
+out/
+
+# Sistem dosyaları
+.DS_Store
+Thumbs.db
+"@ | Out-File -FilePath ".gitignore" -Encoding utf8
