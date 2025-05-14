@@ -468,15 +468,24 @@ async function updateIslem(islemId, islemData) {
       ]
     );
     
-    // İşlem bilgilerini al
-    const [islemDetay] = await connection.execute(
-      `SELECT i.*, p.*, h.malzeme_adi, h.hammadde_turu, h.stok_kodu, 
-       h.id AS hammadde_id  
-       FROM islemler i
-       JOIN parcalar p ON i.parca_id = p.id
-       JOIN hammaddeler h ON p.hammadde_id = h.id
-       WHERE i.id = ?`,
-      [islemId]
+    // Orjinal stoğa geri yükleme işlemi
+    if (islemData.stoga_geri_yukle && islemData.geri_yukle_miktar > 0) {
+      const geriYukleMiktar = parseFloat(islemData.geri_yukle_miktar);
+      const islemMiktar = parseFloat(islemInfo.miktar);
+      
+      // Geri yükleme miktarını doğrula
+      if (geriYukleMiktar > islemMiktar) {
+        throw new Error(`Geri yükleme miktarı (${geriYukleMiktar}) işlem miktarından (${islemMiktar}) büyük olamaz.`);
+      }
+      
+      // Hammadde kalan miktarını güncelle
+      const yeniKalanMiktar = parseFloat(hammadde.kalan_miktar) + geriYukleMiktar;
+      
+      console.log(`Hammadde stoğa geri yükleniyor: Eski miktar=${hammadde.kalan_miktar}, Geri yüklenen=${geriYukleMiktar}, Yeni miktar=${yeniKalanMiktar}`);
+      
+      await connection.execute(
+        'UPDATE hammaddeler SET kalan_miktar = ? WHERE id = ?',
+        [yeniKalanMiktar, islemInfo.hammadde_id]
     );
     
     // İkincil stok ile ilgili tüm kod kaldırıldı
