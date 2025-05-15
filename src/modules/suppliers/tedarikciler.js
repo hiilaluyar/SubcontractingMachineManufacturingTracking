@@ -201,24 +201,56 @@ async function loadTedarikciListesi() {
   }
   
   // Delete supplier
-  async function deleteTedarikci(id) {
-    if (confirm('Bu tedarikçiyi silmek istediğinize emin misiniz?')) {
-      try {
-        const result = await window.electronAPI.invoke.database.deleteTedarikci(id);
-        
-        if (result.success) {
-          showToast('Tedarikçi başarıyla silindi.', 'success');
-          loadTedarikciListesi();
-        } else {
-          showToast('Hata: ' + result.message, 'error');
-        }
-      } catch (error) {
-        console.error('Tedarikçi silme hatası:', error);
-        showToast('Tedarikçi silinirken bir hata oluştu.', 'error');
+  // Delete supplier   
+async function deleteTedarikci(id) {
+  // Onay mesajı 
+  const onayMesaji = 'Bu tedarikçiyi silmek istediğinizden emin misiniz?';
+  const onay = await new Promise((resolve, reject) => {
+    Notiflix.Confirm.show(
+      'Tedarikçi Silme İşlemi',
+      onayMesaji,
+      'Evet, sil!',
+      'İptal',
+      function() {
+        resolve(true); // Evet tıklanırsa
+      },
+      function() {
+        resolve(false); // İptal tıklanırsa
+      },
+      {
+        titleColor: '#6A0D0C',
+        buttonOkBackgroundColor: '#6A0D0C',
+        cssAnimationStyle: 'zoom'
       }
-    }
+    );
+  });
+
+  if (!onay) {
+    return; // Kullanıcı iptal ettiyse işlemi sonlandır
   }
 
+  // API kontrolü
+  if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+    console.error('Database invoke metodu bulunamadı');
+    showToast('Tedarikçi silinemedi. API erişimi yok.', 'error');
+    return;
+  }
+
+  // Silme işlemi
+  try {
+    const result = await window.electronAPI.invoke.database.deleteTedarikci(id);
+    
+    if (result.success) {
+      showToast('Tedarikçi başarıyla silindi.', 'success');
+      loadTedarikciListesi();
+    } else {
+      showToast('Hata: ' + result.message, 'error');
+    }
+  } catch (error) {
+    console.error('Tedarikçi silme hatası:', error);
+    showToast('Tedarikçi silinirken bir hata oluştu.', 'error');
+  }
+}
 
   // Open new supplier modal from another modal
   function openNewTedarikciModal(sourceModalId) {
