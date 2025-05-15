@@ -85,76 +85,68 @@ async function editYariMamulIslem(islemId) {
   }
 
   async function deleteYariMamul(id) {
-    try {
-      // Yarı mamul bilgilerini al
-      const result = await window.electronAPI.invoke.database.getYariMamulById(id);
-      
-      if (!result.success) {
-        alert('Yarı mamul bilgileri alınamadı: ' + result.message);
-        return;
-      }
-      
-      const yariMamul = result.yariMamul;
-      
-      // Şu anki kullanıcı bilgisini al (global değişkenden)
-      if (!window.globalUserData) {
-        alert('Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.');
-        return;
-      }
-      
-      // Yönetici kontrolü
-      if (window.globalUserData.rol !== 'yonetici') {
-        alert('Bu işlem için yönetici yetkisi gereklidir!');
-        return;
-      }
-      
-      // İlişkili ikincil stokları kontrol et
-      const relatedStoks = await checkRelatedIkincilStokForYariMamul(id);
-      
-      // Malzeme adını formatla
-      let itemName = yariMamul.malzeme_adi;
-      if (yariMamul.stok_kodu) {
-        itemName += ` (${yariMamul.stok_kodu})`;
-      }
-      
-      // İkincil stok uyarı mesajı
-      const ikincilStokWarning = createIkincilStokWarningMessage(relatedStoks);
-      
-      // Silme modalını göster
-      window.showDeleteConfirmationModal({
-        title: 'Yarı Mamul Silme İşlemi',
-        message: `"${itemName}" yarı mamulünü silmek istediğinizden emin misiniz?`,
-        ikincilStokWarning: ikincilStokWarning, // İkincil stok uyarısı ayrı parametre olarak gönder
-        itemName: itemName,
-        itemType: 'Yarı Mamul',
-        itemId: id,
-        userData: window.globalUserData,
-        onConfirm: async (reason) => {
-          // Silme işlemini gerçekleştir
-          const result = await window.electronAPI.invoke.database.deleteYariMamulWithNotification(
-            id, 
-            reason,
-            window.globalUserData
-          );
-          
-          if (result.success) {
-            // Başarılı ise listeyi güncelle
-            loadYariMamulListesi();
-            if (typeof updateDashboard === 'function') {
-              updateDashboard();
-            }
-            return true;
-          } else {
-            throw new Error(result.message);
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Yarı mamul silme hatası:', error);
-      alert('Yarı mamul silinirken bir hata oluştu: ' + error.message);
+  try {
+    // Yarı mamul bilgilerini al
+    const result = await window.electronAPI.invoke.database.getYariMamulById(id);
+    
+    if (!result.success) {
+      alert('Yarı mamul bilgileri alınamadı: ' + result.message);
+      return;
     }
+    
+    const yariMamul = result.yariMamul;
+    
+    // Şu anki kullanıcı bilgisini al (global değişkenden)
+    if (!window.globalUserData) {
+      alert('Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.');
+      return;
+    }
+    
+    // Yönetici kontrolü
+    if (window.globalUserData.rol !== 'yonetici') {
+      alert('Bu işlem için yönetici yetkisi gereklidir!');
+      return;
+    }
+    
+    // Malzeme adını formatla
+    let itemName = yariMamul.malzeme_adi;
+    if (yariMamul.stok_kodu) {
+      itemName += ` (${yariMamul.stok_kodu})`;
+    }
+    
+    // Silme modalını göster
+    window.showDeleteConfirmationModal({
+      title: 'Yarı Mamul Silme İşlemi',
+      message: `"${itemName}" yarı mamulünü silmek istediğinizden emin misiniz?`,
+      itemName: itemName,
+      itemType: 'Yarı Mamul',
+      itemId: id,
+      userData: window.globalUserData,
+      onConfirm: async (reason) => {
+        // Silme işlemini gerçekleştir
+        const result = await window.electronAPI.invoke.database.deleteYariMamulWithNotification(
+          id, 
+          reason,
+          window.globalUserData
+        );
+        
+        if (result.success) {
+          // Başarılı ise listeyi güncelle
+          loadYariMamulListesi();
+          if (typeof updateDashboard === 'function') {
+            updateDashboard();
+          }
+          return true;
+        } else {
+          throw new Error(result.message);
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Yarı mamul silme hatası:', error);
+    alert('Yarı mamul silinirken bir hata oluştu: ' + error.message);
   }
-
+}
 
 
   

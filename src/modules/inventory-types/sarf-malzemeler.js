@@ -797,25 +797,13 @@ async function deleteSarfMalzeme(id) {
             return;
         }
         
-        // İlişkili ikincil stokları kontrol et
-        const relatedStoks = await checkRelatedIkincilStokForSarfMalzeme(id);
-        
         // Silme mesajını oluştur
         let deleteMessage = `"${sarfMalzeme.malzeme_adi} (${sarfMalzeme.stok_kodu})" sarf malzemesini silmek istediğinizden emin misiniz?`;
-        
-        // İkincil stok uyarı mesajı
-        const ikincilStokWarning = createIkincilStokWarningMessage(relatedStoks);
-        
-        // Eğer ikincil stok varsa, mesajı birleştir
-        const fullMessage = ikincilStokWarning 
-            ? `${deleteMessage}\n\n${ikincilStokWarning}` 
-            : deleteMessage;
         
         // Silme modalını göster
         window.showDeleteConfirmationModal({
             title: 'Sarf Malzeme Silme İşlemi',
-            message: fullMessage,
-            ikincilStokWarning: ikincilStokWarning, 
+            message: deleteMessage,
             itemName: `${sarfMalzeme.malzeme_adi} (${sarfMalzeme.stok_kodu})`,
             itemType: 'Sarf Malzeme',
             itemId: id,
@@ -845,7 +833,6 @@ async function deleteSarfMalzeme(id) {
         alert('Sarf malzeme silinirken bir hata oluştu: ' + error.message);
     }
 }
-
 
 
 
