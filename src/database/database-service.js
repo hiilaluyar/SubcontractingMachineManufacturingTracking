@@ -2544,8 +2544,6 @@ async function addYariMamul(yariMamulData) {
   }
 }
 
-
-// Tüm yarı mamülleri getir
 async function getAllYariMamuller() {
   try {
     const [rows] = await pool.execute(`
@@ -2559,7 +2557,7 @@ async function getAllYariMamuller() {
           ELSE 'STOKTA_VAR'
         END AS durum
       FROM yari_mamuller ym
-      ORDER BY ym.ekleme_tarihi DESC
+      ORDER BY ym.ekleme_tarihi DESC, CAST(SUBSTRING(ym.stok_kodu, 3) AS UNSIGNED) DESC
     `);
     return { success: true, yariMamuller: rows };
   } catch (error) {
@@ -4807,19 +4805,15 @@ async function addPlakaIslem(islemData) {
             
             // Yeni stok kodu için son YM numarasını bul
             const [lastYMRows] = await connection.execute(
-              `SELECT stok_kodu 
-               FROM yari_mamuller 
-               WHERE stok_kodu REGEXP '^YM[0-9]+'
-               ORDER BY CAST(SUBSTRING(stok_kodu, 3) AS UNSIGNED) DESC 
-               LIMIT 1`
-            );
-            
-            let nextYMNumber = 1;
-            if (lastYMRows.length > 0) {
-              const lastCode = lastYMRows[0].stok_kodu;
-              const lastNumber = parseInt(lastCode.substring(2));
-              nextYMNumber = lastNumber + 1;
-            }
+  `SELECT MAX(CAST(SUBSTRING(stok_kodu, 3) AS UNSIGNED)) as last_number
+   FROM yari_mamuller 
+   WHERE stok_kodu LIKE 'YM%'`
+);
+
+let nextYMNumber = 1;
+if (lastYMRows.length > 0 && lastYMRows[0].last_number !== null) {
+  nextYMNumber = lastYMRows[0].last_number + 1;
+}
             
             const yariMamulStokKodu = 'YM' + nextYMNumber.toString().padStart(3, '0');
             const yariMamulBarkod = 'YM' + dateCode + '-' + Math.floor(Math.random() * 100).toString().padStart(2, '0');
@@ -5130,20 +5124,16 @@ async function addParcaIslem(islemData) {
                           dateNow.getFullYear().toString().slice(2);
           
           // Yeni stok kodu için son YM numarasını bul
-          const [lastYMRows] = await connection.execute(
-            `SELECT stok_kodu 
-             FROM yari_mamuller 
-             WHERE stok_kodu REGEXP '^YM[0-9]+'
-             ORDER BY CAST(SUBSTRING(stok_kodu, 3) AS UNSIGNED) DESC 
-             LIMIT 1`
-          );
+         const [lastYMRows] = await connection.execute(
+  `SELECT MAX(CAST(SUBSTRING(stok_kodu, 3) AS UNSIGNED)) as last_number
+   FROM yari_mamuller 
+   WHERE stok_kodu LIKE 'YM%'`
+);
 
-          let nextYMNumber = 1;
-          if (lastYMRows.length > 0) {
-            const lastCode = lastYMRows[0].stok_kodu;
-            const lastNumber = parseInt(lastCode.substring(2));
-            nextYMNumber = lastNumber + 1;
-          }
+let nextYMNumber = 1;
+if (lastYMRows.length > 0 && lastYMRows[0].last_number !== null) {
+  nextYMNumber = lastYMRows[0].last_number + 1;
+}
           
           const yariMamulStokKodu = 'YM' + nextYMNumber.toString().padStart(3, '0');
           const yariMamulBarkod = 'YM' + dateCode + '-' + Math.floor(Math.random() * 100).toString().padStart(2, '0');
