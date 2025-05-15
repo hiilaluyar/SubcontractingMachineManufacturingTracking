@@ -5567,9 +5567,10 @@ async function getFasonIslemlerHepsiBirlikte() {
   }
 }
 
+// getMakineIslemlerHepsiBirlikte fonksiyonunu şu şekilde güncelleyin
 async function getMakineIslemlerHepsiBirlikte() {
   try {
-    // Hammadde işlemleri için sorgu - "en" ve "boy" kaldırıldı
+    // Hammadde işlemleri için sorgu - değişmiyor
     const [hammaddeRows] = await pool.execute(`
       SELECT 
         i.id AS islem_id, 
@@ -5599,7 +5600,7 @@ async function getMakineIslemlerHepsiBirlikte() {
         i.kullanim_alani = 'MakineImalat'
     `);
 
-    // Sarf malzeme işlemleri için sorgu - Bu kısım değişmedi
+    // Sarf malzeme işlemleri için sorgu - değişmiyor
     const [sarfMalzemeRows] = await pool.execute(`
       SELECT 
         si.id AS islem_id, 
@@ -5626,7 +5627,7 @@ async function getMakineIslemlerHepsiBirlikte() {
         si.kullanim_alani = 'MakineImalat'
     `);
 
-    // Yarı mamul işlemleri için sorgu - Bu kısım değişmedi
+    // Yarı mamul işlemleri için sorgu - BU KISIM DEĞİŞTİ
     const [yariMamulRows] = await pool.execute(`
       SELECT 
         ymi.id AS islem_id, 
@@ -5638,21 +5639,20 @@ async function getMakineIslemlerHepsiBirlikte() {
         ymi.miktar,
         pr.proje_adi,
         ymi.islem_turu AS sarf_islem_turu,
-        null AS calisan_ad, 
-        null AS calisan_soyad,
-        null AS makine,
+        c.ad AS calisan_ad, 
+        c.soyad AS calisan_soyad,
+        ymi.makine,
         u.ad AS kullanici_ad, 
         u.soyad AS kullanici_soyad
       FROM 
         yari_mamul_islemleri ymi
         JOIN yari_mamuller ym ON ymi.yari_mamul_id = ym.id
         LEFT JOIN projeler pr ON ymi.proje_id = pr.id
+        LEFT JOIN calisanlar c ON ymi.alan_calisan_id = c.id
         LEFT JOIN kullanicilar u ON ymi.kullanici_id = u.id
       WHERE 
         ymi.kullanim_alani = 'MakineImalat'
     `);
-
-   
 
     return {
       success: true,
@@ -5739,15 +5739,16 @@ async function getIskartaUrunlerHepsiBirlikte() {
         ymi.miktar,
         pr.proje_adi,
         ymi.islem_turu AS sarf_islem_turu,
-        null AS calisan_ad, 
-        null AS calisan_soyad,
-        null AS makine,
+        c.ad AS calisan_ad, 
+        c.soyad AS calisan_soyad,
+        ymi.makine,
         u.ad AS kullanici_ad, 
         u.soyad AS kullanici_soyad
       FROM 
         yari_mamul_islemleri ymi
         JOIN yari_mamuller ym ON ymi.yari_mamul_id = ym.id
         LEFT JOIN projeler pr ON ymi.proje_id = pr.id
+        LEFT JOIN calisanlar c ON ymi.alan_calisan_id = c.id
         LEFT JOIN kullanicilar u ON ymi.kullanici_id = u.id
       WHERE 
         ymi.iskarta_urun = 1
