@@ -99,48 +99,55 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 
-
 function toggleYariMamulPanel(prefix) {
-  console.log(`toggleYariMamulPanel çağrıldı: ${prefix}`);
-  
-  // prefix değeri 'plaka' veya 'parca' olabilir
-  const kullanimAlaniSelect = document.getElementById(`${prefix}KullanimAlani`);
-  const kullanimAlani = kullanimAlaniSelect.value;
-  console.log(`Kullanım Alanı: ${kullanimAlani}`);
-  
-  const yariMamulPanel = document.getElementById(`${prefix}YariMamulPanel`);
-  const musteriPanel = document.getElementById(`${prefix}MusteriPanel`);
-  
-  console.log(`Yarı Mamul Panel Element:`, yariMamulPanel);
-  console.log(`Müşteri Panel Element:`, musteriPanel);
-  
-  if (kullanimAlani === 'MakineImalat') {
-      console.log(`Makine İmalat seçildi, Yarı Mamul Paneli gösterilecek`);
-      if (yariMamulPanel) {
-          yariMamulPanel.style.display = 'block';
-      }
-      if (musteriPanel) {
-          musteriPanel.style.display = 'none';
-      }
-  } else if (kullanimAlani === 'FasonImalat') {
-      console.log(`Fason İmalat seçildi, Müşteri Paneli gösterilecek`);
-      if (yariMamulPanel) {
-          yariMamulPanel.style.display = 'none';
-      }
-      if (musteriPanel) {
-          musteriPanel.style.display = 'block';
-      }
-  } else {
-      console.log(`Diğer seçildi, her iki panel de gizlenecek`);
-      if (yariMamulPanel) {
-          yariMamulPanel.style.display = 'none';
-      }
-      if (musteriPanel) {
-          musteriPanel.style.display = 'none';
-      }
-  }
+    const kullanimAlani = document.getElementById(prefix + 'KullanimAlani').value;
+    const yariMamulPanel = document.getElementById(prefix + 'YariMamulPanel');
+    const musteriPanel = document.getElementById(prefix + 'MusteriPanel');
+    
+    // Kullanım ve Hurda input elementleri
+    const kullanilanMiktarInput = document.getElementById(prefix + 'KullanilanMiktar');
+    const hurdaMiktarInput = document.getElementById(prefix + 'HurdaMiktar');
+    
+    if (kullanimAlani === 'MakineImalat') {
+        // Makine İmalat seçildiğinde
+        if (yariMamulPanel) yariMamulPanel.style.display = 'block';
+        if (musteriPanel) musteriPanel.style.display = 'none';
+        
+        // Kullanılan ve Hurda alanlarını salt okunur yap
+        if (kullanilanMiktarInput) {
+            kullanilanMiktarInput.readOnly = true;
+            kullanilanMiktarInput.classList.add('readonly-input');
+        }
+        
+        if (hurdaMiktarInput) {
+            hurdaMiktarInput.readOnly = true;
+            hurdaMiktarInput.classList.add('readonly-input');
+        }
+        
+        // İlk yükleme için toplam ağırlık hesaplamasını başlat
+        if (prefix === 'plaka') {
+            updateYarimamulTotalWeight();
+        } else {
+            updateParcaYarimamulTotalWeight();
+        }
+        
+    } else {
+        // Fason İmalat seçildiğinde
+        if (yariMamulPanel) yariMamulPanel.style.display = 'none';
+        if (musteriPanel) musteriPanel.style.display = 'block';
+        
+        // Kullanılan ve Hurda alanlarını düzenlenebilir yap
+        if (kullanilanMiktarInput) {
+            kullanilanMiktarInput.readOnly = false;
+            kullanilanMiktarInput.classList.remove('readonly-input');
+        }
+        
+        if (hurdaMiktarInput) {
+            hurdaMiktarInput.readOnly = false;
+            hurdaMiktarInput.classList.remove('readonly-input');
+        }
+    }
 }
-
 
 
 function toggleMakineSectionEdit() {

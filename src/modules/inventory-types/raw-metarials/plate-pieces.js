@@ -451,170 +451,192 @@ function updatePlakaHurdaHesaplama() {
   
 
 
-// Düzeltilmiş saveParcaIslem fonksiyonu
 async function saveParcaIslem() {
     try {
-      // Form değerlerini al
-      const kullanilanMiktar = parseFloat(document.getElementById('parcaKullanilanMiktar').value);
-      const hurdaMiktar = parseFloat(document.getElementById('parcaHurdaMiktar').value) || 0;
-      const islemTuru = document.getElementById('parcaIslemTuru').value;
-      const kullanimAlani = document.getElementById('parcaKullanimAlani').value;
-      const projeId = document.getElementById('parcaProjeSecimi').value;
-      const musteriId = document.getElementById('parcaMusteriSecimi')?.value;
-      const makine = document.getElementById('parcaMakineSecimi').value;
-      const calisanId = document.getElementById('parcaCalisanSecimi').value;
-      
-      // Validasyon
-      if (!kullanilanMiktar || kullanilanMiktar <= 0) {
-        showModalError('parcaIslemModal', 'Lütfen geçerli bir kullanılan miktar girin.');
-        return;
-      }
-      
-      if (!projeId) {
-        showModalError('parcaIslemModal', 'Lütfen bir proje seçin veya yeni bir proje oluşturun.');
-        return;
-      }
-      
-      // Fason imalat ise müşteri zorunlu
-      if (kullanimAlani === 'FasonImalat' && !musteriId) {
-        showModalError('parcaIslemModal', 'Fason imalat için müşteri seçimi zorunludur.');
-        return;
-      }
-      
-      // Makine seçimi zorunlu
-      if (!makine) {
-        showModalError('parcaIslemModal', 'Lütfen bir makine seçin.');
-        return;
-      }
-      
-      // Çalışan seçimi zorunlu
-      if (!calisanId) {
-        showModalError('parcaIslemModal', 'Lütfen işlemi yapan çalışanı seçin.');
-        return;
-      }
-      
-      // Önce değerleri yuvarla (hassasiyet için)
-      const parcaKalanKilo = Math.round(parseFloat(currentParca.kalan_kilo) * 100) / 100;
-      const yuvarlananKullanilanMiktar = Math.round(kullanilanMiktar * 100) / 100;
-      const yuvarlananHurdaMiktar = Math.round(hurdaMiktar * 100) / 100;
-      
-      // Toplam kalan parça ağırlığını hesapla
-      const toplamParcaAgirligi = parcaKalanParcalar.reduce((toplam, parca) => {
-        return toplam + Math.round(parseFloat(parca.agirlik) * 100) / 100;
-      }, 0);
-      
-      const toplamKullanilacak = yuvarlananKullanilanMiktar + yuvarlananHurdaMiktar + toplamParcaAgirligi;
-      
-      // Hassasiyet toleransı
-      const HASSASIYET_TOLERANSI = 0.01;
-      
-      if (toplamKullanilacak > (parcaKalanKilo + HASSASIYET_TOLERANSI)) {
-        showModalError('parcaIslemModal', 
-          `Kullanmak istediğiniz toplam miktar (${toplamKullanilacak.toFixed(2)} kg) parçada kalan miktardan (${parcaKalanKilo.toFixed(2)} kg) fazla.`);
-        return;
-      }
-      
-      // Kalan parça bilgileri - artık birden fazla olabilir
-      let kalanParcaDataList = [];
-      if (document.getElementById('parcaKalanParcaSwitch').checked && parcaKalanParcalar.length > 0) {
-        // Her bir kalan parça için veri oluştur
-        kalanParcaDataList = parcaKalanParcalar.map(parca => ({
-          en: parca.en,
-          boy: parca.boy,
-          kalinlik: parca.kalinlik,
-          hesaplanan_agirlik: parca.agirlik,
-          plaka_id: currentParca.plaka_id,
-          parent_parca_id: currentParcaId
-        }));
-      }
-      
-      // Yarı mamul bilgileri
-      let yariMamulData = null;
-      if (kullanimAlani === 'MakineImalat') {
-        const yariMamulAdi = document.getElementById('parcaYariMamulAdi').value?.trim();
-        const yariMamulBirim = document.getElementById('parcaYariMamulBirim').value;
-        const yariMamulMiktar = parseFloat(document.getElementById('parcaYariMamulMiktar').value);
+        // Form değerlerini al
+        const kullanilanMiktar = parseFloat(document.getElementById('parcaKullanilanMiktar').value);
+        const hurdaMiktar = parseFloat(document.getElementById('parcaHurdaMiktar').value) || 0;
+        const islemTuru = document.getElementById('parcaIslemTuru').value;
+        const kullanimAlani = document.getElementById('parcaKullanimAlani').value;
+        const projeId = document.getElementById('parcaProjeSecimi').value;
+        const musteriId = document.getElementById('parcaMusteriSecimi')?.value;
+        const makine = document.getElementById('parcaMakineSecimi').value;
+        const calisanId = document.getElementById('parcaCalisanSecimi').value;
         
-        if (!yariMamulAdi) {
-          showModalError('parcaIslemModal', 'Lütfen yarı mamul adı girin.');
-          return;
+        // Validasyon
+        if (!kullanilanMiktar || kullanilanMiktar <= 0) {
+            showModalError('parcaIslemModal', 'Lütfen geçerli bir kullanılan miktar girin.');
+            return;
         }
         
-        if (!yariMamulMiktar || yariMamulMiktar <= 0) {
-          showModalError('parcaIslemModal', 'Lütfen geçerli bir yarı mamul miktarı girin.');
-          return;
+        if (!projeId) {
+            showModalError('parcaIslemModal', 'Lütfen bir proje seçin veya yeni bir proje oluşturun.');
+            return;
         }
         
-        yariMamulData = {
-          adi: yariMamulAdi,
-          birim: yariMamulBirim,
-          miktar: yariMamulMiktar
+        // Fason imalat ise müşteri zorunlu
+        if (kullanimAlani === 'FasonImalat' && !musteriId) {
+            showModalError('parcaIslemModal', 'Fason imalat için müşteri seçimi zorunludur.');
+            return;
+        }
+        
+        // Makine seçimi zorunlu
+        if (!makine) {
+            showModalError('parcaIslemModal', 'Lütfen bir makine seçin.');
+            return;
+        }
+        
+        // Çalışan seçimi zorunlu
+        if (!calisanId) {
+            showModalError('parcaIslemModal', 'Lütfen işlemi yapan çalışanı seçin.');
+            return;
+        }
+        
+        // Önce değerleri yuvarla (hassasiyet için)
+        const parcaKalanKilo = Math.round(parseFloat(currentParca.kalan_kilo) * 100) / 100;
+        const yuvarlananKullanilanMiktar = Math.round(kullanilanMiktar * 100) / 100;
+        const yuvarlananHurdaMiktar = Math.round(hurdaMiktar * 100) / 100;
+        
+        // Toplam kalan parça ağırlığını hesapla
+        const toplamParcaAgirligi = parcaKalanParcalar.reduce((toplam, parca) => {
+            return toplam + Math.round(parseFloat(parca.agirlik) * 100) / 100;
+        }, 0);
+        
+        const toplamKullanilacak = yuvarlananKullanilanMiktar + yuvarlananHurdaMiktar + toplamParcaAgirligi;
+        
+        // Hassasiyet toleransı
+        const HASSASIYET_TOLERANSI = 0.01;
+        
+        if (toplamKullanilacak > (parcaKalanKilo + HASSASIYET_TOLERANSI)) {
+            showModalError('parcaIslemModal', 
+                `Kullanmak istediğiniz toplam miktar (${toplamKullanilacak.toFixed(2)} kg) parçada kalan miktardan (${parcaKalanKilo.toFixed(2)} kg) fazla.`);
+            return;
+        }
+        
+        // ÖNEMLİ: Makine İmalat ise ve Yarı Mamul var ise
+        let yariMamulDataList = [];
+        if (kullanimAlani === 'MakineImalat') {
+            // Tüm yarı mamul öğelerini toplayalım
+            const yarimamulItems = document.querySelectorAll('#parcaYariMamulList .yarimamul-item');
+            if (yarimamulItems.length === 0) {
+                showModalError('parcaIslemModal', 'Makine imalat için en az bir yarı mamul girmelisiniz.');
+                return;
+            }
+            
+            // Her bir yarı mamul için veri oluştur
+            for (const item of yarimamulItems) {
+                const index = item.dataset.index;
+                const adi = document.getElementById(`parcaYariMamulAdi_${index}`).value?.trim();
+                const birim = document.getElementById(`parcaYariMamulBirim_${index}`).value;
+                const miktar = parseFloat(document.getElementById(`parcaYariMamulMiktar_${index}`).value) || 0;
+                const birimAgirlik = parseFloat(document.getElementById(`parcaYariMamulAgirlik_${index}`).value) || 0;
+                
+                // Boş alan kontrolü
+                if (!adi) {
+                    showModalError('parcaIslemModal', `${index+1}. yarı mamulün adını girmelisiniz.`);
+                    return;
+                }
+                
+                if (miktar <= 0) {
+                    showModalError('parcaIslemModal', `${index+1}. yarı mamulün miktarı 0'dan büyük olmalıdır.`);
+                    return;
+                }
+                
+                if (birimAgirlik <= 0) {
+                    showModalError('parcaIslemModal', `${index+1}. yarı mamulün birim ağırlığı 0'dan büyük olmalıdır.`);
+                    return;
+                }
+                
+                // Yarı mamul verisini listeye ekle
+                yariMamulDataList.push({
+                    adi: adi,
+                    birim: birim,
+                    miktar: miktar,
+                    birimAgirlik: birimAgirlik,
+                    toplamAgirlik: miktar * birimAgirlik
+                });
+            }
+        }
+        
+        // Kalan parça bilgileri - artık birden fazla olabilir
+        let kalanParcaDataList = [];
+        if (document.getElementById('parcaKalanParcaSwitch').checked && parcaKalanParcalar.length > 0) {
+            // Her bir kalan parça için veri oluştur
+            kalanParcaDataList = parcaKalanParcalar.map(parca => ({
+                en: parca.en,
+                boy: parca.boy,
+                kalinlik: parca.kalinlik,
+                hesaplanan_agirlik: parca.agirlik,
+                plaka_id: currentParca.plaka_id,
+                parent_parca_id: currentParcaId
+            }));
+        }
+        
+        // İşlem verisi
+        const islemData = {
+            parca_id: currentParcaId,
+            islem_turu: islemTuru,
+            kullanim_alani: kullanimAlani,
+            kullanilanMiktar: kullanilanMiktar,
+            hurdaMiktar: hurdaMiktar,
+            proje_id: projeId,
+            musteri_id: musteriId || null,
+            kullanici_id: currentUser.id,
+            kalan_parcalar: kalanParcaDataList,
+            yari_mamuller: yariMamulDataList, // ÖNEMLİ: Artık bir liste
+            plaka_id: currentParca.plaka_id,
+            makine: makine,
+            calisan_id: parseInt(calisanId)
         };
-      }
-      
-      // İşlem verisi
-      const islemData = {
-        parca_id: currentParcaId,
-        islem_turu: islemTuru,
-        kullanim_alani: kullanimAlani,
-        kullanilanMiktar: kullanilanMiktar,
-        hurdaMiktar: hurdaMiktar,
-        proje_id: projeId,
-        musteri_id: musteriId,
-        kullanici_id: currentUser.id,
-        kalan_parcalar: kalanParcaDataList,
-        yari_mamul: yariMamulData,
-        plaka_id: currentParca.plaka_id,
-        makine: makine,
-        calisan_id: parseInt(calisanId)
-      };
-      
-      // İşlem kaydediliyor mesajını göster
-      showModalSuccess('parcaIslemModal', 'İşlem kaydediliyor...');
-      
-      // İşlemi kaydet
-      const result = await window.electronAPI.invoke.database.addParcaIslem(islemData);
-      
-      if (result.success) {
-        let successMessage = 'Parça işlemi başarıyla kaydedildi.';
         
-        // Yarı mamul oluşturulmuşsa ek bilgi göster
-        if (kullanimAlani === 'MakineImalat' && yariMamulData) {
-          successMessage += ` ${yariMamulData.miktar} ${yariMamulData.birim} yarı mamul oluşturuldu.`;
+        // İşlem kaydediliyor mesajını göster
+        showModalSuccess('parcaIslemModal', 'İşlem kaydediliyor...');
+        
+        // İşlemi kaydet
+        const result = await window.electronAPI.invoke.database.addParcaIslem(islemData);
+        
+        if (result.success) {
+            let successMessage = 'Parça işlemi başarıyla kaydedildi.';
+            
+            // Yarı mamul oluşturulmuşsa ek bilgi göster
+            if (kullanimAlani === 'MakineImalat' && yariMamulDataList.length > 0) {
+                const toplamYariMamul = yariMamulDataList.reduce((toplam, ym) => toplam + ym.miktar, 0);
+                const birimText = yariMamulDataList.length > 0 ? yariMamulDataList[0].birim : 'adet';
+                successMessage += ` Toplam ${toplamYariMamul} ${birimText} yarı mamul oluşturuldu.`;
+            }
+            
+            showToast(successMessage, 'success');
+            
+            // Modalı kapat
+            closeModal('parcaIslemModal');
+            
+            // Dashboard'ı güncelle
+            updateDashboard();
+            
+            // Hammadde listesini güncelle
+            await loadHammaddeListesi();
+            
+            // Kullanım alanına göre ilgili sayfayı güncelle
+            if (kullanimAlani === 'FasonImalat') {
+                await loadFasonIslemler();
+            } else if (kullanimAlani === 'MakineImalat') {
+                await loadMakineIslemler();
+                // Yarı mamul listesini de güncelle
+                await loadYariMamulListesi();
+            }
+            
+            // Hammadde detayını yeniden yükle
+            if (currentHammaddeId) {
+                await viewHammaddeDetail(currentHammaddeId);
+            }
+        } else {
+            showModalError('parcaIslemModal', 'Hata: ' + result.message);
         }
-        
-        showToast(successMessage, 'success');
-        
-        // Modalı kapat
-        closeModal('parcaIslemModal');
-        
-        // Dashboard'ı güncelle
-        updateDashboard();
-        
-        // Hammadde listesini güncelle
-        await loadHammaddeListesi();
-        
-        // Kullanım alanına göre ilgili sayfayı güncelle
-        if (kullanimAlani === 'FasonImalat') {
-          await loadFasonIslemler();
-        } else if (kullanimAlani === 'MakineImalat') {
-          await loadMakineIslemler();
-          // Yarı mamul listesini de güncelle
-          await loadYariMamulListesi();
-        }
-        
-        // Hammadde detayını yeniden yükle
-        if (currentHammaddeId) {
-          await viewHammaddeDetail(currentHammaddeId);
-        }
-      } else {
-        showModalError('parcaIslemModal', 'Hata: ' + result.message);
-      }
     } catch (error) {
-      console.error('Parça işlemi kaydetme hatası:', error);
-      showModalError('parcaIslemModal', 'İşlem kaydedilirken bir hata oluştu: ' + error.message);
+        console.error('Parça işlemi kaydetme hatası:', error);
+        showModalError('parcaIslemModal', 'İşlem kaydedilirken bir hata oluştu: ' + error.message);
     }
-  }
+}
 
 
 
@@ -1074,124 +1096,6 @@ async function loadPlakaParcaList(hammaddeId) {
         row.innerHTML = '<td colspan="8" class="text-center">Parça listesi yüklenirken hata oluştu</td>';
     }
 }
-
-
-/*  async function loadPlakaParcalar(plakaId) {
-    try {
-        // Plaka bilgilerini al
-        const plakaResult = await window.electronAPI.invoke.database.getPlakaById(plakaId);
-        
-        if (!plakaResult.success) {
-            showToast('Plaka bilgileri alınamadı: ' + plakaResult.message, 'error');
-            return;
-        }
-        
-        // Parçaları al
-        const parcalarResult = await window.electronAPI.invoke.database.getPlakaParcalariByPlakaId(plakaId);
-        
-        const parcalarTable = document.getElementById('parcalarTable');
-        const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
-        tableBody.innerHTML = '';
-        
-        if (!parcalarResult.success || !parcalarResult.parcalar || parcalarResult.parcalar.length === 0) {
-            const row = tableBody.insertRow();
-            row.innerHTML = '<td colspan="9" class="text-center">Bu plakada parça bulunamadı</td>';
-            
-            // Detay modalını aç/güncelle
-            openModal('detayModal');
-            
-            // Parçalar tabına geç
-            const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
-            if (parcalarTab) parcalarTab.click();
-            
-            return;
-        }
-        
-        // Hata ayıklama için
-        console.log("Plaka parçaları:", parcalarResult.parcalar);
-        
-        // Parçaları listele
-        parcalarResult.parcalar.forEach(parca => {
-            const row = tableBody.insertRow();
-            
-            // Parça No
-            row.insertCell(0).textContent = `#${parca.parca_no}`;
-            
-            // Barkod Kodu
-            row.insertCell(1).textContent = parca.barkod_kodu || 'Belirtilmemiş';
-            
-            // Plaka No
-            row.insertCell(2).textContent = `#${plakaResult.plaka.stok_kodu}`;
-            
-            // En x Boy - DÜZELTİLMİŞ KISIM
-            const enBoyCell = row.insertCell(3);
-            console.log(`Parça #${parca.parca_no} - En: ${parca.en}, Boy: ${parca.boy}`);
-            
-            if (parca.en != null && parca.boy != null) {
-                enBoyCell.textContent = `${parca.en} x ${parca.boy} mm`;
-            } else {
-                enBoyCell.textContent = 'Belirtilmemiş';
-            }
-            
-            // Durum
-            const durumCell = row.insertCell(4);
-            let durumText = '';
-            let durumClass = '';
-            
-            switch (parca.durum) {
-                case 'TAM':
-                    durumText = 'TAM';
-                    durumClass = 'stokta-var';
-                    break;
-                case 'KISMEN_KULLANILDI':
-                    durumText = 'KISMEN KULLANILDI';
-                    durumClass = 'az-kaldi';
-                    break;
-                case 'TUKENDI':
-                    durumText = 'TÜKENDİ';
-                    durumClass = 'stokta-yok';
-                    break;
-            }
-            
-            durumCell.innerHTML = `<span class="${durumClass}">${durumText}</span>`;
-            durumCell.style.verticalAlign = 'middle';
-            
-            // Orijinal Kilo
-            row.insertCell(5).textContent = `${Number(parca.orijinal_kilo).toFixed(2)} kg`;
-            
-            // Kalan Kilo
-            row.insertCell(6).textContent = `${Number(parca.kalan_kilo).toFixed(2)} kg`;
-            
-            // Kullanım Oranı
-            row.insertCell(7).textContent = `%${Number(parca.kullanim_orani).toFixed(2)}`;
-            
-            // İşlemler
-            const islemlerCell = row.insertCell(8);
-            if (parca.durum !== 'TUKENDI') {
-                islemlerCell.innerHTML = `
-                    <div class="action-buttons">
-                        <button class="action-btn process" title="İşlem Yap" onclick="openParcaIslemModal(${parca.id}, ${parca.parca_no})">
-                            <i class="fas fa-cut"></i>
-                        </button>
-                    </div>
-                `;
-            } else {
-                islemlerCell.textContent = 'Tükenmiş';
-            }
-        });
-        
-        // Detay modalını aç/güncelle
-        openModal('detayModal');
-        
-        // Parçalar tabına geç
-        const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
-        if (parcalarTab) parcalarTab.click();
-    } catch (error) {
-        console.error('Plaka parçaları yükleme hatası:', error);
-        showToast('Plaka parçaları yüklenirken bir hata oluştu.', 'error');
-    }
-}  */
-
 
 
 window.addKalanParca = addKalanParca;

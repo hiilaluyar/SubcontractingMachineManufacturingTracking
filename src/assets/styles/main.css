@@ -3642,3 +3642,31 @@ tr:has(.plaka-checkbox:checked) {
   color: #666;
   margin: 10px 0;
 }
+
+
+  .form-row-three {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .yarimamul-item {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        border-left: 3px solid #6A0D0C;
+    }
+    
+    .buttons-group {
+        display: flex;
+        align-items: flex-end;
+    }
+    
+    #yarimamulToplam, #parcaYarimamulToplam {
+        background-color: #fffde7;
+        padding: 10px;
+        border-radius: 5px;
+        border-left: 3px solid #fbc02d;
+    }

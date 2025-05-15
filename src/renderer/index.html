@@ -2093,35 +2093,63 @@
                     </div>
 
                     <!-- Yarı Mamul Paneli -->
-                    <div id="plakaYariMamulPanel" style="display: none;" class="form-section">
-                        <h3>Yarı Mamul Bilgileri</h3>
-                        <div class="form-row-two">
-                            <div class="form-group">
-                                <label for="plakaYariMamulAdi">Yarı Mamul Adı</label>
-                                <input type="text" id="plakaYariMamulAdi" placeholder="Sac Kapak, Profil vs.">
-                            </div>
-                            <div class="form-group">
-                                <label for="plakaYariMamulBirim">Birim</label>
-                                <select id="plakaYariMamulBirim">
-                                    <option value="adet">Adet</option>
-                                    <option value="kg">kg</option>
-                                    <option value="m">m</option>
-                                    <option value="m2">m²</option>
-                                    <option value="m3">m³</option>
-                                    <option value="lt">lt</option>
-                                    <option value="kutu">Kutu</option>
-                                    <option value="paket">Paket</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="plakaYariMamulMiktar">Miktar</label>
-                                <input type="number" id="plakaYariMamulMiktar" step="0.01" min="0.01">
-                            </div>
-                        </div>
-                    </div>
+                   <div id="plakaYariMamulPanel" style="display: none;" class="form-section">
+    <h3>Yarı Mamul Bilgileri</h3>
+    
+    <div id="plakaYariMamulList">
+        <!-- Yarı Mamul girişleri buraya dinamik olarak eklenecek -->
+        <div class="yarimamul-item" data-index="0">
+            <div class="form-row-two">
+                <div class="form-group">
+                    <label for="plakaYariMamulAdi_0">Yarı Mamul Adı</label>
+                    <input type="text" id="plakaYariMamulAdi_0" class="yarimamul-adi" placeholder="Sac Kapak, Profil vs.">
                 </div>
+                <div class="form-group">
+                    <label for="plakaYariMamulBirim_0">Birim</label>
+                    <select id="plakaYariMamulBirim_0" class="yarimamul-birim">
+                        <option value="adet">Adet</option>
+                        <option value="kg">kg</option>
+                        <option value="m">m</option>
+                        <option value="m2">m²</option>
+                        <option value="m3">m³</option>
+                        <option value="lt">lt</option>
+                        <option value="kutu">Kutu</option>
+                        <option value="paket">Paket</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row-three">
+                <div class="form-group">
+                    <label for="plakaYariMamulMiktar_0">Adet</label>
+                    <input type="number" id="plakaYariMamulMiktar_0" class="yarimamul-miktar" step="1" min="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label for="plakaYariMamulAgirlik_0">Birim Ağırlık (kg)</label>
+                    <input type="number" id="plakaYariMamulAgirlik_0" class="yarimamul-agirlik" step="0.01" min="0.01">
+                </div>
+                <div class="form-group buttons-group">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn-danger remove-yarimamul" style="display: none;">
+                        <i class="fas fa-trash"></i> Sil
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-row" style="margin-top: 10px;">
+        <button type="button" id="addMoreYariMamul" class="btn-secondary">
+            <i class="fas fa-plus"></i> Yeni Yarı Mamul Ekle
+        </button>
+    </div>
+    
+    <div class="form-row" style="margin-top: 15px;">
+        <div class="form-info" id="yarimamulToplam">
+            <p><strong>Toplam Kullanılacak:</strong> <span id="toplamYarimamulAgirlik">0.00</span> kg</p>
+        </div>
+    </div>
+</div>
+</div>
                 
                 <!-- SAĞ KOLON: Kalan Parça Paneli -->
                 <div class="form-column">
@@ -2418,34 +2446,62 @@
                     </div>
                     
                     <!-- Yarı Mamul Paneli -->
-                    <div id="parcaYariMamulPanel" style="display: none;" class="form-section">
-                        <h3>Yarı Mamul Bilgileri</h3>
-                        <div class="form-row-two">
-                            <div class="form-group">
-                                <label for="parcaYariMamulAdi">Yarı Mamul Adı</label>
-                                <input type="text" id="parcaYariMamulAdi" placeholder="Sac Kapak, Profil vs.">
-                            </div>
-                            <div class="form-group">
-                                <label for="parcaYariMamulBirim">Birim</label>
-                                <select id="parcaYariMamulBirim">
-                                    <option value="adet">Adet</option>
-                                    <option value="kg">kg</option>
-                                    <option value="m">m</option>
-                                    <option value="m2">m²</option>
-                                    <option value="m3">m³</option>
-                                    <option value="lt">lt</option>
-                                    <option value="kutu">Kutu</option>
-                                    <option value="paket">Paket</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="parcaYariMamulMiktar">Miktar</label>
-                                <input type="number" id="parcaYariMamulMiktar" step="0.01" min="0.01">
-                            </div>
-                        </div>
-                    </div>
+                   <div id="parcaYariMamulPanel" style="display: none;" class="form-section">
+    <h3>Yarı Mamul Bilgileri</h3>
+    
+    <div id="parcaYariMamulList">
+        <!-- Yarı Mamul girişleri buraya dinamik olarak eklenecek -->
+        <div class="yarimamul-item" data-index="0">
+            <div class="form-row-two">
+                <div class="form-group">
+                    <label for="parcaYariMamulAdi_0">Yarı Mamul Adı</label>
+                    <input type="text" id="parcaYariMamulAdi_0" class="yarimamul-adi" placeholder="Sac Kapak, Profil vs.">
+                </div>
+                <div class="form-group">
+                    <label for="parcaYariMamulBirim_0">Birim</label>
+                    <select id="parcaYariMamulBirim_0" class="yarimamul-birim">
+                        <option value="adet">Adet</option>
+                        <option value="kg">kg</option>
+                        <option value="m">m</option>
+                        <option value="m2">m²</option>
+                        <option value="m3">m³</option>
+                        <option value="lt">lt</option>
+                        <option value="kutu">Kutu</option>
+                        <option value="paket">Paket</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row-three">
+                <div class="form-group">
+                    <label for="parcaYariMamulMiktar_0">Adet</label>
+                    <input type="number" id="parcaYariMamulMiktar_0" class="yarimamul-miktar" step="1" min="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label for="parcaYariMamulAgirlik_0">Birim Ağırlık (kg)</label>
+                    <input type="number" id="parcaYariMamulAgirlik_0" class="yarimamul-agirlik" step="0.01" min="0.01">
+                </div>
+                <div class="form-group buttons-group">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn-danger remove-yarimamul" style="display: none;">
+                        <i class="fas fa-trash"></i> Sil
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-row" style="margin-top: 10px;">
+        <button type="button" id="addMoreParcaYariMamul" class="btn-secondary">
+            <i class="fas fa-plus"></i> Yeni Yarı Mamul Ekle
+        </button>
+    </div>
+    
+    <div class="form-row" style="margin-top: 15px;">
+        <div class="form-info" id="parcaYarimamulToplam">
+            <p><strong>Toplam Kullanılacak:</strong> <span id="toplamParcaYarimamulAgirlik">0.00</span> kg</p>
+        </div>
+    </div>
+</div>
                 </div>
                 
                 <!-- SAĞ KOLON: Kalan Parça Paneli -->
@@ -2793,206 +2849,6 @@ function openYeniProjeModal(sourceModal = null) {
     });
     </script>
 
-<script>
-    // Kalan Parça Panelini Aç/Kapat
-    function toggleKalanParcaPanel() {
-        const kalanParcaSwitch = document.getElementById('kalanParcaSwitch');
-        const kalanParcaPanel = document.getElementById('kalanParcaPanel');
-        
-        if (kalanParcaSwitch.checked) {
-            kalanParcaPanel.style.display = 'block';
-        } else {
-            kalanParcaPanel.style.display = 'none';
-        }
-    }
-    
-    // Yarı Mamul Panelini Aç/Kapat
-    function toggleYariMamulPanel(prefix) {
-        const kullanimAlani = document.getElementById(prefix + 'KullanimAlani').value;
-        const yariMamulPanel = document.getElementById(prefix + 'YariMamulPanel');
-        const musteriPanel = document.getElementById(prefix + 'MusteriPanel');
-        
-        if (kullanimAlani === 'MakineImalat') {
-            yariMamulPanel.style.display = 'block';
-            if (musteriPanel) musteriPanel.style.display = 'none';
-        } else if (kullanimAlani === 'FasonImalat') {
-            yariMamulPanel.style.display = 'none';
-            if (musteriPanel) musteriPanel.style.display = 'block';
-        } else {
-            yariMamulPanel.style.display = 'none';
-            if (musteriPanel) musteriPanel.style.display = 'none';
-        }
-    }
-    
-    // Kalan Parça Hesaplama
-    document.getElementById('hesaplaKalanParcaBtn').addEventListener('click', function() {
-        const en = parseFloat(document.getElementById('kalanParcaEn').value);
-        const boy = parseFloat(document.getElementById('kalanParcaBoy').value);
-        const kalinlik = currentPlaka.kalinlik; // Global değişkenden alınacak
-        const yogunluk = currentPlaka.yogunluk; // Global değişkenden alınacak
-        
-        if (!en || !boy || isNaN(en) || isNaN(boy)) {
-            document.getElementById('kalanParcaHesapSonucu').innerHTML = 
-                '<div class="error">Lütfen geçerli en ve boy değerleri girin.</div>';
-            document.getElementById('kalanParcaHesapSonucu').style.display = 'block';
-            return;
-        }
-        
-        // Hacim hesapla (m³)
-        const hacim = (en / 1000) * (boy / 1000) * (kalinlik / 1000);
-        
-        // Ağırlık hesapla (kg)
-        const agirlik = hacim * yogunluk;
-        
-        // Sonucu göster
-        document.getElementById('kalanParcaHesapSonucu').innerHTML = `
-            <div class="calculation-details">
-                <div class="detail-row">
-                    <span>En x Boy:</span>
-                    <span>${en} mm x ${boy} mm</span>
-                </div>
-                <div class="detail-row">
-                    <span>Kalınlık:</span>
-                    <span>${kalinlik} mm</span>
-                </div>
-                <div class="detail-row">
-                    <span>Hesaplanan Ağırlık:</span>
-                    <span>${agirlik.toFixed(2)} kg</span>
-                </div>
-            </div>
-        `;
-        document.getElementById('kalanParcaHesapSonucu').style.display = 'block';
-    });
-    
-    // Plaka İşlemi Kaydet
-    document.getElementById('plakaIslemKaydetBtn').addEventListener('click', savePlakaIslem);
-    
-    async function savePlakaIslem() {
-        try {
-            // Form değerlerini al
-            const kullanilanMiktar = parseFloat(document.getElementById('plakaKullanilanMiktar').value);
-            const hurdaMiktar = parseFloat(document.getElementById('plakaHurdaMiktar').value) || 0;
-            const islemTuru = document.getElementById('plakaIslemTuru').value;
-            const kullanimAlani = document.getElementById('plakaKullanimAlani').value;
-            const projeId = document.getElementById('plakaProjeSecimi').value;
-            const musteriId = document.getElementById('plakaMusteriSecimi')?.value;
-            
-            // Validasyon
-            if (!kullanilanMiktar || kullanilanMiktar <= 0) {
-                showModalError('plakaIslemModal', 'Lütfen geçerli bir kullanılan miktar girin.');
-                return;
-            }
-            
-            if (!projeId) {
-                showModalError('plakaIslemModal', 'Lütfen bir proje seçin veya yeni bir proje oluşturun.');
-                return;
-            }
-            
-            // Kalan parça bilgileri
-            let kalanParcaData = null;
-            if (document.getElementById('kalanParcaSwitch').checked) {
-                const en = parseFloat(document.getElementById('kalanParcaEn').value);
-                const boy = parseFloat(document.getElementById('kalanParcaBoy').value);
-                
-                if (!en || !boy || isNaN(en) || isNaN(boy)) {
-                    showModalError('plakaIslemModal', 'Lütfen kalan parça için geçerli en ve boy değerleri girin.');
-                    return;
-                }
-                
-                // Hacim ve ağırlık hesapla
-                const kalinlik = currentPlaka.kalinlik;
-                const yogunluk = currentPlaka.yogunluk;
-                const hacim = (en / 1000) * (boy / 1000) * (kalinlik / 1000);
-                const agirlik = hacim * yogunluk;
-                
-                kalanParcaData = {
-                    en: en,
-                    boy: boy,
-                    kalinlik: kalinlik,
-                    hesaplanan_agirlik: agirlik,
-                    hammadde_id: currentPlaka.hammadde_id,
-                    plaka_id: currentPlaka.id
-                };
-            }
-            
-            // Yarı mamul bilgileri
-            let yariMamulData = null;
-            if (kullanimAlani === 'MakineImalat') {
-                const yariMamulAdi = document.getElementById('plakaYariMamulAdi').value?.trim();
-                const yariMamulBirim = document.getElementById('plakaYariMamulBirim').value;
-                const yariMamulMiktar = parseFloat(document.getElementById('plakaYariMamulMiktar').value);
-                
-                if (!yariMamulAdi) {
-                    showModalError('plakaIslemModal', 'Lütfen yarı mamul adı girin.');
-                    return;
-                }
-                
-                if (!yariMamulMiktar || yariMamulMiktar <= 0) {
-                    showModalError('plakaIslemModal', 'Lütfen geçerli bir yarı mamul miktarı girin.');
-                    return;
-                }
-                
-                yariMamulData = {
-                    adi: yariMamulAdi,
-                    birim: yariMamulBirim,
-                    miktar: yariMamulMiktar
-                };
-            }
-            
-            // İşlem verisi
-            const islemData = {
-                plaka_id: currentPlaka.id,
-                islem_turu: islemTuru,
-                kullanim_alani: kullanimAlani,
-                kullanilanMiktar: kullanilanMiktar,
-                hurdaMiktar: hurdaMiktar,
-                proje_id: projeId,
-                musteri_id: musteriId,
-                kullanici_id: currentUser.id,
-                kalan_parca: kalanParcaData,
-                yari_mamul: yariMamulData
-            };
-            
-            // İşlem kaydediliyor mesajını göster
-            showModalSuccess('plakaIslemModal', 'İşlem kaydediliyor...');
-            
-            // İşlemi kaydet
-            const result = await window.electronAPI.invoke.database.addPlakaIslem(islemData);
-            
-            if (result.success) {
-                showToast('Plaka işlemi başarıyla kaydedildi.', 'success');
-                
-                // Modalı kapat
-                closeModal('plakaIslemModal');
-                
-                // Dashboard'ı güncelle
-                await updateDashboard();
-                
-                // Hammadde listesini güncelle
-                await loadHammaddeListesi();
-                
-                // Kullanım alanına göre ilgili sayfayı güncelle
-                if (kullanimAlani === 'FasonImalat') {
-                    await loadFasonIslemler();
-                } else if (kullanimAlani === 'MakineImalat') {
-                    await loadMakineIslemler();
-                    // Yarı mamul listesini de güncelle
-                    await loadYariMamulListesi();
-                }
-                
-                // Hammadde detayını yeniden yükle
-                if (currentHammaddeId) {
-                    await viewHammaddeDetail(currentHammaddeId);
-                }
-            } else {
-                showModalError('plakaIslemModal', 'Hata: ' + result.message);
-            }
-        } catch (error) {
-            console.error('Plaka işlemi kaydetme hatası:', error);
-            showModalError('plakaIslemModal', 'İşlem kaydedilirken bir hata oluştu: ' + error.message);
-        }
-    }
-    </script>
 
 <script>
     // Tab sistemi için event listener'lar
