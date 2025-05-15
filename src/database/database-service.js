@@ -1977,26 +1977,47 @@ async function addSarfMalzemeIslemi(islemData) {
 
 // Sarf malzeme işlemlerini getir
 async function getSarfMalzemeIslemleri(sarfMalzemeId) {
+  const connection = await pool.getConnection();
+  
   try {
-    const [rows] = await pool.execute(`
+    // Sarf malzeme işlemlerini getir
+    const [islemler] = await connection.execute(`
       SELECT 
-        si.*,
-        u.ad AS kullanici_ad, u.soyad AS kullanici_soyad,
-        p.proje_kodu, p.proje_adi
-      FROM sarf_malzeme_islemleri si
-      LEFT JOIN kullanicilar u ON si.kullanici_id = u.id
-      LEFT JOIN projeler p ON si.proje_id = p.id
-      WHERE si.sarf_malzeme_id = ?
-      ORDER BY si.islem_tarihi DESC
+        smi.id, 
+        smi.islem_turu, 
+        smi.kullanim_alani, 
+        smi.miktar, 
+        smi.islem_tarihi,
+        smi.iskarta_urun,
+        smi.proje_id,
+        p.proje_adi,
+        u.ad AS kullanici_ad, 
+        u.soyad AS kullanici_soyad,
+        
+        -- Alan kişi bilgisini ekleyelim
+        CONCAT(c.ad, ' ', c.soyad) AS alan_kisi_adi
+      FROM 
+        sarf_malzeme_islemleri smi
+      LEFT JOIN 
+        kullanicilar u ON smi.kullanici_id = u.id
+      LEFT JOIN 
+        projeler p ON smi.proje_id = p.id
+      LEFT JOIN 
+        calisanlar c ON smi.calisan_id = c.id
+      WHERE 
+        smi.sarf_malzeme_id = ?
+      ORDER BY 
+        smi.islem_tarihi DESC
     `, [sarfMalzemeId]);
     
-    return { success: true, islemler: rows };
+    return { success: true, islemler };
   } catch (error) {
-    console.error('Sarf malzeme işlemlerini getirme hatası:', error);
-    return { success: false, message: 'İşlemler getirilirken bir hata oluştu.' };
+    console.error('Sarf malzeme işlemleri getirme hatası:', error);
+    return { success: false, message: 'İşlemler getirilemedi: ' + error.message };
+  } finally {
+    connection.release();
   }
 }
-
 
 
 async function getHammaddeGirisGecmisi(hammaddeId) {
@@ -2810,27 +2831,46 @@ async function deleteYariMamulWithNotification(id, reason, userData) {
   }
 }
 
-
 async function getYariMamulIslemleri(yariMamulId) {
+  const connection = await pool.getConnection();
+  
   try {
-    const [rows] = await pool.execute(`
+    // Yarı mamul işlemlerini getir - calisan_id yerine alan_calisan_id kullanılması düzeltildi
+    const [islemler] = await connection.execute(`
       SELECT 
-        ymi.*,
-        u.ad AS kullanici_ad, u.soyad AS kullanici_soyad,
-        p.proje_kodu, p.proje_adi,
-        c.ad AS calisan_ad, c.soyad AS calisan_soyad
-      FROM yari_mamul_islemleri ymi
-      LEFT JOIN kullanicilar u ON ymi.kullanici_id = u.id
-      LEFT JOIN projeler p ON ymi.proje_id = p.id
-      LEFT JOIN calisanlar c ON ymi.alan_calisan_id = c.id
-      WHERE ymi.yari_mamul_id = ?
-      ORDER BY ymi.islem_tarihi DESC
+        ymi.id, 
+        ymi.islem_turu, 
+        ymi.kullanim_alani, 
+        ymi.miktar, 
+        ymi.islem_tarihi,
+        ymi.iskarta_urun,
+        ymi.proje_id,
+        p.proje_adi,
+        u.ad AS kullanici_ad, 
+        u.soyad AS kullanici_soyad,
+        
+        -- Alan kişi bilgisini ekleyelim - alan_calisan_id kullanılıyor
+        CONCAT(c.ad, ' ', c.soyad) AS alan_kisi_adi
+      FROM 
+        yari_mamul_islemleri ymi
+      LEFT JOIN 
+        kullanicilar u ON ymi.kullanici_id = u.id
+      LEFT JOIN 
+        projeler p ON ymi.proje_id = p.id
+      LEFT JOIN 
+        calisanlar c ON ymi.alan_calisan_id = c.id
+      WHERE 
+        ymi.yari_mamul_id = ?
+      ORDER BY 
+        ymi.islem_tarihi DESC
     `, [yariMamulId]);
     
-    return { success: true, islemler: rows };
+    return { success: true, islemler };
   } catch (error) {
-    console.error('Yarı mamul işlemlerini getirme hatası:', error);
-    return { success: false, message: 'İşlemler getirilirken bir hata oluştu.' };
+    console.error('Yarı mamul işlemleri getirme hatası:', error);
+    return { success: false, message: 'İşlemler getirilemedi: ' + error.message };
+  } finally {
+    connection.release();
   }
 }
 

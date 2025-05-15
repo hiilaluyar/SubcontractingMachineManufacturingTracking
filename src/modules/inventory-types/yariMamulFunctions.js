@@ -1136,7 +1136,7 @@ async function deleteYariMamulIslem(islemId) {
 }
 
 
-// Yarı Mamul için Stoğa Geri Dönenler verilerini yükleme fonksiyonu
+// Düzeltilmiş yarı mamul stoğa geri dönenler yükleme fonksiyonu
 async function loadYariMamulStokGeriDonenler(yariMamulId) {
     try {
         if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
@@ -1144,7 +1144,7 @@ async function loadYariMamulStokGeriDonenler(yariMamulId) {
             return;
         }
 
-        // API call to get data - Burada işlem geçmişini çekip filtreleyeceğiz
+        // API call to get data
         const result = await window.electronAPI.invoke.database.getYariMamulIslemleri(yariMamulId);
 
         const stokGeriDonenlerTable = document.getElementById('yariMamulStokGeriDonenlerTable');
@@ -1155,25 +1155,31 @@ async function loadYariMamulStokGeriDonenler(yariMamulId) {
         
         const tableBody = stokGeriDonenlerTable.getElementsByTagName('tbody')[0];
         tableBody.innerHTML = '';
+
+        // API'den gelen veriyi konsola yazdıralım (debug için)
+        console.log('Yarı mamul işlemleri:', result);
         
         if (!result.success || !result.islemler || result.islemler.length === 0) {
             const row = tableBody.insertRow();
-            row.innerHTML = '<td colspan="5" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
+            row.innerHTML = '<td colspan="6" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
             return;
         }
         
-        // Sadece İade işlemlerini ve kullanım alanı "StokGeriYukleme" olanları filtrele
+        // İade işlemlerini filtrele
         const geriDonenler = result.islemler.filter(islem => 
-            islem.islem_turu === 'İade' && islem.kullanim_alani === 'StokGeriYukleme'
+            islem.islem_turu === 'İade' && 
+            (islem.kullanim_alani === 'StokGeriYukleme' || islem.kullanim_alani === 'StogaGeriYukleme')
         );
+        
+        // Debug için geri dönenleri yazdır
+        console.log('Geri dönen işlemler:', geriDonenler);
         
         if (geriDonenler.length === 0) {
             const row = tableBody.insertRow();
-            row.innerHTML = '<td colspan="5" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
+            row.innerHTML = '<td colspan="6" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
             return;
         }
         
-        // Her bir geri dönen işlem için orijinal işlemi bul
         const processedItems = []; // İşlenmiş işlemler
         
         for (const geriDonen of geriDonenler) {
@@ -1185,7 +1191,10 @@ async function loadYariMamulStokGeriDonenler(yariMamulId) {
             
             // Geri dönen işlemden önce yapılmış en yakın işlemi bul
             const geriDonenTarih = new Date(geriDonen.islem_tarihi);
+            console.log('Geri dönen tarih:', geriDonenTarih);
+            
             const oncekiIslemler = sortedIslemler.filter(i => new Date(i.islem_tarihi) < geriDonenTarih);
+            console.log('Önceki işlemler:', oncekiIslemler);
             
             let originalIslem = null;
             if (oncekiIslemler.length > 0) {
@@ -1193,7 +1202,16 @@ async function loadYariMamulStokGeriDonenler(yariMamulId) {
             }
             
             // Eğer orijinal işlem bulunamazsa, bu işlemi atla
-            if (!originalIslem) continue;
+            if (!originalIslem) {
+                // Varsayılan değerlerle devam edelim
+                originalIslem = {
+                    alan_kisi_adi: 'Belirtilmemiş',
+                    miktar: 0,
+                    proje_adi: 'Belirtilmemiş'
+                };
+            }
+            
+            console.log('Orijinal işlem:', originalIslem);
             
             const row = tableBody.insertRow();
             
@@ -1208,30 +1226,35 @@ async function loadYariMamulStokGeriDonenler(yariMamulId) {
                 minute: '2-digit'
             });
             
-            // Alınan Miktar (Orijinal işlemin miktarı)
+            // Alan Kişi
             const cell2 = row.insertCell(1);
-            cell2.textContent = `${Number(originalIslem.miktar).toFixed(2)}`;
+            // alan_kisi_adi zaten kullanılan JOIN ile oluşturulmuş bir alan
+            cell2.textContent = originalIslem.alan_kisi_adi || 'Belirtilmemiş';
+            
+            // Alınan Miktar (Orijinal işlemin miktarı)
+            const cell3 = row.insertCell(2);
+            cell3.textContent = `${Number(originalIslem.miktar || 0).toFixed(2)}`;
             
             // Geri Dönen Miktar
-            const cell3 = row.insertCell(2);
-            cell3.textContent = `${Number(geriDonen.miktar).toFixed(2)}`;
+            const cell4 = row.insertCell(3);
+            cell4.textContent = `${Number(geriDonen.miktar || 0).toFixed(2)}`;
             
             // Proje
-            const cell4 = row.insertCell(3);
-            cell4.textContent = originalIslem.proje_adi || geriDonen.proje_adi || 'Belirtilmemiş';
-            
-            // İşlemi Yapan
             const cell5 = row.insertCell(4);
-            cell5.textContent = `${geriDonen.kullanici_ad || ''} ${geriDonen.kullanici_soyad || ''}`.trim() || 'Bilinmiyor';
+            cell5.textContent = originalIslem.proje_adi || geriDonen.proje_adi || 'Belirtilmemiş';
+            
+            // İşlemi Yapan (Geri dönüş işlemini yapan kişi)
+            const cell6 = row.insertCell(5);
+            cell6.textContent = `${geriDonen.kullanici_ad || ''} ${geriDonen.kullanici_soyad || ''}`.trim() || 'Bilinmiyor';
             
             // Bu işlemi işlenmiş olarak işaretle
             processedItems.push(geriDonen.id);
         }
         
-        // Eğer hiçbir işlem bulunamazsa
+        // Eğer hiçbir işlem bulunamazsa veya işlenmediyse
         if (processedItems.length === 0) {
             const row = tableBody.insertRow();
-            row.innerHTML = '<td colspan="5" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
+            row.innerHTML = '<td colspan="6" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
         }
     } catch (error) {
         console.error('Yarı mamul stok geri dönenler yükleme hatası:', error);
@@ -1240,11 +1263,12 @@ async function loadYariMamulStokGeriDonenler(yariMamulId) {
         if (stokGeriDonenlerTable) {
             const tableBody = stokGeriDonenlerTable.getElementsByTagName('tbody')[0];
             if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Stok geri dönenler yüklenirken hata oluştu</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Stok geri dönenler yüklenirken hata oluştu</td></tr>';
             }
         }
     }
 }
+
   window.editYariMamulIslem = editYariMamulIslem;
   window.deleteYariMamul = deleteYariMamul;
   window.loadYariMamulListesi =loadYariMamulListesi;

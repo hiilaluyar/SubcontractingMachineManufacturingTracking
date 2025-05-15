@@ -168,64 +168,109 @@ async function editIslem(islemId, islemTuru = 'hammadde') {
   }
 }
 
-  // updateYariMamulIslem fonksiyonunu düzelt  
-async function updateYariMamulIslem() {
+async function updateYariMamulIslem(islemId, islemData) {
+  const connection = await pool.getConnection();
+  
   try {
-    const islemId = document.getElementById('duzenleYariMamulIslemId').value;
-    const islemTuru = document.getElementById('duzenleYariMamulIslemTuru').value;
-    const kullanimAlani = document.getElementById('duzenleYariMamulKullanimAlani').value;
-    const isIskartaUrun = document.getElementById('duzenleYariMamulIskartaUrunSecimi').checked;
-    const projeId = document.getElementById('duzenleYariMamulProjeSecimi').value;
+    await connection.beginTransaction();
     
-    if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
-      console.error('Database invoke metodu bulunamadı');
-      showToast('İşlem kaydedilemedi. API erişimi yok.', 'error');
-      return;
+    // İlk olarak mevcut işlem verilerini al
+    const [currentIslem] = await connection.execute(
+      `SELECT islem_turu, yari_mamul_id, miktar, kullanici_id FROM yari_mamul_islemleri WHERE id = ?`,
+      [islemId]
+    );
+    
+    if (currentIslem.length === 0) {
+      throw new Error('İşlem bulunamadı.');
     }
     
-    // Operation type for tracking
-    let operationType = '';
-    if (isIskartaUrun) {
-      operationType = 'IskartaUrun';
-    } else {
-      operationType = 'Normal';
+    const islemInfo = currentIslem[0];
+    
+    // Yarı mamul bilgilerini al
+    const [yariMamulRows] = await connection.execute(
+      'SELECT kalan_miktar, birim FROM yari_mamuller WHERE id = ?',
+      [islemInfo.yari_mamul_id]
+    );
+    
+    if (yariMamulRows.length === 0) {
+      throw new Error('Yarı mamul bulunamadı.');
     }
     
-    const islemData = {
-      islem_turu: islemTuru,
-      kullanim_alani: kullanimAlani,
-      proje_id: projeId || null,
-      iskarta_urun: isIskartaUrun
-    };
+    const yariMamul = yariMamulRows[0];
     
-    const result = await window.electronAPI.invoke.database.updateYariMamulIslem(islemId, islemData);
+    // İşlem türünü koru
+    const islemTuru = islemData.islem_turu || islemInfo.islem_turu;
     
-    if (result.success) {
-      // Mark the item as edited
-      markItemAsEdited('yari_mamul', islemId, operationType);
+    // İşlemi güncelle
+    await connection.execute(
+      `UPDATE yari_mamul_islemleri SET 
+       islem_turu = ?, kullanim_alani = ?, proje_id = ?, iskarta_urun = ?
+       WHERE id = ?`,
+      [
+        islemTuru,
+        islemData.kullanim_alani || islemInfo.kullanim_alani,
+        islemData.proje_id || null,
+        islemData.iskarta_urun ? 1 : 0,
+        islemId
+      ]
+    );
+    
+    // Orjinal stoğa geri yükleme işlemi
+    if (islemData.stoga_geri_yukle && islemData.geri_yukle_miktar > 0) {
+      const geriYukleMiktar = parseFloat(islemData.geri_yukle_miktar);
+      const islemMiktar = parseFloat(islemInfo.miktar);
       
-      // Customize the message based on the operation
-      let message = 'İşlem başarıyla güncellendi.';
-      
-      if (isIskartaUrun) {
-        message = 'Ürün başarıyla ıskarta listesine gönderildi.';
+      // Geri yükleme miktarını doğrula
+      if (geriYukleMiktar > islemMiktar) {
+        return { 
+          success: false, 
+          message: `Geri yükleme miktarı (${geriYukleMiktar}) işlem miktarından (${islemMiktar}) büyük olamaz.` 
+        };
       }
       
-      showToast(message, 'success');
+      // Yarı mamul kalan miktarını güncelle
+      const yeniKalanMiktar = parseFloat(yariMamul.kalan_miktar) + geriYukleMiktar;
       
-      // Modalı kapat
-      closeModal('yariMamulIslemDuzenleModal');
+      console.log(`Yarı mamul stoğa geri yükleniyor: Eski miktar=${yariMamul.kalan_miktar}, Geri yüklenen=${geriYukleMiktar}, Yeni miktar=${yeniKalanMiktar}`);
       
-      // Listeleri güncelle
-      loadFasonIslemler();
-      loadMakineIslemler();
-      loadIskartaUrunler();
-    } else {
-      showToast(result.message, 'error');
+      await connection.execute(
+        'UPDATE yari_mamuller SET kalan_miktar = ? WHERE id = ?',
+        [yeniKalanMiktar, islemInfo.yari_mamul_id]
+      );
+      
+      // İade işlemini kaydet
+      // ÖNEMLİ: alan_calisan_id ve diğer tüm sütunları doğru şekilde belirtmeliyiz
+      await connection.execute(
+        `INSERT INTO yari_mamul_islemleri (
+          yari_mamul_id, islem_turu, kullanim_alani, miktar, 
+          kullanici_id, alan_calisan_id, makine, proje_id
+        ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+        [
+          islemInfo.yari_mamul_id,
+          'İade',
+          'StokGeriYukleme', // Burada doğru kullanım alanını kullanıyoruz
+          geriYukleMiktar,
+          islemInfo.kullanici_id || 1
+        ]
+      );
+      
+      // İşlem kaydını konsola yazdır
+      console.log(`Yeni iade işlemi kaydedildi: yari_mamul_id=${islemInfo.yari_mamul_id}, miktar=${geriYukleMiktar}, kullanici=${islemInfo.kullanici_id}`);
     }
+    
+    await connection.commit();
+    return { 
+      success: true, 
+      message: islemData.stoga_geri_yukle ? 
+        `İşlem güncellendi ve ${islemData.geri_yukle_miktar} birim orjinal stoğa geri yüklendi.` : 
+        'İşlem başarıyla güncellendi.' 
+    };
   } catch (error) {
+    await connection.rollback();
     console.error('Yarı mamul işlemi güncelleme hatası:', error);
-    showToast('İşlem güncellenirken bir hata oluştu: ' + error.message, 'error');
+    return { success: false, message: 'İşlem güncellenirken bir hata oluştu: ' + error.message };
+  } finally {
+    connection.release();
   }
 }
 

@@ -1344,7 +1344,7 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
         
         if (!result.success || !result.islemler || result.islemler.length === 0) {
             const row = tableBody.insertRow();
-            row.innerHTML = '<td colspan="5" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
+            row.innerHTML = '<td colspan="6" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
             return;
         }
         
@@ -1355,7 +1355,7 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
         
         if (geriDonenler.length === 0) {
             const row = tableBody.insertRow();
-            row.innerHTML = '<td colspan="5" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
+            row.innerHTML = '<td colspan="6" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
             return;
         }
         
@@ -1394,21 +1394,26 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
                 minute: '2-digit'
             });
             
-            // Alınan Miktar (Orijinal işlemin miktarı)
+            // Alan Kişi - Orijinal işlemdeki kullanıcı bilgisini göster
             const cell2 = row.insertCell(1);
-            cell2.textContent = `${Number(originalIslem.miktar).toFixed(2)}`;
+            // Aynı getOriginalIslem'deki mantıkla - projeyi ve miktarı çektiğimiz gibi kullanıcıyı çekelim
+            cell2.textContent = originalIslem.alan_kisi_adi || 'Belirtilmemiş';
+            
+            // Alınan Miktar (Orijinal işlemin miktarı)
+            const cell3 = row.insertCell(2);
+            cell3.textContent = `${Number(originalIslem.miktar).toFixed(2)}`;
             
             // Geri Dönen Miktar
-            const cell3 = row.insertCell(2);
-            cell3.textContent = `${Number(geriDonen.miktar).toFixed(2)}`;
+            const cell4 = row.insertCell(3);
+            cell4.textContent = `${Number(geriDonen.miktar).toFixed(2)}`;
             
             // Proje
-            const cell4 = row.insertCell(3);
-            cell4.textContent = originalIslem.proje_adi || geriDonen.proje_adi || 'Belirtilmemiş';
-            
-            // İşlemi Yapan
             const cell5 = row.insertCell(4);
-            cell5.textContent = `${geriDonen.kullanici_ad || ''} ${geriDonen.kullanici_soyad || ''}`.trim() || 'Bilinmiyor';
+            cell5.textContent = originalIslem.proje_adi || geriDonen.proje_adi || 'Belirtilmemiş';
+            
+            // İşlemi Yapan (Geri dönüş işlemini yapan kişi)
+            const cell6 = row.insertCell(5);
+            cell6.textContent = `${geriDonen.kullanici_ad || ''} ${geriDonen.kullanici_soyad || ''}`.trim() || 'Bilinmiyor';
             
             // Bu işlemi işlenmiş olarak işaretle
             processedItems.push(geriDonen.id);
@@ -1417,7 +1422,7 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
         // Eğer hiçbir işlem bulunamazsa
         if (processedItems.length === 0) {
             const row = tableBody.insertRow();
-            row.innerHTML = '<td colspan="5" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
+            row.innerHTML = '<td colspan="6" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
         }
     } catch (error) {
         console.error('Sarf malzeme stok geri dönenler yükleme hatası:', error);
@@ -1426,11 +1431,12 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
         if (stokGeriDonenlerTable) {
             const tableBody = stokGeriDonenlerTable.getElementsByTagName('tbody')[0];
             if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Stok geri dönenler yüklenirken hata oluştu</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Stok geri dönenler yüklenirken hata oluştu</td></tr>';
             }
         }
     }
 }
+
 
 window.loadSarfMalzemeListesi = loadSarfMalzemeListesi;
 window.saveSarfMalzeme = saveSarfMalzeme;
