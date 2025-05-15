@@ -1360,79 +1360,81 @@ async function fillProjeSelectForImalat() {
     }, 10);
   }
   
-  // Search function for manufacturing operations
   async function searchImalat(pageId) {
-    // Eğer pageId belirtilmemişse, aktif sayfayı bul
-    if (!pageId) {
-      const activePage = document.querySelector('.page.active');
-      if (activePage) {
-        pageId = activePage.id;
-      } else {
-        console.error('Aktif sayfa bulunamadı');
-        return;
-      }
-    }
-    
-    console.log(`Executing search for page: ${pageId}`);
-    
-    // Hangi sayfada olduğumuzu belirleyelim
-    const page = document.getElementById(pageId);
-    if (!page) {
-      console.error(`${pageId} ID'li sayfa bulunamadı`);
+  // Eğer pageId belirtilmemişse, aktif sayfayı bul
+  if (!pageId) {
+    const activePage = document.querySelector('.page.active');
+    if (activePage) {
+      pageId = activePage.id;
+    } else {
+      console.error('Aktif sayfa bulunamadı');
       return;
     }
+  }
+  
+  console.log(`Executing search for page: ${pageId}`);
+  
+  // Hangi sayfada olduğumuzu belirleyelim
+  const page = document.getElementById(pageId);
+  if (!page) {
+    console.error(`${pageId} ID'li sayfa bulunamadı`);
+    return;
+  }
+  
+  // Filtreleri o sayfadan alalım
+  const searchText = page.querySelector('#imalatArama').value.toLowerCase().trim();
+  const malzemeTuru = page.querySelector('#malzemeTuruSecimi').value;
+  const projeId = page.querySelector('#pprojeSecimi').value;
+  const baslangicTarihi = page.querySelector('#baslangicTarihi').value;
+  const bitisTarihi = page.querySelector('#bitisTarihi').value;
+  
+  // Hangi tabloyu kullanacağımızı belirleyelim
+  const tableId = pageId === 'fason-imalat' ? 'fasonTable' : 'makineTable';
+  const tableBody = document.getElementById(tableId).getElementsByTagName('tbody')[0];
+  
+  if (!tableBody) {
+    console.error(`${tableId} için tbody bulunamadı`);
+    return;
+  }
+  
+  const tableRows = tableBody.rows;
+  
+  // Remove any existing "no results" row before filtering
+  const existingNoResultsRow = tableBody.querySelector('.no-results-row');
+  if (existingNoResultsRow) {
+    existingNoResultsRow.remove();
+  }
+  
+  // Create filter object
+  const filters = {
+    searchText,
+    malzemeTuru,
+    projeId,
+    baslangicTarihi: baslangicTarihi ? new Date(baslangicTarihi) : null,
+    bitisTarihi: bitisTarihi ? new Date(bitisTarihi) : null
+  };
+  
+  console.log('Filtering with criteria:', filters); // Debug log
+  
+  let visibleRowCount = 0;
+  
+  // Apply filters to table rows
+  Array.from(tableRows).forEach(row => {
+    // Skip the row if it's a no-results row
+    if (row.classList.contains('no-results-row')) return;
     
-    // Filtreleri o sayfadan alalım
-    const searchText = page.querySelector('#imalatArama').value.toLowerCase().trim();
-    const malzemeTuru = page.querySelector('#malzemeTuruSecimi').value;
-    const projeId = page.querySelector('#pprojeSecimi').value;
-    const baslangicTarihi = page.querySelector('#baslangicTarihi').value;
-    const bitisTarihi = page.querySelector('#bitisTarihi').value;
+    // Yeni sıralama: Stok Kodu(0), Malzeme(1), Proje(2), İşlem(3), Alan kişi(4), Miktar(5), Kullanıcı(6), Tarih(7), işlemler(8)
+    const stokKodu = row.cells[0] ? row.cells[0].textContent.toLowerCase() : '';
+    const malzemeAdi = row.cells[1] ? row.cells[1].textContent.toLowerCase() : '';
+    const projeAdi = row.cells[2] ? row.cells[2].textContent.toLowerCase() : '';
+    const islemYapan = row.cells[6] ? row.cells[6].textContent.toLowerCase() : ''; // Kullanıcı artık 6. sütunda
     
-    // Hangi tabloyu kullanacağımızı belirleyelim
-    const tableId = pageId === 'fason-imalat' ? 'fasonTable' : 'makineTable';
-    const tableBody = document.getElementById(tableId).getElementsByTagName('tbody')[0];
-    
-    if (!tableBody) {
-      console.error(`${tableId} için tbody bulunamadı`);
-      return;
-    }
-    
-    const tableRows = tableBody.rows;
-    
-    // Remove any existing "no results" row before filtering
-    const existingNoResultsRow = tableBody.querySelector('.no-results-row');
-    if (existingNoResultsRow) {
-      existingNoResultsRow.remove();
-    }
-    
-    // Create filter object
-    const filters = {
-      searchText,
-      malzemeTuru,
-      projeId,
-      baslangicTarihi: baslangicTarihi ? new Date(baslangicTarihi) : null,
-      bitisTarihi: bitisTarihi ? new Date(bitisTarihi) : null
-    };
-    
-    console.log('Filtering with criteria:', filters); // Debug log
-    
-    let visibleRowCount = 0;
-    
-    // Apply filters to table rows
-    Array.from(tableRows).forEach(row => {
-      // Skip the row if it's a no-results row
-      if (row.classList.contains('no-results-row')) return;
-      
-      const stokKodu = row.cells[0].textContent.toLowerCase();
-      const malzemeAdi = row.cells[1].textContent.toLowerCase();
-      const projeAdi = row.cells[2].textContent.toLowerCase();
-      const islemYapan = row.cells[5].textContent.toLowerCase();
-      
-      // Tarih ayrıştırma - daha güvenilir hale getirildi
-      let tarih = null;
-      try {
-        const tarihStr = row.cells[6].textContent.trim();
+    // Tarih ayrıştırma - daha güvenilir hale getirildi
+    let tarih = null;
+    try {
+      // Tarih artık 7. sütunda
+      if (row.cells[7]) {
+        const tarihStr = row.cells[7].textContent.trim();
         
         // Türkçe format (GG.AA.YYYY) kontrolü
         if (tarihStr.includes('.')) {
@@ -1460,110 +1462,111 @@ async function fillProjeSelectForImalat() {
           // Doğru ayrıştırıldığını kontrol etmek için
           console.log(`Ayrıştırılan tarih: ${tarih.toISOString()} (${tarihStr})`);
         }
-      } catch (e) {
-        console.error('Tarih ayrıştırma hatası:', e);
-        tarih = null;
       }
-      
-      // Extract material type from class or data attribute if available
-      const rowMalzemeTuru = row.getAttribute('data-malzeme-turu') || '';
-      
-      // Check if row matches all filters
-      let showRow = true;
-      
-      // Text search
-      if (searchText) {
-        const textMatch = stokKodu.includes(searchText) || 
-                          malzemeAdi.includes(searchText) || 
-                          projeAdi.includes(searchText) ||
-                          islemYapan.includes(searchText);
-        if (!textMatch) showRow = false;
-      }
-      
-      // Material type filter
-      if (malzemeTuru && rowMalzemeTuru !== malzemeTuru) {
-        // If row doesn't have the attribute, try to determine from content
-        const malzemeContent = malzemeAdi.toLowerCase();
-        
-        // Basic content-based detection as fallback
-        if (malzemeTuru === 'sac' && !malzemeContent.includes('sac')) showRow = false;
-        else if (malzemeTuru === 'boru' && !malzemeContent.includes('boru')) showRow = false;
-        else if (malzemeTuru === 'mil' && !malzemeContent.includes('mil')) showRow = false;
-        else if (malzemeTuru === 'sarf_malzeme' && !malzemeContent.includes('sarf')) showRow = false;
-        else if (malzemeTuru === 'ikincil_stok' && !malzemeContent.includes('ikincil')) showRow = false;
-        else if (malzemeTuru === 'yari_mamul' && !malzemeContent.includes('yarı')) showRow = false;
-      }
-      
-      // Project filter
-      if (projeId && projeId.trim() !== '') {
-        // Önce data-proje-id'yi kontrol et
-        const rowProjeId = row.getAttribute('data-proje-id');
-        
-        // Eğer data-proje-id varsa onu kullan, yoksa proje adını kontrol et
-        if (rowProjeId) {
-          // data-proje-id varsa doğrudan karşılaştır
-          if (rowProjeId !== projeId) showRow = false;
-        } else {
-          // data-proje-id yoksa, projeAdi kontrolü yap
-          console.log(`Checking project: ${projeId} against ${projeAdi}`);
-          
-          const selectedOption = page.querySelector(`#pprojeSecimi option[value="${projeId}"]`);
-          const selectedProjeAdi = selectedOption ? selectedOption.textContent.toLowerCase() : '';
-          
-          if (selectedProjeAdi && !projeAdi.includes(selectedProjeAdi)) {
-            showRow = false;
-          }
-        }
-      }
-      
-      // TARİH FİLTRELEME - düzeltildi
-      if (filters.baslangicTarihi && tarih) {
-        const basTarih = new Date(filters.baslangicTarihi);
-        basTarih.setHours(0, 0, 0, 0); // Başlangıç tarihini günün başlangıcına ayarla
-        
-        if (tarih < basTarih) {
-          showRow = false;
-          console.log(`Tarih başlangıç filtresinden geçemedi: ${tarih.toLocaleDateString()} < ${basTarih.toLocaleDateString()}`);
-        }
-      }
-      
-      if (filters.bitisTarihi && tarih) {
-        const bitTarih = new Date(filters.bitisTarihi);
-        bitTarih.setHours(23, 59, 59, 999); // Bitiş tarihini günün sonuna ayarla
-        
-        if (tarih > bitTarih) {
-          showRow = false;
-          console.log(`Tarih bitiş filtresinden geçemedi: ${tarih.toLocaleDateString()} > ${bitTarih.toLocaleDateString()}`);
-        }
-      }
-      
-      // Eğer tarih filtreleri aktif ama satırda geçerli bir tarih yoksa
-      if ((filters.baslangicTarihi || filters.bitisTarihi) && !tarih) {
-        console.warn('Tarih değeri olmadığı için satır gizlendi:', row.cells[6].textContent);
-        showRow = false;
-      }
-      
-      // Update row visibility
-      row.style.display = showRow ? '' : 'none';
-      
-      if (showRow) {
-        visibleRowCount++;
-      }
-    });
-    
-    console.log(`Visible row count: ${visibleRowCount}`);
-    
-    // Show message if no results
-    if (visibleRowCount === 0) {
-      const noResultsRow = tableBody.insertRow();
-      noResultsRow.classList.add('no-results-row');
-      noResultsRow.style.textAlign = 'center';
-      
-      const cell = noResultsRow.insertCell(0);
-      cell.colSpan = 8; // Adjust based on table columns
-      cell.textContent = 'Arama kriterlerine uygun sonuç bulunamadı.';
+    } catch (e) {
+      console.error('Tarih ayrıştırma hatası:', e);
+      tarih = null;
     }
+    
+    // Extract material type from class or data attribute if available
+    const rowMalzemeTuru = row.getAttribute('data-malzeme-turu') || '';
+    
+    // Check if row matches all filters
+    let showRow = true;
+    
+    // Text search
+    if (searchText) {
+      const textMatch = stokKodu.includes(searchText) || 
+                        malzemeAdi.includes(searchText) || 
+                        projeAdi.includes(searchText) ||
+                        islemYapan.includes(searchText);
+      if (!textMatch) showRow = false;
+    }
+    
+    // Material type filter
+    if (malzemeTuru && rowMalzemeTuru !== malzemeTuru) {
+      // If row doesn't have the attribute, try to determine from content
+      const malzemeContent = malzemeAdi.toLowerCase();
+      
+      // Basic content-based detection as fallback
+      if (malzemeTuru === 'sac' && !malzemeContent.includes('sac')) showRow = false;
+      else if (malzemeTuru === 'boru' && !malzemeContent.includes('boru')) showRow = false;
+      else if (malzemeTuru === 'mil' && !malzemeContent.includes('mil')) showRow = false;
+      else if (malzemeTuru === 'sarf_malzeme' && !malzemeContent.includes('sarf')) showRow = false;
+      else if (malzemeTuru === 'ikincil_stok' && !malzemeContent.includes('ikincil')) showRow = false;
+      else if (malzemeTuru === 'yari_mamul' && !malzemeContent.includes('yarı')) showRow = false;
+    }
+    
+    // Project filter
+    if (projeId && projeId.trim() !== '') {
+      // Önce data-proje-id'yi kontrol et
+      const rowProjeId = row.getAttribute('data-proje-id');
+      
+      // Eğer data-proje-id varsa onu kullan, yoksa proje adını kontrol et
+      if (rowProjeId) {
+        // data-proje-id varsa doğrudan karşılaştır
+        if (rowProjeId !== projeId) showRow = false;
+      } else {
+        // data-proje-id yoksa, projeAdi kontrolü yap
+        console.log(`Checking project: ${projeId} against ${projeAdi}`);
+        
+        const selectedOption = page.querySelector(`#pprojeSecimi option[value="${projeId}"]`);
+        const selectedProjeAdi = selectedOption ? selectedOption.textContent.toLowerCase() : '';
+        
+        if (selectedProjeAdi && !projeAdi.includes(selectedProjeAdi)) {
+          showRow = false;
+        }
+      }
+    }
+    
+    // TARİH FİLTRELEME - düzeltildi
+    if (filters.baslangicTarihi && tarih) {
+      const basTarih = new Date(filters.baslangicTarihi);
+      basTarih.setHours(0, 0, 0, 0); // Başlangıç tarihini günün başlangıcına ayarla
+      
+      if (tarih < basTarih) {
+        showRow = false;
+        console.log(`Tarih başlangıç filtresinden geçemedi: ${tarih.toLocaleDateString()} < ${basTarih.toLocaleDateString()}`);
+      }
+    }
+    
+    if (filters.bitisTarihi && tarih) {
+      const bitTarih = new Date(filters.bitisTarihi);
+      bitTarih.setHours(23, 59, 59, 999); // Bitiş tarihini günün sonuna ayarla
+      
+      if (tarih > bitTarih) {
+        showRow = false;
+        console.log(`Tarih bitiş filtresinden geçemedi: ${tarih.toLocaleDateString()} > ${bitTarih.toLocaleDateString()}`);
+      }
+    }
+    
+    // Eğer tarih filtreleri aktif ama satırda geçerli bir tarih yoksa
+    if ((filters.baslangicTarihi || filters.bitisTarihi) && !tarih) {
+      console.warn('Tarih değeri olmadığı için satır gizlendi:', row.cells[7] ? row.cells[7].textContent : 'Tarih sütunu bulunamadı');
+      showRow = false;
+    }
+    
+    // Update row visibility
+    row.style.display = showRow ? '' : 'none';
+    
+    if (showRow) {
+      visibleRowCount++;
+    }
+  });
+  
+  console.log(`Visible row count: ${visibleRowCount}`);
+  
+  // Show message if no results
+  if (visibleRowCount === 0) {
+    const noResultsRow = tableBody.insertRow();
+    noResultsRow.classList.add('no-results-row');
+    noResultsRow.style.textAlign = 'center';
+    
+    const cell = noResultsRow.insertCell(0);
+    cell.colSpan = 9; // Adjust based on table columns (9 columns now)
+    cell.textContent = 'Arama kriterlerine uygun sonuç bulunamadı.';
   }
+}
 
 
   // Initialize search functionality for manufacturing sections
@@ -1595,6 +1598,7 @@ async function fillProjeSelectForImalat() {
     // İlk yüklemede tüm kayıtları göster
     searchImalat(pageId);
   }
+  
   
   // Add event listener to initialize search when DOM is loaded
   document.addEventListener('DOMContentLoaded', function() {
