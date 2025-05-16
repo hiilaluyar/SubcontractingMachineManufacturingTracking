@@ -1199,6 +1199,7 @@ async function viewHammaddeDetail(id) {
           // For sac, load plaka list first then parça list
           await loadPlakaList(id);
           await loadPlakaParcaList(id);
+          updateParcaTabBadge();
         } else {
           // For boru and mil, load parça list directly
           await loadParcaList(id);
@@ -1222,6 +1223,123 @@ async function viewHammaddeDetail(id) {
       alert('Hammadde detayı getirilirken bir hata oluştu.');
     }
   }
+
+
+  function updateParcaTabBadge() {
+    try {
+        // Parça tablosundan satır sayısını al
+        const parcaTable = document.getElementById('parcalarTable');
+        if (!parcaTable) return;
+        
+        const tbody = parcaTable.querySelector('tbody');
+        if (!tbody) return;
+        
+        const rows = tbody.querySelectorAll('tr');
+        
+        // Boş satır kontrolü (tek satırda "Parça bulunamadı" yazıyorsa)
+        let partCount = 0;
+        if (rows.length > 0) {
+            // İlk satırı kontrol et
+            const firstRow = rows[0];
+            const firstCell = firstRow.querySelector('td');
+            
+            // Eğer bu tek hücre "Parça bulunamadı" içermiyorsa, gerçek satırlar var demektir
+            if (firstCell && !firstCell.textContent.includes('Parça bulunamadı')) {
+                partCount = rows.length;
+            }
+        }
+        
+        // Badge'i ekle
+        const parcaTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
+        if (parcaTab && partCount > 0) {
+            parcaTab.innerHTML = `Parçalar <span class="part-count-badge">${partCount}</span>`;
+        } else if (parcaTab) {
+            parcaTab.textContent = 'Parçalar';
+        }
+    } catch (error) {
+        console.error('Parça sayısını hesaplarken hata:', error);
+    }
+}
+
+(function addPartCountStyle() {
+    // Stil zaten eklenmiş mi kontrol et
+    if (document.getElementById('part-count-badge-style')) {
+        return;
+    }
+    
+    const style = document.createElement('style');
+    style.id = 'part-count-badge-style';
+    style.textContent = `
+        .part-count-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, #CC2C30, #CC6633);
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            height: 22px;
+            min-width: 22px;
+            line-height: 22px;
+            border-radius: 11px;
+            padding: 0 6px;
+            box-shadow: 0 3px 10px rgba(204, 44, 48, 0.5);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            border: 1.5px solid rgba(255, 255, 255, 0.7);
+            transition: all 0.3s ease;
+            transform-origin: center center;
+        }
+        
+        /* Tab container'ı için position relative ekle */
+        .tab-button {
+            position: relative;
+        }
+        
+        /* Hover efekti */
+        .tab-button:hover .part-count-badge {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(204, 44, 48, 0.6);
+        }
+        
+        /* Animasyon */
+        @keyframes badgePulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 3px 10px rgba(204, 44, 48, 0.5);
+            }
+            50% {
+                transform: scale(1.15);
+                box-shadow: 0 5px 15px rgba(204, 44, 48, 0.7);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 3px 10px rgba(204, 44, 48, 0.5);
+            }
+        }
+        
+        .part-count-badge.new-notification {
+            animation: badgePulse 2s infinite;
+        }
+        
+        /* Tab seçildiğinde badge stilini değiştir */
+        .tab-button.active .part-count-badge {
+            background: linear-gradient(135deg, #3a7bd5, #00d2ff);
+            box-shadow: 0 3px 10px rgba(58, 123, 213, 0.5);
+            border: 1.5px solid rgba(255, 255, 255, 0.8);
+        }
+        
+        /* Bildirim sayısı 10'dan fazla olduğunda stil değişikliği */
+        .part-count-badge[data-count="10+"] {
+            min-width: 28px;
+            font-size: 10px;
+        }
+    `;
+    document.head.appendChild(style);
+    
+})();
 
 function searchHammadde() {
     // İçerik tabında mı kontrol et
