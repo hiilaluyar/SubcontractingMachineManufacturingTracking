@@ -671,3 +671,12 @@ ipcMain.handle('database:getIskartaUrunlerHepsiBirlikte', async () => {
     return { success: false, message: error.message };
   }
 });
+
+ipcMain.handle('database:updateYariMamulFotograf', async (event, id, base64Image) => {
+  try {
+    return await DatabaseService.updateYariMamulFotograf(id, base64Image);
+  } catch (error) {
+    console.error('Toplu giriş ekleme hatası:', error);
+    return { success: false, message: error.message };
+  }
+});

@@ -3932,3 +3932,17 @@ tr:has(.plaka-checkbox:checked) {
   background-color: #3f51b5;
 }
 
+
+.action-btn.photo {
+  background-color: #4CAF50;
+  transition: all 0.3s ease;
+}
+
+.action-btn.photo i {
+  color: white;
+}
+
+.action-btn.photo:hover {
+  background-color: #45a049;
+  transform: scale(1.05);
+}

@@ -2583,6 +2583,34 @@
   </div>
   
 
+<!-- Fotoğraf Modalı -->
+<div id="yariMamulFotoModal" class="modal">
+  <div class="modal-content" style="max-width: 500px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: none; overflow: hidden;">
+    <div class="modal-header" style="background-color: #f8f9fa; border-bottom: 1px solid #eaeaea; padding: 12px 15px;">
+      <h2 id="yariMamulFotoHeader" style="margin: 0; font-size: 18px; color: #333;">Yarı Mamul Fotoğrafı</h2>
+      <span class="close" onclick="closeModal('yariMamulFotoModal')" style="font-size: 22px; color: #555;">&times;</span>
+    </div>
+    <div class="modal-body" style="padding: 15px;">
+      <div id="fotografPreviewContainer" style="display: none; text-align: center; margin-bottom: 15px; background-color: #f8f9fa; padding: 10px; border-radius: 6px;">
+        <img id="fotografPreview" style="max-width: 100%; max-height: 250px; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);" />
+      </div>
+      
+      <div id="fotografUploadContainer" style="margin-bottom: 15px;">
+        <p style="margin-bottom: 10px; color: #555; font-size: 14px;">Lütfen bir fotoğraf seçin (maksimum 5MB):</p>
+        <div style="display: flex; flex-direction: column;">
+          <input type="file" id="fotografInput" accept="image/*" style="border: 1px dashed #ccc; padding: 10px; border-radius: 5px; background-color: #f9f9f9; font-size: 14px;" />
+          <div class="error-message" id="fotografError" style="display: none; color: #dc3545; margin-top: 8px; font-size: 13px; padding: 6px; background-color: #f8d7da; border-radius: 4px;"></div>
+        </div>
+      </div>
+      
+      <div class="modal-buttons" style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+        <button class="secondary-btn" onclick="closeModal('yariMamulFotoModal')" style="background-color: #f8f9fa; color: #555; border: 1px solid #ddd; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">İptal</button>
+        <button id="fotografSilBtn" class="danger-btn" style="display: none; background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">Fotoğrafı Sil</button>
+        <button id="fotografKaydetBtn" class="primary-btn" style="background-color: #2196F3; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; box-shadow: 0 1px 3px rgba(33, 150, 243, 0.3);">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 <script src="../modules/globals.js"></script>

@@ -14,3 +14,4 @@ window.parcaKalanParcalar = []; // Parça için kalan parçalar listesi
 window.selectedPlakas = []; // Seçilen plakalar 
 window.currentBulkPlakas = null; //Toplu işlem için yardımcı
 window.currentModalId = null;
+window.currentPhotoYariMamulId = null;

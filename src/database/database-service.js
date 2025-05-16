@@ -2566,7 +2566,6 @@ async function getAllYariMamuller() {
   }
 }
 
-// ID'ye göre yarı mamül getir
 async function getYariMamulById(id) {
   try {
     const [yariMamulRows] = await pool.execute(
@@ -2579,6 +2578,14 @@ async function getYariMamulById(id) {
     }
     
     const yariMamul = yariMamulRows[0];
+    
+    // Eğer fotograf varsa ve buffer formatında ise, base64'e çevir
+    if (yariMamul.fotograf) {
+      // MySQL'den gelen buffer formatını base64'e çevir
+      if (Buffer.isBuffer(yariMamul.fotograf)) {
+        yariMamul.fotograf = yariMamul.fotograf.toString('base64');
+      }
+    }
     
     // Kullanıcı bilgilerini getir
     const [userRows] = await pool.execute(
@@ -5835,6 +5842,47 @@ async function getIskartaUrunlerHepsiBirlikte() {
   }
 }
 
+
+// Yarı mamul fotoğraf güncelleme
+async function updateYariMamulFotograf(id, base64Image) {
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Eğer base64Image null değilse, BLOB olarak dönüştür
+    let query, params;
+    
+    if (base64Image !== null) {
+      query = 'UPDATE yari_mamuller SET fotograf = FROM_BASE64(?) WHERE id = ?';
+      params = [base64Image, id];
+    } else {
+      // Foto silme işlemi için
+      query = 'UPDATE yari_mamuller SET fotograf = NULL WHERE id = ?';
+      params = [id];
+    }
+    
+    // Fotoğrafı güncelle
+    await connection.execute(query, params);
+    
+    await connection.commit();
+    
+    return { 
+      success: true, 
+      message: base64Image ? 'Fotoğraf başarıyla güncellendi.' : 'Fotoğraf başarıyla silindi.' 
+    };
+  } catch (error) {
+    await connection.rollback();
+    console.error('Yarı mamul fotoğraf güncelleme hatası:', error);
+    return { 
+      success: false, 
+      message: 'Fotoğraf güncellenirken bir hata oluştu: ' + error.message 
+    };
+  } finally {
+    connection.release();
+  }
+}
+
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
   loginUser,
@@ -5926,7 +5974,8 @@ checkYariMamulExists,
   loadHammaddeMakineIslemlerById,
   getFasonIslemlerHepsiBirlikte,
   getMakineIslemlerHepsiBirlikte,
-  getIskartaUrunlerHepsiBirlikte
+  getIskartaUrunlerHepsiBirlikte,
+  updateYariMamulFotograf
 
 
 

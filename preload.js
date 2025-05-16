@@ -140,7 +140,8 @@ getAllTedarikci: () => ipcRenderer.invoke('database:getAllTedarikci'),
   loadHammaddeMakineIslemlerById: (parcaId) => ipcRenderer.invoke('database', 'loadHammaddeMakineIslemlerById', parcaId),
   getFasonIslemlerHepsiBirlikte: () => ipcRenderer.invoke('database:getFasonIslemlerHepsiBirlikte'),
   getMakineIslemlerHepsiBirlikte: () => ipcRenderer.invoke('database:getMakineIslemlerHepsiBirlikte'),
-  getIskartaUrunlerHepsiBirlikte: () => ipcRenderer.invoke('database:getIskartaUrunlerHepsiBirlikte')
+  getIskartaUrunlerHepsiBirlikte: () => ipcRenderer.invoke('database:getIskartaUrunlerHepsiBirlikte'),
+  updateYariMamulFotograf: (id, base64Image) => ipcRenderer.invoke('database', 'updateYariMamulFotograf', id, base64Image)
 
         }
     }
