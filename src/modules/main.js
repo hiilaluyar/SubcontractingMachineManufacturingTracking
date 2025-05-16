@@ -26,20 +26,37 @@ window.editedItems = window.editedItems || {
     }
   }
   
-  // Mark an item as edited
-  function markItemAsEdited(itemType, itemId, operation) {
-    // İlgili itemType için nesne yoksa oluştur
-    if (!window.editedItems[itemType]) {
-      window.editedItems[itemType] = {};
+ 
+// Bu fonksiyonu bulun ve sarf malzemeler için bir koşul ekleyin
+function markItemAsEdited(itemType, itemId, operation) {
+  // İlgili itemType için nesne yoksa oluştur
+  if (!window.editedItems[itemType]) {
+    window.editedItems[itemType] = {};
+  }
+  
+  // Sarf malzemeler için özel durum kontrolü
+  if (itemType === 'sarf_malzeme') {
+    // Burada işlem tipine göre kontrol eklenebilir
+    // Örneğin, sadece bazı operasyonlar için işaretleme yapılabilir
+    if (operation === 'IskartaUrun' || operation === 'StogaGeriYukle') {
+      window.editedItems[itemType][itemId] = {
+        edited: true,
+        operation: operation,
+        timestamp: Date.now()
+      };
+      saveEditedItems();
     }
-    
+  } else {
+    // Diğer malzeme türleri için normal işlem devam ediyor
     window.editedItems[itemType][itemId] = {
       edited: true,
-      operation: operation, // 'IkincilStok', 'IskartaUrun', etc.
+      operation: operation,
       timestamp: Date.now()
     };
     saveEditedItems();
   }
+}
+  
   
   // Bağlantılı olarak isItemEdited fonksiyonunu da güvenli hale getirelim
   function isItemEdited(itemType, itemId) {

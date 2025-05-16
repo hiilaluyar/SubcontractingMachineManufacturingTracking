@@ -312,7 +312,16 @@ async function loadFasonIslemler() {
       let itemType = islem.islem_turu;
       
       // İşlem daha önce işlenmiş mi kontrol et
-      const isProcessed = editedItems[itemType] && editedItems[itemType][itemId];
+      let isProcessed = false;
+if (itemType === 'sarf_malzeme') {
+  // Sarf malzemeler için ek kontrol - sadece gerçekten işlenmişse işaretleniyor
+  isProcessed = editedItems[itemType] && 
+                editedItems[itemType][itemId] && 
+                (editedItems[itemType][itemId].edited === true);
+} else {
+  // Diğer türler için normal kontrol devam ediyor
+  isProcessed = editedItems[itemType] && editedItems[itemType][itemId];
+}
       
       // Düzenleme butonu oluştur
       let editButtonHtml = '';
@@ -567,7 +576,16 @@ async function loadMakineIslemler() {
       let itemType = islem.islem_turu;
       
       // İşlem daha önce işlenmiş mi kontrol et
-      const isProcessed = editedItems[itemType] && editedItems[itemType][itemId];
+      let isProcessed = false;
+if (itemType === 'sarf_malzeme') {
+  // Sarf malzemeler için ek kontrol - sadece gerçekten işlenmişse işaretleniyor
+  isProcessed = editedItems[itemType] && 
+                editedItems[itemType][itemId] && 
+                (editedItems[itemType][itemId].edited === true);
+} else {
+  // Diğer türler için normal kontrol devam ediyor
+  isProcessed = editedItems[itemType] && editedItems[itemType][itemId];
+}
       
       // Düzenleme butonu oluştur
       let editButtonHtml = '';
