@@ -123,6 +123,7 @@ function addNewParcaYariMamul() {
 
 
 function setupYariMamulEventListeners(item, prefix) {
+    if (!item) return;
     // Silme butonuna tıklama
     const removeButton = item.querySelector('.remove-yarimamul');
     if (removeButton) {

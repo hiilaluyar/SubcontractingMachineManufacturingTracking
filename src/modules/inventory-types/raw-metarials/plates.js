@@ -869,6 +869,123 @@ function openYeniPlakaModal() {
   }
 
 
+  
+async function loadPlakaParcalar(plakaId) {
+    try {
+        // Plaka bilgilerini al
+        const plakaResult = await window.electronAPI.invoke.database.getPlakaById(plakaId);
+        
+        if (!plakaResult.success) {
+            showToast('Plaka bilgileri alınamadı: ' + plakaResult.message, 'error');
+            return;
+        }
+        
+        // Parçaları al
+        const parcalarResult = await window.electronAPI.invoke.database.getPlakaParcalariByPlakaId(plakaId);
+        
+        const parcalarTable = document.getElementById('parcalarTable');
+        const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
+        tableBody.innerHTML = '';
+        
+        if (!parcalarResult.success || !parcalarResult.parcalar || parcalarResult.parcalar.length === 0) {
+            const row = tableBody.insertRow();
+            row.innerHTML = '<td colspan="9" class="text-center">Bu plakada parça bulunamadı</td>';
+            
+            // Detay modalını aç/güncelle
+            openModal('detayModal');
+            
+            // Parçalar tabına geç
+            const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
+            if (parcalarTab) parcalarTab.click();
+            
+            return;
+        }
+        
+        // Hata ayıklama için
+        console.log("Plaka parçaları:", parcalarResult.parcalar);
+        
+        // Parçaları listele
+        parcalarResult.parcalar.forEach(parca => {
+            const row = tableBody.insertRow();
+            
+            // Parça No
+            row.insertCell(0).textContent = `#${parca.parca_no}`;
+            
+            // Barkod Kodu
+            row.insertCell(1).textContent = parca.barkod_kodu || 'Belirtilmemiş';
+            
+            // Plaka No
+            row.insertCell(2).textContent = `#${plakaResult.plaka.stok_kodu}`;
+            
+            // En x Boy - DÜZELTİLMİŞ KISIM
+            const enBoyCell = row.insertCell(3);
+            console.log(`Parça #${parca.parca_no} - En: ${parca.en}, Boy: ${parca.boy}`);
+            
+            if (parca.en != null && parca.boy != null) {
+                enBoyCell.textContent = `${parca.en} x ${parca.boy} mm`;
+            } else {
+                enBoyCell.textContent = 'Belirtilmemiş';
+            }
+            
+            // Durum
+            const durumCell = row.insertCell(4);
+            let durumText = '';
+            let durumClass = '';
+            
+            switch (parca.durum) {
+                case 'TAM':
+                    durumText = 'TAM';
+                    durumClass = 'stokta-var';
+                    break;
+                case 'KISMEN_KULLANILDI':
+                    durumText = 'KISMEN KULLANILDI';
+                    durumClass = 'az-kaldi';
+                    break;
+                case 'TUKENDI':
+                    durumText = 'TÜKENDİ';
+                    durumClass = 'stokta-yok';
+                    break;
+            }
+            
+            durumCell.innerHTML = `<span class="${durumClass}">${durumText}</span>`;
+            durumCell.style.verticalAlign = 'middle';
+            
+            // Orijinal Kilo
+            row.insertCell(5).textContent = `${Number(parca.orijinal_kilo).toFixed(2)} kg`;
+            
+            // Kalan Kilo
+            row.insertCell(6).textContent = `${Number(parca.kalan_kilo).toFixed(2)} kg`;
+            
+            // Kullanım Oranı
+            row.insertCell(7).textContent = `%${Number(parca.kullanim_orani).toFixed(2)}`;
+            
+            // İşlemler
+            const islemlerCell = row.insertCell(8);
+            if (parca.durum !== 'TUKENDI') {
+                islemlerCell.innerHTML = `
+                    <div class="action-buttons">
+                        <button class="action-btn process" title="İşlem Yap" onclick="openParcaIslemModal(${parca.id}, ${parca.parca_no})">
+                            <i class="fas fa-cut"></i>
+                        </button>
+                    </div>
+                `;
+            } else {
+                islemlerCell.textContent = 'Tükenmiş';
+            }
+        });
+        
+        // Detay modalını aç/güncelle
+        openModal('detayModal');
+        
+        // Parçalar tabına geç
+        const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
+        if (parcalarTab) parcalarTab.click();
+    } catch (error) {
+        console.error('Plaka parçaları yükleme hatası:', error);
+        showToast('Plaka parçaları yüklenirken bir hata oluştu.', 'error');
+    }
+}
+
   async function loadPlakaList(hammaddeId) {
     try {
       const result = await window.electronAPI.invoke.database.getPlakaListByHammaddeId(hammaddeId);
@@ -1052,3 +1169,4 @@ function openYeniPlakaModal() {
   window.openYeniPlakaModal = openYeniPlakaModal;
   window.loadPlakaIslemleri = loadPlakaIslemleri;
   window.loadPlakaList = loadPlakaList;
+  window.loadPlakaParcalar = loadPlakaParcalar;
