@@ -484,7 +484,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 document.addEventListener('DOMContentLoaded', function() {
-
   
   // Form kayıt butonlarını kur
   setupSaveButtonHandlers();
@@ -497,56 +496,52 @@ document.addEventListener('DOMContentLoaded', function() {
       kullanimAlaniSelect.addEventListener('change', toggleYariMamulPanelIki);
   }
 
-  // Yeni müşteri ekleme butonu
-  const yeniMusteriEkleBtn = document.getElementById('yeniMusteriEkleBtn');
-  if (yeniMusteriEkleBtn) {
-      yeniMusteriEkleBtn.addEventListener('click', function() {
-          closeModal('islemModal');
-          openModal('yeniMusteriModal');
-      });
-  }
-
-  // Yeni müşteri formu olaylarını kur
-  const yeniMusteriForm = document.getElementById('yeniMusteriForm');
-  if (yeniMusteriForm) {
-      yeniMusteriForm.addEventListener('submit', async function(e) {
-          e.preventDefault();
-          
-          const musteriAdi = document.getElementById('musteriAdi').value.trim();
-          
-          if (!musteriAdi) {
-              document.getElementById('yeniMusteriModal-error').textContent = 'Lütfen müşteri adı girin.';
-              return;
-          }
-          
-          try {
-              const result = await window.electronAPI.invoke.database.addMusteri({
-                  musteri_adi: musteriAdi,  // musteri_adi olarak değiştirildi (sizin API'nize bağlı olarak)
-                  ekleyen_id: currentUser.id
-              });
-              
-              if (result.success) {
-                  document.getElementById('yeniMusteriModal-success').textContent = 'Müşteri başarıyla eklendi.';
-                  
-                  // Formu sıfırla
-                  yeniMusteriForm.reset();
-                  
-                  // Biraz bekleyip modalı kapat
-                  setTimeout(() => {
-                      closeModal('yeniMusteriModal');
-                      
-                      // İşlem modalını yeniden aç ve müşteri listesini güncelle
-                      openIslemModal(currentParcaId, currentParcaNo);
-                  }, 1000);
-              } else {
-                  document.getElementById('yeniMusteriModal-error').textContent = 'Hata: ' + result.message;
-              }
-          } catch (error) {
-              console.error('Müşteri ekleme hatası:', error);
-              document.getElementById('yeniMusteriModal-error').textContent = 'Müşteri eklenirken bir hata oluştu.';
-          }
-      });
-  }
+  // Yeni müşteri ile ilgili kodlar kaldırıldı
 });
 
-
+   // Tab sistemi için event listener'lar
+    document.addEventListener('DOMContentLoaded', function() {
+        // Tab butonlarına click event'i ekle
+        const tabButtons = document.querySelectorAll('.tab-button');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Aktif tab butonunu değiştir
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                // İlgili tab içeriğini göster
+                const tabId = this.getAttribute('data-tab');
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // İlk tab'ı aktif et
+        if (tabButtons.length > 0) {
+            // Hammadde türüne göre başlangıç tab'ı değişecek
+            // Sac için plakalar tab'ı, diğerleri için parçalar tab'ı
+            const hammaddeTuru = currentHammadde?.hammadde_turu || 'sac';
+            
+            if (hammaddeTuru === 'sac') {
+                const plakalarTab = document.querySelector('.tab-button[data-tab="plakalar-tab"]');
+                if (plakalarTab) {
+                    plakalarTab.click();
+                }
+            } else {
+                const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
+                if (parcalarTab) {
+                    parcalarTab.click();
+                }
+            }
+        }
+        
+        // Yeni Plaka Ekle butonuna click event'i ekle
+        const yeniPlakaEkleBtn = document.getElementById('yeniPlakaEkleBtn');
+        if (yeniPlakaEkleBtn) {
+            yeniPlakaEkleBtn.addEventListener('click', openYeniPlakaModal);
+        }
+    });
