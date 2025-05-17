@@ -680,3 +680,12 @@ ipcMain.handle('database:updateYariMamulFotograf', async (event, id, base64Image
     return { success: false, message: error.message };
   }
 });
+
+ipcMain.handle('database:getIslemlerByMultiplePlakaIds', async (event, plakaIds) => {
+  try {
+    return await DatabaseService.getIslemlerByMultiplePlakaIds(plakaIds);
+  } catch (error) {
+    console.error('Plaka işlemleri hatası:', error);
+    return { success: false, message: error.message };
+  }
+});

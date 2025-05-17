@@ -814,60 +814,47 @@ function openYeniPlakaModal() {
     closeModal('detayModal');
   }
   
-
-  async function loadPlakaIslemleri(hammaddeId) {
-    try {
-      console.log("loadPlakaIslemleri başlıyor - hammaddeId:", hammaddeId);
-      
-      // Önce plakaları al
-      const plakaResult = await window.electronAPI.invoke.database.getPlakaListByHammaddeId(hammaddeId);
-      console.log("Plakalar alındı:", plakaResult);
-      
-      if (!plakaResult.success || !plakaResult.plakalar || plakaResult.plakalar.length === 0) {
-        console.log("Bu hammadde için plaka bulunamadı");
-        return [];
-      }
-      
-      // Tüm plakaların işlemlerini topla
-      let tumIslemler = [];
-      
-      // Her plaka için işlemleri al
-      for (const plaka of plakaResult.plakalar) {
-        console.log(`Plaka ID ${plaka.id} için işlemler alınıyor`);
-        
-        try {
-          // Plaka işlemlerini çek
-          const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByPlakaId(plaka.id);
-          console.log(`Plaka ${plaka.id} için işlemler:`, islemlerResult);
-          
-          if (islemlerResult.success && islemlerResult.islemler && islemlerResult.islemler.length > 0) {
-            // Her işleme plaka bilgisini ekle
-            const formattedIslemler = islemlerResult.islemler.map(islem => ({
-              ...islem,
-              plakaNo: `Plaka #${plaka.stok_kodu}`,
-              tarih: islem.islem_tarihi,
-              kullanici: islem.kullanici_ad ? `${islem.kullanici_ad} ${islem.kullanici_soyad}` : 'Bilinmiyor'
-            }));
-            
-            // İşlemleri listeye ekle
-            tumIslemler = [...tumIslemler, ...formattedIslemler];
-            console.log(`Plaka ${plaka.id} için ${formattedIslemler.length} işlem eklendi`);
-          } else {
-            console.log(`Plaka ${plaka.id} için işlem bulunamadı`);
-          }
-        } catch (islemHatasi) {
-          console.error(`Plaka ${plaka.id} işlemleri alınırken hata:`, islemHatasi);
-        }
-      }
-      
-      console.log(`Toplam ${tumIslemler.length} plaka işlemi bulundu`);
-      return tumIslemler;
-    } catch (error) {
-      console.error('Plaka işlemleri getirme hatası:', error);
+async function loadPlakaIslemleri(hammaddeId) {
+  try {
+    console.log("loadPlakaIslemleri başlıyor - hammaddeId:", hammaddeId);
+    
+    // Önce plakaları al
+    const plakaResult = await window.electronAPI.invoke.database.getPlakaListByHammaddeId(hammaddeId);
+    
+    if (!plakaResult.success || !plakaResult.plakalar || plakaResult.plakalar.length === 0) {
+      console.log("Bu hammadde için plaka bulunamadı");
       return [];
     }
+    
+    // Tüm plaka ID'lerini bir dizide topla
+    const plakaIds = plakaResult.plakalar.map(plaka => plaka.id);
+    
+    // Tek bir sorgu ile tüm plakaların işlemlerini al
+    const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByMultiplePlakaIds(plakaIds);
+    
+    if (!islemlerResult.success || !islemlerResult.islemler) {
+      console.log("Plakalara ait işlem bulunamadı");
+      return [];
+    }
+    
+    // İşlemleri plaka bilgisiyle eşleştir
+    const tumIslemler = islemlerResult.islemler.map(islem => {
+      const plaka = plakaResult.plakalar.find(p => p.id === islem.plaka_id);
+      return {
+        ...islem,
+        plakaNo: plaka ? `Plaka #${plaka.stok_kodu}` : 'Bilinmiyor',
+        tarih: islem.islem_tarihi,
+        kullanici: islem.kullanici_ad ? `${islem.kullanici_ad} ${islem.kullanici_soyad}` : 'Bilinmiyor'
+      };
+    });
+    
+    console.log(`Toplam ${tumIslemler.length} plaka işlemi bulundu`);
+    return tumIslemler;
+  } catch (error) {
+    console.error('Plaka işlemleri getirme hatası:', error);
+    return [];
   }
-
+}
 
   
 async function loadPlakaParcalar(plakaId) {

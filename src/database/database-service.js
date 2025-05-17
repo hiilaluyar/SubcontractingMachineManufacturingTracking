@@ -5883,6 +5883,39 @@ async function updateYariMamulFotograf(id, base64Image) {
   }
 }
 
+
+async function getIslemlerByMultiplePlakaIds(plakaIds) {
+  try {
+    if (!plakaIds || plakaIds.length === 0) {
+      return { success: true, islemler: [] };
+    }
+
+    // Plaka ID'leri için parametrik WHERE koşulunu oluştur
+    const placeholders = plakaIds.map(() => '?').join(',');
+    
+    const [rows] = await pool.execute(`
+      SELECT pi.*, 
+        p.proje_kodu, p.proje_adi, 
+        u.ad as kullanici_ad, u.soyad as kullanici_soyad,
+        m.musteri_adi,
+        c.ad as calisan_ad, c.soyad as calisan_soyad,
+        pi.plaka_id
+      FROM plaka_islemler pi
+      LEFT JOIN projeler p ON pi.proje_id = p.id
+      LEFT JOIN kullanicilar u ON pi.kullanici_id = u.id
+      LEFT JOIN musteriler m ON pi.musteri_id = m.id
+      LEFT JOIN calisanlar c ON pi.calisan_id = c.id
+      WHERE pi.plaka_id IN (${placeholders})
+      ORDER BY pi.islem_tarihi DESC
+    `, plakaIds);
+    
+    return { success: true, islemler: rows };
+  } catch (error) {
+    console.error('Çoklu plaka işlemleri getirme hatası:', error);
+    return { success: false, message: error.message, islemler: [] };
+  }
+}
+
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
   loginUser,
@@ -5975,7 +6008,8 @@ checkYariMamulExists,
   getFasonIslemlerHepsiBirlikte,
   getMakineIslemlerHepsiBirlikte,
   getIskartaUrunlerHepsiBirlikte,
-  updateYariMamulFotograf
+  updateYariMamulFotograf,
+  getIslemlerByMultiplePlakaIds
 
 
 
