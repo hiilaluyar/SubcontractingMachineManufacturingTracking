@@ -722,48 +722,50 @@ function calculatePlakaWithKalanParca() {
 
 // Fix for the openParcaIslemModal function
 async function openParcaIslemModal(parcaId, parcaNo) {
-    try {
-      currentParcaId = parcaId;
+  try {
+    currentParcaId = parcaId;
+    
+    // Parça bilgilerini al
+    const result = await window.electronAPI.invoke.database.getParcaById(parcaId);
+    
+    if (result.success) {
+      const parca = result.parca;
+      currentParca = parca;
       
-      // Parça bilgilerini al
-      const result = await window.electronAPI.invoke.database.getParcaById(parcaId);
+      // Başlığı güncelle
+      const parcaHeader = document.getElementById('parcaDetayHeader');
+      if (parcaHeader) {
+        parcaHeader.textContent = parca.barkod_kodu || `Parça #${parcaNo}`;
+      }
       
-      if (result.success) {
-        const parca = result.parca;
-        currentParca = parca;
+      // Formları sıfırla
+      resetParcaIslemForm();
+      
+      // Bilgi alanını oluştur
+      const bilgiAlani = document.getElementById('parcaIslemModalBilgi');
+      
+      if (!bilgiAlani) {
+        const yeniBilgiAlani = document.createElement('div');
+        yeniBilgiAlani.id = 'parcaIslemModalBilgi';
+        yeniBilgiAlani.className = 'form-info';
+        yeniBilgiAlani.innerHTML = `
+          <p><strong>Ölçüler:</strong> ${parca.en || 'N/A'} x ${parca.boy || 'N/A'} mm</p>
+          <p><strong>Kalan Kilo:</strong> ${Number(parca.kalan_kilo).toFixed(2)} kg</p>
+          <p><strong>Kaynak:</strong> ${parca.plaka_grubu_id ? 'Plaka Grubu' : (parca.plaka_id ? 'Plaka' : 'Hammadde')}</p>
+        `;
         
-        // Başlığı güncelle
-        const parcaHeader = document.getElementById('parcaDetayHeader');
-        if (parcaHeader) {
-          parcaHeader.textContent = parca.barkod_kodu || `Parça #${parcaNo}`;
+        // Bilgi alanını forma ekle
+        const form = document.querySelector('#parcaIslemModal .parca-islem-form');
+        if (form) {
+          form.insertBefore(yeniBilgiAlani, form.firstChild);
         }
-        
-        // Formları sıfırla
-        resetParcaIslemForm();
-        
-        // Bilgi alanını oluştur
-        const bilgiAlani = document.getElementById('parcaIslemModalBilgi');
-        
-        if (!bilgiAlani) {
-          const yeniBilgiAlani = document.createElement('div');
-          yeniBilgiAlani.id = 'parcaIslemModalBilgi';
-          yeniBilgiAlani.className = 'form-info';
-          yeniBilgiAlani.innerHTML = `
-            <p><strong>Ölçüler:</strong> ${parca.en || 'N/A'} x ${parca.boy || 'N/A'} mm</p>
-            <p><strong>Kalan Kilo:</strong> ${Number(parca.kalan_kilo).toFixed(2)} kg</p>
-          `;
-          
-          // Bilgi alanını forma ekle
-          const form = document.querySelector('#parcaIslemModal .parca-islem-form');
-          if (form) {
-            form.insertBefore(yeniBilgiAlani, form.firstChild);
-          }
-        } else {
-          bilgiAlani.innerHTML = `
-            <p><strong>Ölçüler:</strong> ${parca.en || 'N/A'} x ${parca.boy || 'N/A'} mm</p>
-            <p><strong>Kalan Kilo:</strong> ${Number(parca.kalan_kilo).toFixed(2)} kg</p>
-          `;
-        }
+      } else {
+        bilgiAlani.innerHTML = `
+          <p><strong>Ölçüler:</strong> ${parca.en || 'N/A'} x ${parca.boy || 'N/A'} mm</p>
+          <p><strong>Kalan Kilo:</strong> ${Number(parca.kalan_kilo).toFixed(2)} kg</p>
+          <p><strong>Kaynak:</strong> ${parca.plaka_grubu_id ? 'Plaka Grubu' : (parca.plaka_id ? 'Plaka' : 'Hammadde')}</p>
+        `;
+      }
         
         // Projeleri yükle
         try {
@@ -968,37 +970,50 @@ async function loadParcaList(hammaddeId) {
   }
 
 
-  
-async function loadPlakaParcaList(hammaddeId) {
+  async function loadPlakaParcaList(hammaddeId) {
     try {
         // Önce plakaları al
         const plakaResult = await window.electronAPI.invoke.database.getPlakaListByHammaddeId(hammaddeId);
         
-        if (!plakaResult.success || !plakaResult.plakalar || plakaResult.plakalar.length === 0) {
-            const parcalarTable = document.getElementById('parcalarTable');
-            const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
-            tableBody.innerHTML = '';
-            
-            // Sütun sayısını 8'e düşürdük (barkod sütunu kaldırıldı)
-            const row = tableBody.insertRow();
-            row.innerHTML = '<td colspan="8" class="text-center">Parça bulunamadı</td>';
-            return;
-        }
+        // Plaka gruplarını da al (YENİ)
+        const plakaGruplariResult = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId(hammaddeId);
         
-        // Tüm plakalardan parçaları topla
+        // Toplu liste oluştur
         let tumParcalar = [];
         
-        for (const plaka of plakaResult.plakalar) {
-            const parcalarResult = await window.electronAPI.invoke.database.getPlakaParcalariByPlakaId(plaka.id);
-            
-            if (parcalarResult.success && parcalarResult.parcalar && parcalarResult.parcalar.length > 0) {
-                // Parçalara plaka bilgisini ekle
-                const parcalar = parcalarResult.parcalar.map(parca => ({
-                    ...parca,
-                    plaka_stok_kodu: plaka.stok_kodu
-                }));
+        // Plakalardan gelen parçaları ekle (eskisi gibi)
+        if (plakaResult.success && plakaResult.plakalar && plakaResult.plakalar.length > 0) {
+            for (const plaka of plakaResult.plakalar) {
+                const parcalarResult = await window.electronAPI.invoke.database.getPlakaParcalariByPlakaId(plaka.id);
                 
-                tumParcalar = [...tumParcalar, ...parcalar];
+                if (parcalarResult.success && parcalarResult.parcalar && parcalarResult.parcalar.length > 0) {
+                    // Parçalara plaka bilgisini ekle
+                    const parcalar = parcalarResult.parcalar.map(parca => ({
+                        ...parca,
+                        plaka_stok_kodu: plaka.stok_kodu,
+                        kaynak_tipi: 'plaka'
+                    }));
+                    
+                    tumParcalar = [...tumParcalar, ...parcalar];
+                }
+            }
+        }
+        
+        // Plaka gruplarından gelen parçaları ekle (YENİ)
+        if (plakaGruplariResult.success && plakaGruplariResult.gruplar && plakaGruplariResult.gruplar.length > 0) {
+            for (const grup of plakaGruplariResult.gruplar) {
+                const grupParcalarResult = await window.electronAPI.invoke.database.getParcalarByPlakaGrubuId(grup.id);
+                
+                if (grupParcalarResult.success && grupParcalarResult.parcalar && grupParcalarResult.parcalar.length > 0) {
+                    // Parçalara grup bilgisini ekle
+                    const parcalar = grupParcalarResult.parcalar.map(parca => ({
+                        ...parca,
+                        plaka_stok_kodu: grup.stok_kodu, // Plaka kodu yerine grup kodu kullan
+                        kaynak_tipi: 'grup'
+                    }));
+                    
+                    tumParcalar = [...tumParcalar, ...parcalar];
+                }
             }
         }
         
@@ -1008,7 +1023,6 @@ async function loadPlakaParcaList(hammaddeId) {
         tableBody.innerHTML = '';
         
         if (tumParcalar.length === 0) {
-            // Sütun sayısını 8'e düşürdük (barkod sütunu kaldırıldı)
             const row = tableBody.insertRow();
             row.innerHTML = '<td colspan="8" class="text-center">Parça bulunamadı</td>';
             return;
@@ -1017,18 +1031,17 @@ async function loadPlakaParcaList(hammaddeId) {
         // Hata ayıklama için
         console.log("Tüm parçalar:", tumParcalar);
         
+        // Her bir parçayı tabloya ekle
         tumParcalar.forEach(parca => {
             const row = tableBody.insertRow();
             
             // Parça No
             row.insertCell(0).textContent = `#${parca.parca_no}`;
             
-            // Barkod Kodu sütunu kaldırıldı
+            // Plaka/Grup No
+            row.insertCell(1).textContent = `#${parca.plaka_stok_kodu} (${parca.kaynak_tipi === 'grup' ? 'Grup' : 'Plaka'})`;
             
-            // Plaka No
-            row.insertCell(1).textContent = `#${parca.plaka_stok_kodu}`;
-            
-            // En x Boy
+            // En x Boy - DÜZELTİLMİŞ KISIM
             const enBoyCell = row.insertCell(2);
             console.log(`Parça #${parca.parca_no} - En: ${parca.en}, Boy: ${parca.boy}`);
             
@@ -1091,7 +1104,6 @@ async function loadPlakaParcaList(hammaddeId) {
         const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
         tableBody.innerHTML = '';
         
-        // Sütun sayısını 8'e düşürdük (barkod sütunu kaldırıldı)
         const row = tableBody.insertRow();
         row.innerHTML = '<td colspan="8" class="text-center">Parça listesi yüklenirken hata oluştu</td>';
     }

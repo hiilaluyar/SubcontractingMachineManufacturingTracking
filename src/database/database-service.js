@@ -4492,55 +4492,58 @@ async function getIslemlerByPlakaId(plakaId) {
 }
 
 
-
-// Bu fonksiyonu server.js veya uygun bir yerde ekleyin
 async function getParcaById(parcaId) {
   try {
-      // Öncelikle parça ID'nin hangi tabloda olduğunu kontrol edin
-      const [parcaCheckRows] = await pool.execute(
-          'SELECT COUNT(*) as count FROM plaka_parcalari WHERE id = ?',
-          [parcaId]
-      );
+    // Plaka_parcalari tablosunda kontrol et
+    const [parcaRows] = await pool.execute(
+      `SELECT p.*, 
+              pl.hammadde_id as plaka_hammadde_id, 
+              pg.hammadde_id as grubu_hammadde_id,
+              h.malzeme_adi, h.yogunluk, h.kalinlik as hammadde_kalinlik,
+              h.hammadde_turu
+       FROM plaka_parcalari p
+       LEFT JOIN plakalar pl ON p.plaka_id = pl.id
+       LEFT JOIN plaka_gruplari pg ON p.plaka_grubu_id = pg.id
+       LEFT JOIN hammaddeler h ON COALESCE(pl.hammadde_id, pg.hammadde_id) = h.id
+       WHERE p.id = ?`,
+      [parcaId]
+    );
+    
+    if (parcaRows.length > 0) {
+      // Hammadde ID'yi uygun şekilde belirle
+      const hammadde_id = parcaRows[0].plaka_hammadde_id || parcaRows[0].grubu_hammadde_id;
       
-      // Plaka_parcalari tablosunda ise
-      if (parcaCheckRows[0].count > 0) {
-          // Sac plakalar için sorgulama - yeni sistem
-          const [parcaRows] = await pool.execute(
-              `SELECT p.*, pl.hammadde_id, h.malzeme_adi, h.yogunluk, h.kalinlik as hammadde_kalinlik
-              FROM plaka_parcalari p
-              LEFT JOIN plakalar pl ON p.plaka_id = pl.id
-              LEFT JOIN hammaddeler h ON pl.hammadde_id = h.id
-              WHERE p.id = ?`,
-              [parcaId]
-          );
-          
-          if (parcaRows.length > 0) {
-              return { success: true, parca: parcaRows[0], tip: 'plaka' };
-          }
-      } else {
-          // Parcalar tablosunda arama yap - eski sistem (boru ve miller için)
-          const [parcaRows] = await pool.execute(
-              `SELECT p.*, h.malzeme_adi, h.yogunluk, h.kalinlik as hammadde_kalinlik,
-                      h.id as hammadde_id, h.hammadde_turu
-              FROM parcalar p
-              LEFT JOIN hammaddeler h ON p.hammadde_id = h.id
-              WHERE p.id = ?`,
-              [parcaId]
-          );
-          
-          if (parcaRows.length > 0) {
-              return { success: true, parca: parcaRows[0], tip: 'parca' };
-          }
-      }
-      
-      // Hiçbir tabloda bulunamadıysa
-      return { success: false, message: 'Parça bulunamadı' };
+      return { 
+        success: true, 
+        parca: {
+          ...parcaRows[0],
+          hammadde_id // Doğru hammadde ID'sini ekle
+        }, 
+        tip: 'plaka' 
+      };
+    }
+    
+    // Parcalar tablosunda kontrol et (eski sistem)
+    const [oldParcaRows] = await pool.execute(
+      `SELECT p.*, h.malzeme_adi, h.yogunluk, h.kalinlik as hammadde_kalinlik,
+              h.id as hammadde_id, h.hammadde_turu
+       FROM parcalar p
+       LEFT JOIN hammaddeler h ON p.hammadde_id = h.id
+       WHERE p.id = ?`,
+      [parcaId]
+    );
+    
+    if (oldParcaRows.length > 0) {
+      return { success: true, parca: oldParcaRows[0], tip: 'parca' };
+    }
+    
+    // Hiçbir tabloda bulunamadıysa
+    return { success: false, message: 'Parça bulunamadı' };
   } catch (error) {
-      console.error('Parça detayı getirme hatası:', error);
-      return { success: false, message: error.message };
+    console.error('Parça detayı getirme hatası:', error);
+    return { success: false, message: error.message };
   }
 }
-
 
 async function addPlakaIslem(islemData) {
   const connection = await pool.getConnection();
@@ -4936,78 +4939,173 @@ async function addParcaIslem(islemData) {
     }
     
     const parca = parcaRows[0];
+    
+    // Parçanın plaka_id veya plaka_grubu_id olup olmadığını kontrol et
     const plaka_id = parca.plaka_id;
-
-    // Plaka bilgilerini al
-    const [plakaRows] = await connection.execute(
-      'SELECT * FROM plakalar WHERE id = ?',
-      [plaka_id]
-    );
+    const plaka_grubu_id = parca.plaka_grubu_id;
     
-    if (plakaRows.length === 0) {
-      throw new Error('Plaka bulunamadı');
-    }
-
-    const plaka = plakaRows[0];
-
-    // Ana işlem kaydını ekle
-    const [islemResult] = await connection.execute(
-      `INSERT INTO plaka_islemler (
-        plaka_id, islem_turu, kullanim_alani,
-        kullanilan_miktar, hurda_miktar,
-        proje_id, musteri_id, kullanici_id, islem_tarihi,
-        makine, calisan_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
-      [
-        plaka_id,
-        islemData.islem_turu,
-        islemData.kullanim_alani,
-        islemData.kullanilanMiktar,
-        islemData.hurdaMiktar,
-        islemData.proje_id,
-        islemData.musteri_id || null,
-        islemData.kullanici_id,
-        islemData.makine || null,
-        islemData.calisan_id || null
-      ]
-    );
-    
-    const islemId = islemResult.insertId;
-    
-    // Kullanılan ve hurda miktarını topla
-    const kullanilanVeHurda = parseFloat(islemData.kullanilanMiktar) + parseFloat(islemData.hurdaMiktar || 0);
-    
-    // Kalan parçaların ağırlığını toplam kullanılana eklemeyelim
-    const toplamKullanilan = kullanilanVeHurda;
-    
-    if (toplamKullanilan > parseFloat(parca.kalan_kilo)) {
-      throw new Error(`Kullanılan miktar (${toplamKullanilan.toFixed(2)} kg) parçada kalan miktardan (${parca.kalan_kilo.toFixed(2)} kg) fazla olamaz`);
+    if (!plaka_id && !plaka_grubu_id) {
+      throw new Error('Parça bir plaka veya plaka grubuna bağlı değil');
     }
     
-    // Parent parçayı veritabanından sil
-    await connection.execute(
-      `DELETE FROM plaka_parcalari WHERE id = ?`,
-      [islemData.parca_id]
-    );
+    let hammadde_id;
     
-    // Kullanılan kiloyu plakadan ve hammaddeden düş - DECIMAL hassasiyet ile
-    await connection.execute(
-      `UPDATE plakalar 
-       SET kalan_kilo = ROUND(kalan_kilo - ?, 2),
-           kullanim_orani = ROUND(((toplam_kilo - ROUND(kalan_kilo - ?, 2)) / toplam_kilo) * 100, 2)
-       WHERE id = ?`,
-      [toplamKullanilan, toplamKullanilan, plaka_id]
-    );
+    // Parçanın bağlı olduğu kaynağı (plaka veya plaka grubu) belirle
+    if (plaka_id) {
+      // Plaka bilgilerini al
+      const [plakaRows] = await connection.execute(
+        'SELECT * FROM plakalar WHERE id = ?',
+        [plaka_id]
+      );
+      
+      if (plakaRows.length === 0) {
+        throw new Error('Plaka bulunamadı');
+      }
+      
+      const plaka = plakaRows[0];
+      hammadde_id = plaka.hammadde_id;
+      
+      // Ana işlem kaydını ekle (plaka için)
+      const [islemResult] = await connection.execute(
+        `INSERT INTO plaka_islemler (
+          plaka_id, islem_turu, kullanim_alani,
+          kullanilan_miktar, hurda_miktar,
+          proje_id, musteri_id, kullanici_id, islem_tarihi,
+          makine, calisan_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+        [
+          plaka_id,
+          islemData.islem_turu,
+          islemData.kullanim_alani,
+          islemData.kullanilanMiktar,
+          islemData.hurdaMiktar,
+          islemData.proje_id,
+          islemData.musteri_id || null,
+          islemData.kullanici_id,
+          islemData.makine || null,
+          islemData.calisan_id || null
+        ]
+      );
+      
+      const islemId = islemResult.insertId;
+      
+      // Kullanılan ve hurda miktarını topla
+      const kullanilanVeHurda = parseFloat(islemData.kullanilanMiktar) + parseFloat(islemData.hurdaMiktar || 0);
+      const toplamKullanilan = kullanilanVeHurda;
+      
+      if (toplamKullanilan > parseFloat(parca.kalan_kilo)) {
+        throw new Error(`Kullanılan miktar (${toplamKullanilan.toFixed(2)} kg) parçada kalan miktardan (${parca.kalan_kilo.toFixed(2)} kg) fazla olamaz`);
+      }
+      
+      // Parent parçayı veritabanından sil
+      await connection.execute(
+        `DELETE FROM plaka_parcalari WHERE id = ?`,
+        [islemData.parca_id]
+      );
+      
+      // Kullanılan kiloyu plakadan ve hammaddeden düş
+      await connection.execute(
+        `UPDATE plakalar 
+         SET kalan_kilo = ROUND(kalan_kilo - ?, 2),
+             kullanim_orani = ROUND(((toplam_kilo - ROUND(kalan_kilo - ?, 2)) / toplam_kilo) * 100, 2)
+         WHERE id = ?`,
+        [toplamKullanilan, toplamKullanilan, plaka_id]
+      );
+      
+      // Plaka durumunu güncelle
+      await connection.execute(
+        `UPDATE plakalar 
+         SET durum = CASE
+                      WHEN ROUND(kalan_kilo, 2) <= 0 THEN 'TUKENDI'
+                      WHEN ROUND(kalan_kilo, 2) < ROUND(toplam_kilo, 2) THEN 'KISMEN_KULLANILDI'
+                      ELSE 'TAM'
+                    END
+         WHERE id = ?`,
+        [plaka_id]
+      );
+      
+    } else if (plaka_grubu_id) {
+      // Plaka grubu bilgilerini al
+      const [grubuRows] = await connection.execute(
+        'SELECT * FROM plaka_gruplari WHERE id = ?',
+        [plaka_grubu_id]
+      );
+      
+      if (grubuRows.length === 0) {
+        throw new Error('Plaka grubu bulunamadı');
+      }
+      
+      const plaka_grubu = grubuRows[0];
+      hammadde_id = plaka_grubu.hammadde_id;
+      
+      // Ana işlem kaydını ekle (plaka grubu için)
+      const [islemResult] = await connection.execute(
+        `INSERT INTO plaka_islemler (
+          plaka_grubu_id, islem_turu, kullanim_alani,
+          kullanilan_miktar, hurda_miktar,
+          proje_id, musteri_id, kullanici_id, islem_tarihi,
+          makine, calisan_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+        [
+          plaka_grubu_id,
+          islemData.islem_turu,
+          islemData.kullanim_alani,
+          islemData.kullanilanMiktar,
+          islemData.hurdaMiktar,
+          islemData.proje_id,
+          islemData.musteri_id || null,
+          islemData.kullanici_id,
+          islemData.makine || null,
+          islemData.calisan_id || null
+        ]
+      );
+      
+      const islemId = islemResult.insertId;
+      
+      // Kullanılan ve hurda miktarını topla
+      const kullanilanVeHurda = parseFloat(islemData.kullanilanMiktar) + parseFloat(islemData.hurdaMiktar || 0);
+      const toplamKullanilan = kullanilanVeHurda;
+      
+      if (toplamKullanilan > parseFloat(parca.kalan_kilo)) {
+        throw new Error(`Kullanılan miktar (${toplamKullanilan.toFixed(2)} kg) parçada kalan miktardan (${parca.kalan_kilo.toFixed(2)} kg) fazla olamaz`);
+      }
+      
+      // Parent parçayı veritabanından sil
+      await connection.execute(
+        `DELETE FROM plaka_parcalari WHERE id = ?`,
+        [islemData.parca_id]
+      );
+      
+      // Kullanılan kiloyu plaka grubundan düş
+      await connection.execute(
+        `UPDATE plaka_gruplari 
+         SET kalan_kilo = ROUND(kalan_kilo - ?, 2)
+         WHERE id = ?`,
+        [toplamKullanilan, plaka_grubu_id]
+      );
+    }
     
-    // Hammadde kalan kilosunu da güncelle
+    // Hammadde kalan kilosunu düş
     await connection.execute(
       `UPDATE hammaddeler
        SET kalan_kilo = ROUND(kalan_kilo - ?, 2)
        WHERE id = ?`,
-      [toplamKullanilan, plaka.hammadde_id]
+      [parseFloat(islemData.kullanilanMiktar) + parseFloat(islemData.hurdaMiktar || 0), hammadde_id]
     );
     
-    // Birden fazla kalan parça oluşturulacaksa
+    // Hammadde durumunu güncelle
+    await connection.execute(
+      `UPDATE hammaddeler
+       SET durum = CASE
+                     WHEN ROUND(kalan_kilo, 2) <= 0 THEN 'STOKTA_YOK'
+                     WHEN ROUND(kalan_kilo, 2) <= ROUND(kritik_seviye, 2) THEN 'AZ_KALDI'
+                     ELSE 'STOKTA_VAR'
+                   END
+       WHERE id = ?`,
+      [hammadde_id]
+    );
+    
+    // Kalan parçaları oluştur (plaka_id veya plaka_grubu_id'ye göre)
     if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
       for (const kalanParca of islemData.kalan_parcalar) {
         const [parcaNoResult] = await connection.execute(
@@ -5016,24 +5114,38 @@ async function addParcaIslem(islemData) {
         );
         const nextParcaNo = parcaNoResult[0].next_parca_no;
         
-        const plakaKodu = plaka.stok_kodu;
-        const plakaPrefix = plakaKodu.split('-')[0];
-        const yeniBarkod = plakaPrefix + '-P' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        let barkod;
+        if (plaka_id) {
+          const plakaKodu = await connection.execute(
+            `SELECT stok_kodu FROM plakalar WHERE id = ?`,
+            [plaka_id]
+          );
+          const plakaPrefix = plakaKodu[0][0].stok_kodu.split('-')[0];
+          barkod = plakaPrefix + '-P' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        } else {
+          const grubuKodu = await connection.execute(
+            `SELECT stok_kodu FROM plaka_gruplari WHERE id = ?`,
+            [plaka_grubu_id]
+          );
+          const grubuPrefix = grubuKodu[0][0].stok_kodu.split('-')[0];
+          barkod = grubuPrefix + '-P' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        }
         
-        // Yeni parçayı ekle - DECIMAL hassasiyet ile
+        // Yeni parçayı ekle - plaka_id veya plaka_grubu_id'ye göre
         await connection.execute(
           `INSERT INTO plaka_parcalari (
-            plaka_id, parca_no, barkod_kodu, 
+            plaka_id, plaka_grubu_id, parca_no, barkod_kodu, 
             en, boy, kalinlik, 
             orijinal_kilo, kalan_kilo, kullanim_orani, durum, 
             ekleme_tarihi, ekleyen_id, parent_parca_id
-          ) VALUES (?, ?, ?, ?, ?, ?, 
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 
                     ROUND(?, 2), ROUND(?, 2), ?, ?, 
                     NOW(), ?, ?)`,
           [
-            plaka_id,
+            plaka_id || null,
+            plaka_grubu_id || null,
             nextParcaNo,
-            yeniBarkod,
+            barkod,
             kalanParca.en,
             kalanParca.boy,
             kalanParca.kalinlik,
@@ -5047,31 +5159,6 @@ async function addParcaIslem(islemData) {
         );
       }
     }
-    
-    // Plaka durumunu güncelle - DECIMAL hassasiyet ile
-    await connection.execute(
-      `UPDATE plakalar 
-       SET durum = CASE
-                    WHEN ROUND(kalan_kilo, 2) <= 0 THEN 'TUKENDI'
-                    WHEN ROUND(kalan_kilo, 2) < ROUND(toplam_kilo, 2) THEN 'KISMEN_KULLANILDI'
-                    ELSE 'TAM'
-                  END
-       WHERE id = ?`,
-      [plaka_id]
-    );
-    
-    // Hammadde durumunu güncelle
-    await connection.execute(
-      `UPDATE hammaddeler
-       SET durum = CASE
-                     WHEN ROUND(kalan_kilo, 2) <= 0 THEN 'STOKTA_YOK'
-                     WHEN ROUND(kalan_kilo, 2) <= ROUND(kritik_seviye, 2) THEN 'AZ_KALDI'
-                     WHEN ROUND(kalan_kilo, 2) < ROUND(toplam_kilo, 2) THEN 'KISMEN_KULLANILDI'
-                     ELSE 'STOKTA_VAR'
-                   END
-       WHERE id = ?`,
-      [plaka.hammadde_id]
-    );
     
     // YENİ: Çoklu Yarı Mamul İşlemleri
     if (islemData.kullanim_alani === 'MakineImalat' && islemData.yari_mamuller && islemData.yari_mamuller.length > 0) {
@@ -6253,47 +6340,48 @@ async function addPlakaGrubuIslem(islemData) {
     );
     
     // Kalan parçalar oluşturulacaksa
-    if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
-      for (const kalanParca of islemData.kalan_parcalar) {
-        // Parça no hesaplama
-        const [parcaNoResult] = await connection.execute(
-          `SELECT COALESCE(MAX(parca_no), 0) + 1 as next_parca_no 
-           FROM plaka_parcalari 
-           WHERE plaka_grubu_id = ?`,
-          [plaka_grubu.id]
-        );
-        
-        const parcaNo = parcaNoResult[0].next_parca_no;
-        const parcaBarkod = plaka_grubu.stok_kodu + '-P' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        const parcaAgirlik = parseFloat(kalanParca.hesaplanan_agirlik);
-        
-        // Kalan parçayı ekle
-        await connection.execute(
-          `INSERT INTO plaka_parcalari (
-            plaka_grubu_id, parca_no, barkod_kodu, 
-            en, boy, kalinlik, 
-            orijinal_kilo, kalan_kilo, kullanim_orani, durum, 
-            ekleme_tarihi, ekleyen_id, islem_id
-          ) VALUES (?, ?, ?, ?, ?, ?, 
-                    ROUND(?, 2), ROUND(?, 2), ?, ?, 
-                    NOW(), ?, ?)`,
-          [
-            plaka_grubu.id,
-            parcaNo,
-            parcaBarkod,
-            kalanParca.en,
-            kalanParca.boy,
-            kalanParca.kalinlik,
-            parcaAgirlik,
-            parcaAgirlik,
-            0,
-            'TAM',
-            islemData.kullanici_id,
-            islemId
-          ]
-        );
-      }
-    }
+    // In the kalan parçalar section of addPlakaGrubuIslem
+if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
+  for (const kalanParca of islemData.kalan_parcalar) {
+    // Parça no hesaplama
+    const [parcaNoResult] = await connection.execute(
+      `SELECT COALESCE(MAX(parca_no), 0) + 1 as next_parca_no 
+       FROM plaka_parcalari 
+       WHERE plaka_grubu_id = ?`,
+      [plaka_grubu.id]
+    );
+    
+    const parcaNo = parcaNoResult[0].next_parca_no;
+    const parcaBarkod = plaka_grubu.stok_kodu + '-P' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const parcaAgirlik = parseFloat(kalanParca.hesaplanan_agirlik);
+    
+    // Kalan parçayı ekle - plaka_id NULL olarak ayarla
+    await connection.execute(
+      `INSERT INTO plaka_parcalari (
+        plaka_id, plaka_grubu_id, parca_no, barkod_kodu, 
+        en, boy, kalinlik, 
+        orijinal_kilo, kalan_kilo, kullanim_orani, durum, 
+        ekleme_tarihi, ekleyen_id, islem_id
+      ) VALUES (NULL, ?, ?, ?, ?, ?, ?, 
+                ROUND(?, 2), ROUND(?, 2), ?, ?, 
+                NOW(), ?, ?)`,
+      [
+        plaka_grubu.id,
+        parcaNo,
+        parcaBarkod,
+        kalanParca.en,
+        kalanParca.boy,
+        kalanParca.kalinlik,
+        parcaAgirlik,
+        parcaAgirlik,
+        0,
+        'TAM',
+        islemData.kullanici_id,
+        islemId
+      ]
+    );
+  }
+}
     
     // YENİ: Çoklu Yarı Mamul İşlemleri
     if (islemData.kullanim_alani === 'MakineImalat' && islemData.yari_mamuller && islemData.yari_mamuller.length > 0) {
