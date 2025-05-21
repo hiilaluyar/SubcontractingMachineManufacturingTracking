@@ -47,7 +47,7 @@ function setupTabSystem() {
           window.lastLoadedHammaddeId = currentHammaddeId;
           
           // Plakaları yükle
-          loadPlakaList(currentHammaddeId).finally(() => {
+          loadPlakaGruplari(currentHammaddeId).finally(() => {
             window.isLoadingPlakaList = false;
           });
         }
