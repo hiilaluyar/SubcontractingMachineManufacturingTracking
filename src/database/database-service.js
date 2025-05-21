@@ -5916,6 +5916,546 @@ async function getIslemlerByMultiplePlakaIds(plakaIds) {
   }
 }
 
+
+async function addPlakaGrubu(grubuData) {
+  const connection = await pool.getConnection();
+
+  try {
+    // Hammadde bilgilerini al
+    const [hammaddeRows] = await connection.execute(
+      `SELECT malzeme_adi, kalinlik, yogunluk FROM hammaddeler WHERE id = ?`,
+      [grubuData.hammadde_id]
+    );
+    
+    if (hammaddeRows.length === 0) {
+      return { success: false, message: 'Hammadde bulunamadı' };
+    }
+    
+    const hammadde = hammaddeRows[0];
+    const malzemeAdi = hammadde.malzeme_adi.toUpperCase();
+    const kalinlik = hammadde.kalinlik;
+    
+    // Malzeme adına göre uygun prefix belirleme
+    let prefix = '';
+    
+    if (malzemeAdi.includes('SIYAH') || malzemeAdi.includes('SİYAH')) {
+      prefix = `SS${Math.round(kalinlik)}-`;
+    } else if (malzemeAdi.includes('İKİNCİ KALİTE') || malzemeAdi.includes('IKINCI KALITE') || malzemeAdi.includes('2. KALİTE')) {
+      if (malzemeAdi.includes('PASLANMAZ') || malzemeAdi.includes('PO')) {
+        prefix = `IKP${Math.round(kalinlik)}-`;
+      } else if (malzemeAdi.includes('CR-KIK') || malzemeAdi.includes('CR')) {
+        prefix = `IKC${Math.round(kalinlik)}-`;
+      } else {
+        prefix = `IK${Math.round(kalinlik)}-`;
+      }
+    } else if (malzemeAdi.includes('HRP')) {
+      prefix = `HRP${Math.round(kalinlik)}-`;
+    } else if (malzemeAdi.includes('DKF')) {
+      prefix = `DKF${Math.round(kalinlik)}-`;
+    } else if (malzemeAdi.includes('ST52') || malzemeAdi.includes('ST37')) {
+      // ST52 veya ST37 için
+      if (malzemeAdi.includes('ST52')) {
+        prefix = `ST52${Math.round(kalinlik)}-`;
+      } else {
+        prefix = `ST37${Math.round(kalinlik)}-`;
+      }
+    } else {
+      // Diğer durumlar için ilk harfleri al
+      const words = malzemeAdi.split(' ');
+      if (words.length > 0) {
+        let acronym = '';
+        
+        // İlk 3 kelimenin ilk harflerini al
+        for (let i = 0; i < Math.min(words.length, 3); i++) {
+          if (words[i].length > 0) {
+            acronym += words[i][0];
+          }
+        }
+        
+        // Eğer hiç harf alınmadıysa veya çok kısa ise varsayılanı kullan
+        if (acronym.length < 2) {
+          acronym = 'MS'; // Metal Sac kısaltması
+        }
+        
+        prefix = `${acronym}${Math.round(kalinlik)}-`;
+      } else {
+        // En kötü durumda varsayılan prefix
+        prefix = `MS${Math.round(kalinlik)}-`;
+      }
+    }
+    
+    // Rastgele bir stok kodu oluştur
+    let stokKodu = prefix + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    
+    // Tarih oluştur - MySQL uyumlu datetime formatına çevir
+    const simdi = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    
+    // Bir plakanın ağırlığını hesapla
+    const en = parseFloat(grubuData.en);
+    const boy = parseFloat(grubuData.boy);
+    const kalinlikMetre = parseFloat(hammadde.kalinlik) / 1000;
+    const yogunluk = parseFloat(hammadde.yogunluk);
+    const hacim = (en / 1000) * (boy / 1000) * kalinlikMetre; // m³
+    const plakaAgirligi = hacim * yogunluk; // kg
+    
+    // Toplam plaka sayısı
+    const toplamPlakaSayisi = parseInt(grubuData.plaka_sayisi);
+    const toplamKilo = parseFloat(grubuData.toplam_kilo);
+    
+    // Veritabanı işlemlerini başlat
+    await connection.beginTransaction();
+    
+    // Plaka grubunu kaydet
+    const [plakaGrubuResult] = await connection.execute(
+      `INSERT INTO plaka_gruplari (
+          hammadde_id, stok_kodu, en, boy, kalinlik, 
+          toplam_plaka_sayisi, kalan_plaka_sayisi,
+          toplam_kilo, kalan_kilo, plaka_agirlik,
+          tedarikci, birim_fiyat, birim_fiyat_turu, 
+          ekleme_tarihi, ekleyen_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        grubuData.hammadde_id,
+        stokKodu,
+        en,
+        boy,
+        hammadde.kalinlik,
+        toplamPlakaSayisi,
+        toplamPlakaSayisi, // Başlangıçta kalan = toplam
+        toplamKilo,
+        toplamKilo, // Başlangıçta kalan = toplam
+        plakaAgirligi,
+        grubuData.tedarikci,
+        grubuData.birim_fiyat,
+        grubuData.birim_fiyat_turu,
+        simdi,
+        grubuData.ekleyen_id
+      ]
+    );
+    
+    const plakaGrubuId = plakaGrubuResult.insertId;
+    
+    // Hammadde tablosundaki toplam_kilo ve kalan_kilo değerlerini güncelle
+    await connection.execute(
+      `UPDATE hammaddeler 
+          SET toplam_kilo = toplam_kilo + ?,
+              kalan_kilo = kalan_kilo + ?,
+              durum = CASE
+                      WHEN (kalan_kilo + ?) <= 0 THEN 'STOKTA_YOK'
+                      WHEN (kalan_kilo + ?) <= kritik_seviye THEN 'AZ_KALDI'
+                      ELSE 'STOKTA_VAR'
+                  END
+          WHERE id = ?`,
+      [toplamKilo, toplamKilo, 
+      toplamKilo, toplamKilo, 
+      grubuData.hammadde_id]
+    );
+    
+    // Hammadde giriş geçmişine kayıt ekle
+    await connection.execute(
+      `INSERT INTO hammadde_giris_gecmisi (
+          hammadde_id, miktar, birim_fiyat, birim_fiyat_turu, 
+          tedarikci, ekleyen_id, giris_tarihi, ana_barkod, plaka_sayisi
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        grubuData.hammadde_id,
+        toplamKilo,
+        grubuData.birim_fiyat,
+        grubuData.birim_fiyat_turu,
+        grubuData.tedarikci,
+        grubuData.ekleyen_id,
+        simdi,
+        grubuData.ana_barkod || stokKodu,
+        toplamPlakaSayisi
+      ]
+    );
+    
+    // İşlemi onayla
+    await connection.commit();
+    
+    return {
+      success: true,
+      grubuId: plakaGrubuId,
+      stokKodu: stokKodu
+    };
+  } catch (error) {
+    // Hata durumunda işlemi geri al
+    try {
+      await connection.rollback();
+    } catch (rollbackError) {
+      console.error('Rollback hatası:', rollbackError);
+    }
+    
+    console.error('Plaka grubu ekleme hatası:', error);
+    return { success: false, message: error.message };
+  } finally {
+    // Bağlantıyı serbest bırak
+    connection.release();
+  }
+}
+
+// Plaka gruplarını getirme
+async function getPlakaGruplariByHammaddeId(hammaddeId) {
+  try {
+    const [gruplar] = await pool.execute(
+      `SELECT pg.id, pg.stok_kodu, pg.en, pg.boy, pg.kalinlik, 
+              pg.toplam_plaka_sayisi, pg.kalan_plaka_sayisi,
+              pg.toplam_kilo, pg.kalan_kilo, pg.plaka_agirlik,
+              pg.tedarikci, pg.birim_fiyat, pg.birim_fiyat_turu,
+              pg.ekleme_tarihi, u.ad as kullanici_ad, u.soyad as kullanici_soyad,
+              (SELECT COUNT(*) FROM plaka_parcalari WHERE plaka_grubu_id = pg.id) as parca_sayisi
+       FROM plaka_gruplari pg
+       LEFT JOIN kullanicilar u ON pg.ekleyen_id = u.id
+       WHERE pg.hammadde_id = ?
+       ORDER BY pg.ekleme_tarihi DESC`,
+      [hammaddeId]
+    );
+    
+    return { success: true, gruplar: gruplar };
+  } catch (error) {
+    console.error('Plaka grupları getirme hatası:', error);
+    return { success: false, message: error.message, gruplar: [] };
+  }
+}
+
+// Plaka grubunun parçalarını getirme
+async function getParcalarByPlakaGrubuId(grubuId) {
+  try {
+    const [parcalar] = await pool.execute(
+      `SELECT id, plaka_grubu_id, parca_no, barkod_kodu, 
+              en, boy, kalinlik,
+              orijinal_kilo, kalan_kilo, kullanim_orani, durum,
+              ekleme_tarihi
+       FROM plaka_parcalari
+       WHERE plaka_grubu_id = ?
+       ORDER BY parca_no ASC`,
+      [grubuId]
+    );
+    
+    return { success: true, parcalar: parcalar };
+  } catch (error) {
+    console.error('Plaka grubu parçalarını getirme hatası:', error);
+    return { success: false, message: error.message, parcalar: [] };
+  }
+}
+
+// Plaka grubu işlemleri
+async function addPlakaGrubuIslem(islemData) {
+  const connection = await pool.getConnection();
+  let transaction = false;
+  
+  try {
+    // Transaction başlat
+    await connection.beginTransaction();
+    transaction = true;
+    
+    // Plaka grubu bilgilerini al
+    const [grubuRows] = await connection.execute(
+      `SELECT id, hammadde_id, kalan_plaka_sayisi, kalan_kilo, plaka_agirlik, toplam_plaka_sayisi, toplam_kilo
+       FROM plaka_gruplari WHERE id = ?`,
+      [islemData.plaka_grubu_id]
+    );
+    
+    if (grubuRows.length === 0) {
+      throw new Error('Plaka grubu bulunamadı');
+    }
+    
+    const plaka_grubu = grubuRows[0];
+    
+    // Hammadde bilgilerini getir
+    const [hammaddeRows] = await connection.execute(
+      `SELECT id, kritik_seviye, kalan_kilo, toplam_kilo FROM hammaddeler WHERE id = ?`,
+      [plaka_grubu.hammadde_id]
+    );
+    
+    if (hammaddeRows.length === 0) {
+      throw new Error('Hammadde bulunamadı');
+    }
+    
+    const hammadde = hammaddeRows[0];
+    
+    // Kullanılacak plaka sayısını al
+    const plakaSayisi = parseInt(islemData.plaka_sayisi || 1);
+    
+    // Kullanılacak plaka sayısı mevcut plaka sayısından fazla olamaz
+    if (plakaSayisi > plaka_grubu.kalan_plaka_sayisi) {
+      throw new Error(`Kullanılmak istenen plaka sayısı (${plakaSayisi}) mevcut plaka sayısından (${plaka_grubu.kalan_plaka_sayisi}) fazla olamaz.`);
+    }
+    
+    // Toplam kullanılacak ağırlığı hesapla
+    const plakaBasinaAgirlik = parseFloat(plaka_grubu.plaka_agirlik);
+    const kullanilanToplamAgirlik = plakaSayisi * plakaBasinaAgirlik;
+    
+    // Form değerlerini kontrol et ve varsayılanlara atama yap
+    const islemTuru = islemData.islem_turu || 'LazerKesim';
+    const kullanimAlani = islemData.kullanim_alani || 'FasonImalat';
+    const kullanilanMiktar = parseFloat(islemData.kullanilanMiktar) || kullanilanToplamAgirlik;
+    const hurdaMiktar = parseFloat(islemData.hurdaMiktar || 0);
+    const projeId = islemData.proje_id;
+    const musteriId = islemData.musteri_id || null;
+    const kullaniciId = islemData.kullanici_id;
+    const makine = islemData.makine || null;
+    const calisanId = islemData.calisan_id || null;
+    
+    // İşlemi kaydet
+    const [islemResult] = await connection.execute(
+      `INSERT INTO plaka_islemler (
+        plaka_grubu_id, islem_turu, kullanim_alani, 
+        kullanilan_miktar, hurda_miktar, plaka_sayisi, proje_id, 
+        musteri_id, kullanici_id, islem_tarihi,
+        makine, calisan_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+      [
+        plaka_grubu.id,
+        islemTuru,
+        kullanimAlani,
+        kullanilanMiktar,
+        hurdaMiktar,
+        plakaSayisi,
+        projeId,
+        musteriId,
+        kullaniciId,
+        makine,
+        calisanId
+      ]
+    );
+    
+    const islemId = islemResult.insertId;
+    
+    // Plaka grubundaki kalan plaka sayısını güncelle
+    const yeniKalanPlakaSayisi = plaka_grubu.kalan_plaka_sayisi - plakaSayisi;
+    const yeniKalanKilo = Math.max(0, parseFloat(plaka_grubu.kalan_kilo) - kullanilanMiktar - hurdaMiktar);
+    
+    await connection.execute(
+      `UPDATE plaka_gruplari 
+       SET kalan_plaka_sayisi = ?,
+           kalan_kilo = ROUND(?, 2)
+       WHERE id = ?`,
+      [yeniKalanPlakaSayisi, yeniKalanKilo, plaka_grubu.id]
+    );
+    
+    // Hammadde kalan kilosunu güncelle
+    const hammaddeYeniKalanKilo = Math.max(0, parseFloat(hammadde.kalan_kilo) - kullanilanMiktar - hurdaMiktar);
+    let hammaddeDurum = 'STOKTA_VAR';
+    
+    if (hammaddeYeniKalanKilo <= 0.01) {
+      hammaddeDurum = 'STOKTA_YOK';
+    } else if (hammaddeYeniKalanKilo <= parseFloat(hammadde.kritik_seviye)) {
+      hammaddeDurum = 'AZ_KALDI';
+    }
+    
+    await connection.execute(
+      `UPDATE hammaddeler 
+       SET kalan_kilo = ROUND(?, 2),
+           durum = ?
+       WHERE id = ?`,
+      [hammaddeYeniKalanKilo, hammaddeDurum, hammadde.id]
+    );
+    
+    // Kalan parçalar oluşturulacaksa
+    if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
+      for (const kalanParca of islemData.kalan_parcalar) {
+        // Parça no hesaplama
+        const [parcaNoResult] = await connection.execute(
+          `SELECT COALESCE(MAX(parca_no), 0) + 1 as next_parca_no 
+           FROM plaka_parcalari 
+           WHERE plaka_grubu_id = ?`,
+          [plaka_grubu.id]
+        );
+        
+        const parcaNo = parcaNoResult[0].next_parca_no;
+        const parcaBarkod = plaka_grubu.stok_kodu + '-P' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const parcaAgirlik = parseFloat(kalanParca.hesaplanan_agirlik);
+        
+        // Kalan parçayı ekle
+        await connection.execute(
+          `INSERT INTO plaka_parcalari (
+            plaka_grubu_id, parca_no, barkod_kodu, 
+            en, boy, kalinlik, 
+            orijinal_kilo, kalan_kilo, kullanim_orani, durum, 
+            ekleme_tarihi, ekleyen_id, islem_id
+          ) VALUES (?, ?, ?, ?, ?, ?, 
+                    ROUND(?, 2), ROUND(?, 2), ?, ?, 
+                    NOW(), ?, ?)`,
+          [
+            plaka_grubu.id,
+            parcaNo,
+            parcaBarkod,
+            kalanParca.en,
+            kalanParca.boy,
+            kalanParca.kalinlik,
+            parcaAgirlik,
+            parcaAgirlik,
+            0,
+            'TAM',
+            islemData.kullanici_id,
+            islemId
+          ]
+        );
+      }
+    }
+    
+    // YENİ: Çoklu Yarı Mamul İşlemleri
+    if (islemData.kullanim_alani === 'MakineImalat' && islemData.yari_mamuller && islemData.yari_mamuller.length > 0) {
+      for (const yariMamul of islemData.yari_mamuller) {
+        // Mevcut bir yarı mamul var mı kontrol et
+        const [existingYariMamulRows] = await connection.execute(
+          `SELECT id, kalan_miktar, toplam_miktar FROM yari_mamuller WHERE malzeme_adi = ? AND birim = ?`,
+          [yariMamul.adi, yariMamul.birim]
+        );
+        
+        if (existingYariMamulRows.length > 0) {
+          const existingYariMamulId = existingYariMamulRows[0].id;
+          
+          // Mevcut yarı mamulü güncelle
+          await connection.execute(
+            `UPDATE yari_mamuller 
+             SET toplam_miktar = ROUND(toplam_miktar + ?, 2), 
+                 kalan_miktar = ROUND(kalan_miktar + ?, 2)
+             WHERE id = ?`,
+            [yariMamul.miktar, yariMamul.miktar, existingYariMamulId]
+          );
+          
+          // Yarı mamul girişi ekle
+          await connection.execute(
+            `INSERT INTO yari_mamul_giris_gecmisi (
+              yari_mamul_id, 
+              miktar, 
+              birim,
+              hammadde_id,
+              hammadde_kodu,
+              ekleyen_id, 
+              giris_tarihi,
+              plaka_grubu_id
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+            [
+              existingYariMamulId,
+              yariMamul.miktar,
+              yariMamul.birim,
+              hammadde.id,
+              plaka_grubu.stok_kodu,
+              islemData.kullanici_id,
+              plaka_grubu.id
+            ]
+          );
+        } else {
+          // Yeni stok kodu ve barkod oluştur
+          const dateNow = new Date();
+          const dateCode = dateNow.getDate().toString().padStart(2, '0') + 
+                          (dateNow.getMonth() + 1).toString().padStart(2, '0') + 
+                          dateNow.getFullYear().toString().slice(2);
+          
+          // Yeni stok kodu için son YM numarasını bul
+          const [lastYMRows] = await connection.execute(
+            `SELECT MAX(CAST(SUBSTRING(stok_kodu, 3) AS UNSIGNED)) as last_number
+             FROM yari_mamuller 
+             WHERE stok_kodu LIKE 'YM%'`
+          );
+
+          let nextYMNumber = 1;
+          if (lastYMRows.length > 0 && lastYMRows[0].last_number !== null) {
+            nextYMNumber = lastYMRows[0].last_number + 1;
+          }
+          
+          const yariMamulStokKodu = 'YM' + nextYMNumber.toString().padStart(3, '0');
+          const yariMamulBarkod = 'YM' + dateCode + '-' + Math.floor(Math.random() * 100).toString().padStart(2, '0');
+          
+          // Yeni yarı mamul ekle
+          const [yariMamulResult] = await connection.execute(
+            `INSERT INTO yari_mamuller (
+              stok_kodu, 
+              malzeme_adi, 
+              birim, 
+              toplam_miktar, 
+              kalan_miktar, 
+              barkod, 
+              kritik_seviye,
+              ekleyen_id,
+              ekleme_tarihi
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [
+              yariMamulStokKodu,
+              yariMamul.adi,
+              yariMamul.birim,
+              yariMamul.miktar,
+              yariMamul.miktar,
+              yariMamulBarkod,
+              yariMamul.miktar * 0.1, // Kritik seviye varsayılan - toplam miktarın %10'u
+              islemData.kullanici_id
+            ]
+          );
+          
+          const newYariMamulId = yariMamulResult.insertId;
+          
+          // Yarı mamul girişi ekle
+          await connection.execute(
+            `INSERT INTO yari_mamul_giris_gecmisi (
+              yari_mamul_id, 
+              miktar, 
+              birim,
+              hammadde_id,
+              hammadde_kodu,
+              ekleyen_id, 
+              giris_tarihi,
+              plaka_grubu_id
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+            [
+              newYariMamulId,
+              yariMamul.miktar,
+              yariMamul.birim,
+              hammadde.id,
+              plaka_grubu.stok_kodu,
+              islemData.kullanici_id,
+              plaka_grubu.id
+            ]
+          );
+        }
+      }
+    }
+    
+    // İşlemi onayla
+    await connection.commit();
+    
+    return { success: true, islemId: islemId };
+  } catch (error) {
+    // Hata durumunda işlemi geri al
+    if (transaction) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error('Rollback hatası:', rollbackError);
+      }
+    }
+    
+    console.error('Plaka grubu işlemi ekleme hatası:', error);
+    return { success: false, message: error.message };
+  } finally {
+    // Bağlantıyı serbest bırak
+    connection.release();
+  }
+}
+
+async function getPlakaGrubuById(grubuId) {
+  try {
+    const [grubuRows] = await pool.execute(
+      `SELECT pg.*, h.yogunluk
+       FROM plaka_gruplari pg
+       JOIN hammaddeler h ON pg.hammadde_id = h.id
+       WHERE pg.id = ?`,
+      [grubuId]
+    );
+    
+    if (grubuRows.length === 0) {
+      return { success: false, message: 'Plaka grubu bulunamadı' };
+    }
+    
+    return { success: true, plaka_grubu: grubuRows[0] };
+  } catch (error) {
+    console.error('Plaka grubu getirme hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
   loginUser,
@@ -6009,7 +6549,16 @@ checkYariMamulExists,
   getMakineIslemlerHepsiBirlikte,
   getIskartaUrunlerHepsiBirlikte,
   updateYariMamulFotograf,
-  getIslemlerByMultiplePlakaIds
+  getIslemlerByMultiplePlakaIds,
+  addPlakaGrubu,
+  getPlakaGruplariByHammaddeId,
+getParcalarByPlakaGrubuId,
+addPlakaGrubuIslem,
+getPlakaGrubuById
+
+
+
+
 
 
 

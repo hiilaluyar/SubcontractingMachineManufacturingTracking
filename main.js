@@ -689,3 +689,49 @@ ipcMain.handle('database:getIslemlerByMultiplePlakaIds', async (event, plakaIds)
     return { success: false, message: error.message };
   }
 });
+
+ipcMain.handle('database:addPlakaGrubuIslem', async (event, islemData) => {
+  try {
+    return await DatabaseService.addPlakaGrubuIslem(islemData);
+  } catch (error) {
+    console.error('addPlakaGrubuIslem error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+
+ipcMain.handle('database:getParcalarByPlakaGrubuId', async (event, grubuId) => {
+  try {
+    return await DatabaseService.getParcalarByPlakaGrubuId(grubuId);
+  } catch (error) {
+    console.error('getParcalarByPlakaGrubuId error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('database:getPlakaGrubuById', async (event, grubuId) => {
+  try {
+    return await DatabaseService.getPlakaGrubuById(grubuId);
+  } catch (error) {
+    console.error('getPlakaGrubuById error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('database:getPlakaGruplariByHammaddeId', async (event, hammaddeId) => {
+  try {
+    return await DatabaseService.getPlakaGruplariByHammaddeId(hammaddeId);
+  } catch (error) {
+    console.error('Error in getPlakaGruplariByHammaddeId:', error);
+    return 0;
+  }
+});
+
+ipcMain.handle('database:addPlakaGrubu', async (event, grubuData) => {
+  try {
+    return await DatabaseService.addPlakaGrubu(grubuData);
+  } catch (error) {
+    console.error('Error in addPlakaGrubu:', error);
+    return 0;
+  }
+});

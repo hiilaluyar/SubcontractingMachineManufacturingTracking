@@ -142,8 +142,12 @@ getAllTedarikci: () => ipcRenderer.invoke('database:getAllTedarikci'),
   getMakineIslemlerHepsiBirlikte: () => ipcRenderer.invoke('database:getMakineIslemlerHepsiBirlikte'),
   getIskartaUrunlerHepsiBirlikte: () => ipcRenderer.invoke('database:getIskartaUrunlerHepsiBirlikte'),
   updateYariMamulFotograf: (id, base64Image) => ipcRenderer.invoke('database', 'updateYariMamulFotograf', id, base64Image),
-getIslemlerByMultiplePlakaIds: (plakaIds) => ipcRenderer.invoke('database', 'getIslemlerByMultiplePlakaIds', plakaIds)
-
+getIslemlerByMultiplePlakaIds: (plakaIds) => ipcRenderer.invoke('database', 'getIslemlerByMultiplePlakaIds', plakaIds),
+addPlakaGrubuIslem: (islemData) => ipcRenderer.invoke('database:addPlakaGrubuIslem', islemData),
+getParcalarByPlakaGrubuId: (grubuId) => ipcRenderer.invoke('database:getParcalarByPlakaGrubuId', grubuId),
+getPlakaGrubuById: (grubuId) => ipcRenderer.invoke('database:getPlakaGrubuById', grubuId),
+getPlakaGruplariByHammaddeId: (hammaddeId) => ipcRenderer.invoke('database:getPlakaGruplariByHammaddeId', hammaddeId),
+addPlakaGrubu: (grubuData) => ipcRenderer.invoke('database:addPlakaGrubu', grubuData),
         }
     }
 });

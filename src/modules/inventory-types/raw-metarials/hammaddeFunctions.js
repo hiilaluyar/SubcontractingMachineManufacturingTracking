@@ -769,6 +769,7 @@ async function loadHammaddeListesi() {
     }
 }
 
+
 async function viewHammaddeDetail(id) {
     try {
       if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
@@ -906,9 +907,9 @@ async function viewHammaddeDetail(id) {
         
         // Hammadde türüne göre veri yükleme işlemlerini asenkron olarak yap
         if (hammaddeTuru === 'sac') {
-          // For sac, load plaka list first then parça list (her ikisini de bekle)
+          // For sac, load plaka GROUPS first then parça list - BURADA DEĞİŞİKLİK VAR
           await Promise.all([
-            loadPlakaList(id),
+            loadPlakaGruplari(id), // Eski loadPlakaList yerine loadPlakaGruplari kullanıyoruz
             loadPlakaParcaList(id)
           ]);
           // Tüm yükleme işlemleri tamamlandıktan sonra badge'i güncelle

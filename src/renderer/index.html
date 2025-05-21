@@ -1560,32 +1560,34 @@
                 </div>
                 
                 <!-- Plakalar Tab - Yeni Eklenen -->
-                <div id="plakalar-tab" class="tab-content">
-                    <div class="action-bar">
-                        <button id="yeniPlakaEkleBtn" class="btn-primary">
-                            <i class="fas fa-plus"></i> Yeni Plaka Ekle
-                        </button>
-                    </div>
-                    <h3>Plakalar</h3>
-                    <div class="table-container">
-                        <table id="plakalarTable">
-                            <thead>
-                                <tr>
-                                    <th>Plaka No</th>
-                                    <th>En x Boy</th>
-                                    <th>Durum</th>
-                                    <th>Orijinal Kilo</th>
-                                    <th>Kalan Kilo</th>
-                                    <th>Kullanım Oranı</th>
-                                    <th>İşlemler</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Plakalar burada listelenecek -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <!-- Plakalar Tab - GÜNCELLENMİŞ -->
+      <div id="plakalar-tab" class="tab-content">
+        <div class="action-bar">
+          <button id="yeniPlakaGrubuEkleBtn" class="btn-primary">
+            <i class="fas fa-plus"></i> Yeni Plaka Grubu Ekle
+          </button>
+        </div>
+        <h3>Plaka Grupları</h3>
+        <div class="table-container">
+          <table id="plakalarTable">
+            <thead>
+              <tr>
+                <th>Plaka No</th>
+                <th>En x Boy</th>
+                <th>Toplam Kilo</th>
+                <th>Kalan Kilo</th>
+                <th>Toplam Plaka</th>
+                <th>Kalan Plaka</th>
+                <th>Toplam Parça</th>
+                <th>İşlemler</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Plaka grupları burada listelenecek -->
+            </tbody>
+          </table>
+        </div>
+      </div>
                 
                 <!-- Parçalar Tab -->
                 <div id="parcalar-tab" class="tab-content">
@@ -2613,6 +2615,742 @@
 </div>
 
 
+
+<!-- Plaka Grubu Ekle Modal -->
+<div class="modal" id="yeniPlakaGrubuModal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Yeni Plaka Grubu Ekle</h2>
+    
+    <form id="plakaGrubuForm" class="form-container">
+      <input type="hidden" id="hammaddeGirisHammaddeId" value="">
+      
+      <div class="form-group">
+        <label for="plakaGrubuEn">En (mm)</label>
+        <input type="number" id="plakaGrubuEn" placeholder="En (mm)" min="1" step="any" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuBoy">Boy (mm)</label>
+        <input type="number" id="plakaGrubuBoy" placeholder="Boy (mm)" min="1" step="any" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuPlakaSayisi">Plaka Sayısı</label>
+        <input type="number" id="plakaGrubuPlakaSayisi" placeholder="Plaka sayısı" min="1" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuToplamKilo">Toplam Kilo (kg)</label>
+        <input type="number" id="plakaGrubuToplamKilo" placeholder="Toplam kilo (kg)" min="0.01" step="any" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuTedarikci">Tedarikçi</label>
+        <div class="input-with-button">
+          <input type="text" id="plakaGrubuTedarikci" placeholder="Tedarikçi" required>
+          <button type="button" id="plakaGrubuYeniTedarikciEkleBtn" class="btn-secondary">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuBirimFiyat">Birim Fiyat</label>
+        <div class="input-with-currency">
+          <input type="number" id="plakaGrubuBirimFiyat" placeholder="Birim fiyat" min="0" step="any" required>
+          <select id="plakaGrubuBirimFiyatTuru" class="currency-select">
+            <option value="TRY">₺</option>
+            <option value="USD">$</option>
+            <option value="EUR">€</option>
+            <option value="GBP">£</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuAnaBarkod">Ana Barkod (isteğe bağlı)</label>
+        <input type="text" id="plakaGrubuAnaBarkod" placeholder="Ana barkod">
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" id="hesaplaPlakaGrubuBtn" class="btn-secondary">
+          <i class="fas fa-calculator"></i> Hesapla
+        </button>
+        <button type="button" id="plakaGrubuKaydetBtn" class="btn-primary" disabled>
+          <i class="fas fa-save"></i> Kaydet
+        </button>
+      </div>
+      
+      <div id="plakaGrubuHesapSonucu" class="hesap-sonucu" style="display: none;"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Plaka Grubu İşlem Modal -->
+<div class="modal" id="plakaGrubuIslemModal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2 id="plakaGrubuIslemHeader">Plaka Grubu İşlem</h2>
+    
+    <form id="plakaGrubuIslemForm" class="form-container plaka-islem-form">
+      <!-- Bilgi alanı burada oluşturulacak -->
+      
+      <div class="form-row">
+        <div class="form-group col-half">
+          <label for="plakaGrubuPlakaSayisiInput">Plaka Sayısı</label>
+          <input type="number" id="plakaGrubuPlakaSayisiInput" min="1" value="1" onchange="updateKullanilanMiktarFromPlakaSayisi()">
+        </div>
+        
+        <div class="form-group col-half">
+          <label for="plakaGrubuIslemTuru">İşlem Türü</label>
+          <select id="plakaGrubuIslemTuru">
+            <option value="LazerKesim">Lazer Kesim</option>
+            <option value="PlazmaKesim">Plazma Kesim</option>
+            <option value="OksijenKesim">Oksijen Kesim</option>
+            <option value="AbkantBukum">Abkant Büküm</option>
+            <option value="Diger">Diğer</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group col-half">
+          <label for="plakaGrubuKullanilanMiktar">Kullanılan Miktar (kg)</label>
+          <input type="number" id="plakaGrubuKullanilanMiktar" min="0" step="any" placeholder="0.00">
+        </div>
+        
+        <div class="form-group col-half">
+          <label for="plakaGrubuHurdaMiktar">Hurda Miktar (kg)</label>
+          <input type="number" id="plakaGrubuHurdaMiktar" min="0" step="any" value="0">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuKullanimAlani">Kullanım Alanı</label>
+        <select id="plakaGrubuKullanimAlani" onchange="togglePlakaGrubuFormSections()">
+          <option value="FasonImalat">Fason İmalat</option>
+          <option value="MakineImalat">Makine İmalat</option>
+          <option value="IsEkipman">İş Ekipmanı</option>
+          <option value="Diger">Diğer</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuMakineSecimi">Makine</label>
+        <select id="plakaGrubuMakineSecimi">
+          <option value="">Makine Seçin</option>
+          <option value="FiberLazer">Fiber Lazer</option>
+          <option value="CO2Lazer">CO2 Lazer</option>
+          <option value="PlazmaKesim">Plazma Kesim</option>
+          <option value="OksijenKesim">Oksijen Kesim</option>
+          <option value="AbkantPress">Abkant Pres</option>
+          <option value="GuillotineMakas">Guillotine Makas</option>
+          <option value="RuloBukme">Rulo Bükme</option>
+          <option value="KaynakRobotu">Kaynak Robotu</option>
+          <option value="DigerKaynak">Diğer Kaynak</option>
+          <option value="TornaTezgahi">Torna Tezgahı</option>
+          <option value="FrezeTezgahi">Freze Tezgahı</option>
+          <option value="DigerTalaslı">Diğer Talaşlı İmalat</option>
+          <option value="DigerMakine">Diğer Makine</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuCalisanSecimi">İşleyen Çalışan</label>
+        <div class="input-with-button">
+          <select id="plakaGrubuCalisanSecimi">
+            <option value="">Çalışan Seçin</option>
+            <!-- Çalışanlar burada listelenecek -->
+          </select>
+          <button type="button" id="plakaGrubuYeniCalisanEkleBtn" class="btn-secondary">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="plakaGrubuProjeSecimi">Proje</label>
+        <div class="input-with-button">
+          <select id="plakaGrubuProjeSecimi">
+            <option value="">Proje Seçin</option>
+            <!-- Projeler burada listelenecek -->
+          </select>
+          <button type="button" id="plakaGrubuYeniProjeEkleBtn" class="btn-secondary">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Müşteri seçimi paneli - FasonImalat seçildiğinde gösterilecek -->
+      <div id="plakaGrubuMusteriPanel" class="panel" style="display: none;">
+        <div class="form-group">
+          <label for="plakaGrubuMusteriSecimi">Müşteri</label>
+          <div class="input-with-button">
+            <select id="plakaGrubuMusteriSecimi">
+              <option value="">Müşteri Seçin</option>
+              <!-- Müşteriler burada listelenecek -->
+            </select>
+            <button type="button" id="plakaGrubuYeniMusteriEkleBtn" class="btn-secondary">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Kalan parça oluşturma paneli -->
+      <div class="form-group switch-container">
+        <label class="switch-label">
+          <input type="checkbox" id="plakaGrubuKalanParcaSwitch">
+          <span class="switch"></span>
+          <span>Kalan Parça Oluştur</span>
+        </label>
+      </div>
+      
+      <div id="plakaGrubuKalanParcaPanel" class="panel" style="display: none;">
+        <div class="form-row">
+          <div class="form-group col-half">
+            <label for="plakaGrubuKalanParcaEn">En (mm)</label>
+            <input type="number" id="plakaGrubuKalanParcaEn" placeholder="En (mm)" min="1">
+          </div>
+          
+          <div class="form-group col-half">
+            <label for="plakaGrubuKalanParcaBoy">Boy (mm)</label>
+            <input type="number" id="plakaGrubuKalanParcaBoy" placeholder="Boy (mm)" min="1">
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" id="hesaplaPlakaGrubuKalanParcaBtn" class="btn-secondary">
+            <i class="fas fa-calculator"></i> Hesapla
+          </button>
+          <button type="button" id="eklePlakaGrubuKalanParcaBtn" class="btn-primary" disabled>
+            <i class="fas fa-plus"></i> Ekle
+          </button>
+        </div>
+        
+        <div id="plakaGrubuKalanParcaHesapSonucu" class="hesap-sonucu" style="display: none;"></div>
+        
+        <div id="plakaGrubuKalanParcaListesiContainer" class="kalan-parca-listesi-container" style="display: none;">
+          <h4>Kalan Parçalar</h4>
+          <div id="plakaGrubuKalanParcaListesi" class="parca-listesi"></div>
+          
+          <div class="toplamlar">
+            <div class="toplam-row">
+              <span>Toplam Kullanılan Ağırlık:</span>
+              <span id="plakaGrubuToplamKullanilanAgirlik">0.00</span>
+            </div>
+            <div class="toplam-row">
+              <span>Toplam Kalan Ağırlık:</span>
+              <span id="plakaGrubuToplamKalanAgirlik">0.00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Yarı mamul paneli - MakineImalat seçildiğinde gösterilecek -->
+      <div id="plakaGrubuYariMamulPanel" class="panel" style="display: none;">
+        <h4>Yarı Mamul Bilgileri</h4>
+        
+        <div id="plakaGrubuYariMamulList">
+          <div class="yarimamul-item" data-index="0">
+            <div class="form-row">
+              <div class="form-group col-half">
+                <label for="plakaGrubuYariMamulAdi_0">Yarı Mamul Adı</label>
+                <input type="text" id="plakaGrubuYariMamulAdi_0" placeholder="Yarı mamul adı">
+              </div>
+              
+              <div class="form-group col-half">
+                <label for="plakaGrubuYariMamulBirim_0">Birim</label>
+                <select id="plakaGrubuYariMamulBirim_0">
+                  <option value="adet">Adet</option>
+                  <option value="metre">Metre</option>
+                  <option value="kg">Kilogram</option>
+                  <option value="set">Set</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group col-half">
+                <label for="plakaGrubuYariMamulMiktar_0">Miktar</label>
+                <input type="number" id="plakaGrubuYariMamulMiktar_0" placeholder="Miktar" min="0">
+              </div>
+              
+              <div class="form-group col-half">
+                <label for="plakaGrubuYariMamulAgirlik_0">Birim Ağırlık (kg)</label>
+                <input type="number" id="plakaGrubuYariMamulAgirlik_0" placeholder="Birim ağırlık" min="0" step="0.01">
+              </div>
+            </div>
+            
+            <div class="form-actions yarimamul-actions">
+              <button type="button" class="btn-danger btn-sm" onclick="removePlakaGrubuYariMamul(0)">
+                <i class="fas fa-trash"></i> Sil
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-actions mt-2">
+          <button type="button" id="ekleYeniPlakaGrubuYariMamulBtn" class="btn-secondary">
+            <i class="fas fa-plus"></i> Yeni Yarı Mamul Ekle
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" id="plakaGrubuIslemKaydetBtn" class="btn-primary">
+          <i class="fas fa-save"></i> Kaydet
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Yeni Tedarikçi Ekle Modal -->
+<div class="modal" id="yeniTedarikciModal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Yeni Tedarikçi Ekle</h2>
+    
+    <form id="tedarikciForm" class="form-container">
+      <div class="form-group">
+        <label for="tedarikciAdi">Tedarikçi Adı</label>
+        <input type="text" id="tedarikciAdi" placeholder="Tedarikçi adı" required>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" id="tedarikciKaydetBtn" class="btn-primary">
+          <i class="fas fa-save"></i> Kaydet
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Yeni Proje Ekle Modal -->
+<div class="modal" id="yeniProjeModal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Yeni Proje Ekle</h2>
+    
+    <form id="projeForm" class="form-container">
+      <div class="form-group">
+        <label for="projeKodu">Proje Kodu</label>
+        <input type="text" id="projeKodu" placeholder="Proje kodu" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="projeAdi">Proje Adı</label>
+        <input type="text" id="projeAdi" placeholder="Proje adı" required>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" id="projeKaydetBtn" class="btn-primary">
+          <i class="fas fa-save"></i> Kaydet
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Yeni Müşteri Ekle Modal -->
+<div class="modal" id="yeniMusteriModal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Yeni Müşteri Ekle</h2>
+    
+    <form id="musteriForm" class="form-container">
+      <div class="form-group">
+        <label for="musteriAdi">Müşteri Adı</label>
+        <input type="text" id="musteriAdi" placeholder="Müşteri adı" required>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" id="musteriKaydetBtn" class="btn-primary">
+          <i class="fas fa-save"></i> Kaydet
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Yeni Çalışan Ekle Modal -->
+<div class="modal" id="yeniCalisanModal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Yeni Çalışan Ekle</h2>
+    
+    <form id="calisanForm" class="form-container">
+      <div class="form-group">
+        <label for="calisanAd">Adı</label>
+        <input type="text" id="calisanAd" placeholder="Adı" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="calisanSoyad">Soyadı</label>
+        <input type="text" id="calisanSoyad" placeholder="Soyadı" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="calisanPozisyon">Pozisyon</label>
+        <select id="calisanPozisyon">
+          <option value="Lazer Operatörü">Lazer Operatörü</option>
+          <option value="Plazma Operatörü">Plazma Operatörü</option>
+          <option value="Abkant Operatörü">Abkant Operatörü</option>
+          <option value="Kaynak Operatörü">Kaynak Operatörü</option>
+          <option value="Torna Operatörü">Torna Operatörü</option>
+          <option value="Freze Operatörü">Freze Operatörü</option>
+          <option value="CNC Operatörü">CNC Operatörü</option>
+          <option value="Kalite Kontrol">Kalite Kontrol</option>
+          <option value="Üretim Müdürü">Üretim Müdürü</option>
+          <option value="Depo Görevlisi">Depo Görevlisi</option>
+          <option value="İşçi">İşçi</option>
+          <option value="Diğer">Diğer</option>
+        </select>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" id="calisanKaydetBtn" class="btn-primary">
+          <i class="fas fa-save"></i> Kaydet
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<script>
+// Plaka Grubu Kalan Parça fonksiyonları
+function calculatePlakaGrubuWithKalanParca() {
+    const en = parseFloat(document.getElementById('plakaGrubuKalanParcaEn').value);
+    const boy = parseFloat(document.getElementById('plakaGrubuKalanParcaBoy').value);
+    
+    if (!currentPlakaGrubu) {
+        document.getElementById('plakaGrubuKalanParcaHesapSonucu').innerHTML = 
+            '<div class="error">Plaka grubu bilgileri bulunamadı.</div>';
+        document.getElementById('plakaGrubuKalanParcaHesapSonucu').style.display = 'block';
+        document.getElementById('eklePlakaGrubuKalanParcaBtn').disabled = true;
+        return null;
+    }
+    
+    const kalinlik = parseFloat(currentPlakaGrubu.kalinlik);
+    const yogunluk = parseFloat(currentHammadde.yogunluk); // Ana hammadde yoğunluğunu kullan
+    
+    if (!en || !boy || isNaN(en) || isNaN(boy)) {
+        document.getElementById('plakaGrubuKalanParcaHesapSonucu').innerHTML = 
+            '<div class="error">Lütfen geçerli en ve boy değerleri girin.</div>';
+        document.getElementById('plakaGrubuKalanParcaHesapSonucu').style.display = 'block';
+        document.getElementById('eklePlakaGrubuKalanParcaBtn').disabled = true;
+        return null;
+    }
+    
+    // Orijinal plaka grubu boyutlarını kontrol et
+    if (en > currentPlakaGrubu.en || boy > currentPlakaGrubu.boy) {
+        document.getElementById('plakaGrubuKalanParcaHesapSonucu').innerHTML = 
+            '<div class="error">Kalan parça boyutları orijinal plaka boyutlarından büyük olamaz.</div>';
+        document.getElementById('plakaGrubuKalanParcaHesapSonucu').style.display = 'block';
+        document.getElementById('eklePlakaGrubuKalanParcaBtn').disabled = true;
+        return null;
+    }
+    
+    // Hacim hesapla (m³)
+    const hacim = (en / 1000) * (boy / 1000) * (kalinlik / 1000);
+    
+    // Ağırlık hesapla (kg) - DİREKT 2 ONDALIK BASAMA YUVARLA
+    const agirlik = Number((hacim * yogunluk).toFixed(2));
+    
+    // Sonucu göster
+    document.getElementById('plakaGrubuKalanParcaHesapSonucu').innerHTML = `
+        <div class="calculation-details">
+            <div class="detail-row">
+                <span>En x Boy:</span>
+                <span>${en} mm x ${boy} mm</span>
+            </div>
+            <div class="detail-row">
+                <span>Kalınlık:</span>
+                <span>${kalinlik} mm</span>
+            </div>
+            <div class="detail-row">
+                <span>Hesaplanan Ağırlık:</span>
+                <span>${agirlik.toFixed(2)} kg</span>
+            </div>
+        </div>
+    `;
+    document.getElementById('plakaGrubuKalanParcaHesapSonucu').style.display = 'block';
+    
+    // Toplam kullanılabilir kilo kontrolü
+    const kullanilanMiktar = parseFloat(document.getElementById('plakaGrubuKullanilanMiktar').value) || 0;
+    const toplamKilo = parseFloat(currentPlakaGrubu.kalan_kilo);
+    const mevcutKalanParcalarToplami = window.kalanParcalar ? window.kalanParcalar.reduce((toplam, parca) => toplam + parca.agirlik, 0) : 0;
+    const kullanilabilirKilo = toplamKilo - kullanilanMiktar - mevcutKalanParcalarToplami;
+    
+    // Ağırlık kullanılabilir kilodan büyük mü kontrol et
+    if (agirlik > kullanilabilirKilo) {
+        document.getElementById('plakaGrubuKalanParcaHesapSonucu').innerHTML += `
+            <div class="error">
+                Hata: Bu parça ağırlığı (${agirlik.toFixed(2)} kg), kullanılabilir miktardan (${kullanilabilirKilo.toFixed(2)} kg) fazla.
+            </div>
+        `;
+        document.getElementById('eklePlakaGrubuKalanParcaBtn').disabled = true;
+        return null;
+    }
+    
+    // Parça ekleme butonunu aktifleştir
+    document.getElementById('eklePlakaGrubuKalanParcaBtn').disabled = false;
+    
+    return {
+        en: en,
+        boy: boy,
+        kalinlik: kalinlik,
+        agirlik: agirlik
+    };
+}
+
+function addPlakaGrubuKalanParca() {
+    const parcaDetay = calculatePlakaGrubuWithKalanParca();
+    
+    if (!parcaDetay) {
+        return; // Hesaplama hatası varsa fonksiyondan çık
+    }
+    
+    // window.kalanParcalar yoksa oluştur
+    if (!window.kalanParcalar) {
+        window.kalanParcalar = [];
+    }
+    
+    // Yeni parçayı listeye ekle
+    const yeniId = Date.now(); // Benzersiz ID için timestamp kullan
+    const yeniParca = {
+        id: yeniId,
+        en: parcaDetay.en,
+        boy: parcaDetay.boy,
+        kalinlik: parcaDetay.kalinlik,
+        agirlik: parcaDetay.agirlik
+    };
+    
+    window.kalanParcalar.push(yeniParca);
+    
+    // Parça listesini güncelle
+    updatePlakaGrubuKalanParcaListUI();
+    
+    // Formları temizle
+    document.getElementById('plakaGrubuKalanParcaEn').value = '';
+    document.getElementById('plakaGrubuKalanParcaBoy').value = '';
+    document.getElementById('plakaGrubuKalanParcaHesapSonucu').style.display = 'none';
+    document.getElementById('eklePlakaGrubuKalanParcaBtn').disabled = true;
+    
+    // Otomatik hurda hesaplama
+    updatePlakaGrubuHurdaHesaplama();
+}
+
+function updatePlakaGrubuKalanParcaListUI() {
+    const listesiContainer = document.getElementById('plakaGrubuKalanParcaListesiContainer');
+    const listesi = document.getElementById('plakaGrubuKalanParcaListesi');
+    
+    if (!window.kalanParcalar) {
+        window.kalanParcalar = [];
+    }
+    
+    // Liste varsa göster, yoksa gizle
+    if (window.kalanParcalar.length > 0) {
+        listesiContainer.style.display = 'block';
+    } else {
+        listesiContainer.style.display = 'none';
+        return;
+    }
+    
+    // Listeyi temizle
+    listesi.innerHTML = '';
+    
+    // Toplam ağırlığı hesapla
+    const kullanilanMiktar = parseFloat(document.getElementById('plakaGrubuKullanilanMiktar').value) || 0;
+    const toplamKilo = currentPlakaGrubu ? parseFloat(currentPlakaGrubu.kalan_kilo) : 0;
+    const toplamKalanAgirlik = window.kalanParcalar.reduce((toplam, parca) => toplam + parca.agirlik, 0);
+    
+    // Toplam göstergeleri güncelle
+    document.getElementById('plakaGrubuToplamKullanilanAgirlik').textContent = (kullanilanMiktar + toplamKalanAgirlik).toFixed(2);
+    document.getElementById('plakaGrubuToplamKalanAgirlik').textContent = (toplamKilo - kullanilanMiktar - toplamKalanAgirlik).toFixed(2);
+    
+    // Her parça için kart oluştur
+    window.kalanParcalar.forEach((parca, index) => {
+        const parcaCard = document.createElement('div');
+        parcaCard.className = 'parca-card';
+        parcaCard.innerHTML = `
+            <h4>Parça ${index + 1}</h4>
+            <div class="parca-detail">
+                <span>Boyut:</span>
+                <span>${parca.en} x ${parca.boy} mm</span>
+            </div>
+            <div class="parca-detail">
+                <span>Ağırlık:</span>
+                <span>${parca.agirlik.toFixed(2)} kg</span>
+            </div>
+            <button type="button" class="btn-danger btn-sm" onclick="removePlakaGrubuKalanParca(${parca.id})">
+                <i class="fas fa-trash"></i> Sil
+            </button>
+        `;
+        listesi.appendChild(parcaCard);
+    });
+}
+
+function removePlakaGrubuKalanParca(parcaId) {
+    if (!window.kalanParcalar) {
+        window.kalanParcalar = [];
+        return;
+    }
+    
+    window.kalanParcalar = window.kalanParcalar.filter(parca => parca.id !== parcaId);
+    updatePlakaGrubuKalanParcaListUI();
+    updatePlakaGrubuHurdaHesaplama();
+}
+
+function updatePlakaGrubuHurdaHesaplama() {
+    if (!currentPlakaGrubu) return;
+    
+    const kullanilanMiktar = parseFloat(document.getElementById('plakaGrubuKullanilanMiktar').value) || 0;
+    const toplamKilo = parseFloat(currentPlakaGrubu.kalan_kilo) || 0;
+    
+    if (!window.kalanParcalar) {
+        window.kalanParcalar = [];
+    }
+    
+    // Kalan parçaların toplam ağırlığını 2 ondalık basamağa yuvarla
+    const toplamKalanParcaAgirligi = window.kalanParcalar.reduce((toplam, parca) => {
+        return toplam + parseFloat(parca.agirlik);
+    }, 0);
+    const yuvarlananToplamKalanParcaAgirligi = Number(toplamKalanParcaAgirligi.toFixed(2));
+    
+    // Hurda miktarı = Toplam - Kullanılan - Kalan Parçalar
+    const hurdaMiktar = toplamKilo - kullanilanMiktar - yuvarlananToplamKalanParcaAgirligi;
+    
+    // Hurda değeri 0'dan küçük olamaz
+    if (hurdaMiktar >= 0) {
+        document.getElementById('plakaGrubuHurdaMiktar').value = hurdaMiktar.toFixed(2);
+    } else {
+        document.getElementById('plakaGrubuHurdaMiktar').value = '0';
+    }
+    
+    // UI bilgilendirme metni ekle
+    const infoText = `
+        <div class="info-text highlight">
+            <p>Bilgi: Oluşturulan kalan parçaların toplam ağırlığı: ${yuvarlananToplamKalanParcaAgirligi.toFixed(2)} kg.</p>
+            <p>Bu parçalar, plakanın kalan parçaları olarak envanterde kalacaktır.</p>
+        </div>
+    `;
+    
+    // Bilgi metnini ekle/güncelle
+    let infoTextContainer = document.getElementById('plaka-grubu-hesaplama-info');
+    if (!infoTextContainer) {
+        infoTextContainer = document.createElement('div');
+        infoTextContainer.id = 'plaka-grubu-hesaplama-info';
+        const panel = document.getElementById('plakaGrubuKalanParcaPanel');
+        if (panel) {
+            panel.appendChild(infoTextContainer);
+        }
+    }
+    infoTextContainer.innerHTML = infoText;
+    
+    // Toplam göstergeleri güncelle
+    document.getElementById('plakaGrubuToplamKullanilanAgirlik').textContent = kullanilanMiktar.toFixed(2);
+    document.getElementById('plakaGrubuToplamKalanAgirlik').textContent = (toplamKilo - kullanilanMiktar).toFixed(2);
+}
+
+function removePlakaGrubuYariMamul(index) {
+    const item = document.querySelector(`.yarimamul-item[data-index="${index}"]`);
+    if (item) {
+        item.remove();
+    }
+}
+
+function addPlakaGrubuYariMamul() {
+    const yariMamulList = document.getElementById('plakaGrubuYariMamulList');
+    const items = yariMamulList.querySelectorAll('.yarimamul-item');
+    const newIndex = items.length;
+    
+    const yariMamulHtml = `
+        <div class="yarimamul-item" data-index="${newIndex}">
+            <div class="form-row">
+                <div class="form-group col-half">
+                    <label for="plakaGrubuYariMamulAdi_${newIndex}">Yarı Mamul Adı</label>
+                    <input type="text" id="plakaGrubuYariMamulAdi_${newIndex}" placeholder="Yarı mamul adı">
+                </div>
+                
+                <div class="form-group col-half">
+                    <label for="plakaGrubuYariMamulBirim_${newIndex}">Birim</label>
+                    <select id="plakaGrubuYariMamulBirim_${newIndex}">
+                        <option value="adet">Adet</option>
+                        <option value="metre">Metre</option>
+                        <option value="kg">Kilogram</option>
+                        <option value="set">Set</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group col-half">
+                    <label for="plakaGrubuYariMamulMiktar_${newIndex}">Miktar</label>
+                    <input type="number" id="plakaGrubuYariMamulMiktar_${newIndex}" placeholder="Miktar" min="0">
+                </div>
+                
+                <div class="form-group col-half">
+                    <label for="plakaGrubuYariMamulAgirlik_${newIndex}">Birim Ağırlık (kg)</label>
+                    <input type="number" id="plakaGrubuYariMamulAgirlik_${newIndex}" placeholder="Birim ağırlık" min="0" step="0.01">
+                </div>
+            </div>
+            
+            <div class="form-actions yarimamul-actions">
+                <button type="button" class="btn-danger btn-sm" onclick="removePlakaGrubuYariMamul(${newIndex})">
+                    <i class="fas fa-trash"></i> Sil
+                </button>
+            </div>
+        </div>
+    `;
+    
+    yariMamulList.insertAdjacentHTML('beforeend', yariMamulHtml);
+}
+
+// DOM yüklendiğinde event listener'ları ekle
+document.addEventListener('DOMContentLoaded', function() {
+    // Plaka Grubu Kalan Parça Hesaplama butonu
+    const hesaplaPlakaGrubuKalanParcaBtn = document.getElementById('hesaplaPlakaGrubuKalanParcaBtn');
+    if (hesaplaPlakaGrubuKalanParcaBtn) {
+        hesaplaPlakaGrubuKalanParcaBtn.addEventListener('click', calculatePlakaGrubuWithKalanParca);
+    }
+    
+    // Plaka Grubu Kalan Parça Ekle butonu
+    const eklePlakaGrubuKalanParcaBtn = document.getElementById('eklePlakaGrubuKalanParcaBtn');
+    if (eklePlakaGrubuKalanParcaBtn) {
+        eklePlakaGrubuKalanParcaBtn.addEventListener('click', addPlakaGrubuKalanParca);
+    }
+    
+    // Yeni Yarı Mamul Ekle butonu
+    const ekleYeniPlakaGrubuYariMamulBtn = document.getElementById('ekleYeniPlakaGrubuYariMamulBtn');
+    if (ekleYeniPlakaGrubuYariMamulBtn) {
+        ekleYeniPlakaGrubuYariMamulBtn.addEventListener('click', addPlakaGrubuYariMamul);
+    }
+    
+    // Kalan Parça Switch'i
+    const plakaGrubuKalanParcaSwitch = document.getElementById('plakaGrubuKalanParcaSwitch');
+    if (plakaGrubuKalanParcaSwitch) {
+        plakaGrubuKalanParcaSwitch.addEventListener('change', function() {
+            const panel = document.getElementById('plakaGrubuKalanParcaPanel');
+            if (panel) {
+                panel.style.display = this.checked ? 'block' : 'none';
+            }
+            
+            // Eğer kapalı ise kalan parçaları temizle
+            if (!this.checked) {
+                window.kalanParcalar = [];
+                updatePlakaGrubuKalanParcaListUI();
+                updatePlakaGrubuHurdaHesaplama();
+            }
+        });
+    }
+});
+</script>
+
+
 <script src="../modules/globals.js"></script>
 
 
@@ -2648,7 +3386,7 @@
 
 <script src="../modules/main.js"></script>
 <script src="../modules/multipleSemiFinished.js"></script>
-<script src="../modules/inventory-types/raw-metarials/plakaSearch.js"></script>
+
 <script src="../modules/inventory-types/raw-metarials/processRawMaterial.js"></script>
 
 <script src="../modules/global-user-data.js"></script>
