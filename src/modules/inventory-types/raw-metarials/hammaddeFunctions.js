@@ -2120,91 +2120,140 @@ async function openIslemModal(parcaId, parcaNo) {
 
 
 
-  
 async function loadIslemGecmisi(hammaddeId) {
-    try {
-      console.log("loadIslemGecmisi başlıyor - hammaddeId:", hammaddeId);
-      
-      // Önce parça işlemlerini yükle (boru ve mil işlemleri buradan gelir)
-      const parcaIslemleri = await loadParcaIslemleri(hammaddeId);
-      console.log("Parça işlemleri yüklendi:", parcaIslemleri.length);
-      
-      // Sonra plaka işlemlerini yükle
-      const plakaIslemleri = await loadPlakaIslemleri(hammaddeId);
-      console.log("Plaka işlemleri yüklendi:", plakaIslemleri.length);
-      
-      // İşlemleri birleştir
-      const tumIslemler = [...parcaIslemleri, ...plakaIslemleri];
-      console.log("Toplam işlem sayısı:", tumIslemler.length);
-      
-      // Tarihe göre sırala (en yeni en üstte)
-      tumIslemler.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
-      
-      // İşlemleri tabloya ekle
-      const islemGecmisiTable = document.getElementById('islemGecmisiTable');
-      const tableBody = islemGecmisiTable.getElementsByTagName('tbody')[0];
-      tableBody.innerHTML = '';
-      
-      if (tumIslemler.length === 0) {
-        const row = tableBody.insertRow();
-        row.innerHTML = '<td colspan="11" class="text-center">İşlem geçmişi bulunamadı</td>';
-        return;
-      }
-      
-      tumIslemler.forEach(islem => {
-        try {
-          const row = tableBody.insertRow();
-          
-          // Tarih
-          row.insertCell(0).textContent = new Date(islem.tarih).toLocaleString('tr-TR');
-          
-          // Plaka/Parça
-          row.insertCell(1).textContent = islem.plakaNo || islem.parcaNo || '-';
-          
-          // İşlem
-          row.insertCell(2).textContent = formatIslemTuru(islem.islem_turu);
-          
-          // Kullanılan
-          row.insertCell(3).textContent = `${Number(islem.kullanilan_miktar).toFixed(2)} kg`;
-          
-          // Hurda
-          row.insertCell(4).textContent = `${Number(islem.hurda_miktar || 0).toFixed(2)} kg`;
-          
-          // Kullanım Alanı
-          row.insertCell(5).textContent = formatKullanimAlani(islem.kullanim_alani);
-          
-          // Proje
-          row.insertCell(6).textContent = islem.proje_adi || '-';
-          
-          // Makine
-          row.insertCell(7).textContent = islem.makine || '-';
-          
-          // İşleyen Kişi
-          row.insertCell(8).textContent = islem.calisan_ad && islem.calisan_soyad ? 
-            `${islem.calisan_ad} ${islem.calisan_soyad}` : '-';
-          
-          // Müşteri
-          row.insertCell(9).textContent = islem.musteri_adi || '-';
-          
-          // Kullanıcı
-          row.insertCell(10).textContent = islem.kullanici || '-';
-        } catch (error) {
-          console.error("Satır oluşturma hatası:", error, islem);
-        }
-      });
-      
-      console.log("İşlem geçmişi tablosu güncellendi.");
-    } catch (error) {
-      console.error('İşlem geçmişi yükleme hatası:', error);
-      
-      const islemGecmisiTable = document.getElementById('islemGecmisiTable');
-      const tableBody = islemGecmisiTable.getElementsByTagName('tbody')[0];
-      tableBody.innerHTML = '';
-      
+  try {
+    console.log("loadIslemGecmisi başlıyor - hammaddeId:", hammaddeId);
+    
+    // Plaka işlemlerini yükle
+    const plakaIslemleri = await loadPlakaIslemleri(hammaddeId);
+    console.log("Plaka işlemleri yüklendi:", plakaIslemleri.length);
+    
+    // Plaka grubu işlemlerini yükle (YENİ)
+    const plakaGrubuIslemleri = await loadPlakaGrubuIslemleri(hammaddeId);
+    console.log("Plaka grubu işlemleri yüklendi:", plakaGrubuIslemleri.length);
+    
+    // Parça işlemlerini yükle
+    const parcaIslemleri = await loadParcaIslemleri(hammaddeId);
+    console.log("Parça işlemleri yüklendi:", parcaIslemleri.length);
+    
+    // İşlemleri birleştir
+    const tumIslemler = [...plakaIslemleri, ...plakaGrubuIslemleri, ...parcaIslemleri];
+    console.log("Toplam işlem sayısı:", tumIslemler.length);
+    
+    // Tarihe göre sırala (en yeni en üstte)
+    tumIslemler.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
+    
+    // İşlemleri tabloya ekle
+    const islemGecmisiTable = document.getElementById('islemGecmisiTable');
+    const tableBody = islemGecmisiTable.getElementsByTagName('tbody')[0];
+    tableBody.innerHTML = '';
+    
+    if (tumIslemler.length === 0) {
       const row = tableBody.insertRow();
-      row.innerHTML = '<td colspan="11" class="text-center">İşlem geçmişi yüklenirken bir hata oluştu</td>';
+      row.innerHTML = '<td colspan="11" class="text-center">İşlem geçmişi bulunamadı</td>';
+      return;
     }
+    
+    tumIslemler.forEach(islem => {
+      try {
+        const row = tableBody.insertRow();
+        
+        // Tarih
+        row.insertCell(0).textContent = new Date(islem.tarih).toLocaleString('tr-TR');
+        
+        // Plaka/Parça
+        row.insertCell(1).textContent = islem.plakaNo || islem.parcaNo || '-';
+        
+        // İşlem
+        row.insertCell(2).textContent = formatIslemTuru(islem.islem_turu);
+        
+        // Kullanılan
+        row.insertCell(3).textContent = `${Number(islem.kullanilan_miktar).toFixed(2)} kg`;
+        
+        // Hurda
+        row.insertCell(4).textContent = `${Number(islem.hurda_miktar || 0).toFixed(2)} kg`;
+        
+        // Kullanım Alanı
+        row.insertCell(5).textContent = formatKullanimAlani(islem.kullanim_alani);
+        
+        // Proje
+        row.insertCell(6).textContent = islem.proje_adi || '-';
+        
+        // Makine
+        row.insertCell(7).textContent = islem.makine || '-';
+        
+        // İşleyen Kişi
+        row.insertCell(8).textContent = islem.calisan_ad && islem.calisan_soyad ? 
+          `${islem.calisan_ad} ${islem.calisan_soyad}` : '-';
+        
+        // Müşteri
+        row.insertCell(9).textContent = islem.musteri_adi || '-';
+        
+        // Kullanıcı
+        row.insertCell(10).textContent = islem.kullanici || '-';
+      } catch (error) {
+        console.error("Satır oluşturma hatası:", error, islem);
+      }
+    });
+    
+    console.log("İşlem geçmişi tablosu güncellendi.");
+  } catch (error) {
+    console.error('İşlem geçmişi yükleme hatası:', error);
+    
+    const islemGecmisiTable = document.getElementById('islemGecmisiTable');
+    const tableBody = islemGecmisiTable.getElementsByTagName('tbody')[0];
+    tableBody.innerHTML = '';
+    
+    const row = tableBody.insertRow();
+    row.innerHTML = '<td colspan="11" class="text-center">İşlem geçmişi yüklenirken bir hata oluştu</td>';
   }
+}
+
+// Bu fonksiyon plaka grubu işlemlerini getirmek için kullanılacak (YENİ)
+async function loadPlakaGrubuIslemleri(hammaddeId) {
+  try {
+    console.log("loadPlakaGrubuIslemleri başlıyor - hammaddeId:", hammaddeId);
+    
+    // Önce bu hammaddeye ait plaka gruplarını al
+    const plakaGruplariResult = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId(hammaddeId);
+    
+    if (!plakaGruplariResult.success || !plakaGruplariResult.gruplar || plakaGruplariResult.gruplar.length === 0) {
+      console.log("Bu hammadde için plaka grubu bulunamadı");
+      return [];
+    }
+    
+    // Tüm plaka grubu ID'lerini bir dizide topla
+    const plakaGrubuIds = plakaGruplariResult.gruplar.map(grup => grup.id);
+    
+    // Tek bir sorgu ile tüm grupların işlemlerini al
+    const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByMultiplePlakaGrubuIds(plakaGrubuIds);
+    
+    if (!islemlerResult.success || !islemlerResult.islemler) {
+      console.log("Plaka gruplarına ait işlem bulunamadı");
+      return [];
+    }
+    
+    // İşlemleri plaka grubu bilgisiyle eşleştir
+    const tumIslemler = islemlerResult.islemler.map(islem => {
+      const grup = plakaGruplariResult.gruplar.find(g => g.id === islem.plaka_grubu_id);
+      return {
+        ...islem,
+        plakaNo: grup ? `Plaka Grubu #${grup.stok_kodu}` : 'Bilinmiyor',
+        tarih: islem.islem_tarihi,
+        kullanici: islem.kullanici_ad ? `${islem.kullanici_ad} ${islem.kullanici_soyad}` : 'Bilinmiyor'
+      };
+    });
+    
+    console.log(`Toplam ${tumIslemler.length} plaka grubu işlemi bulundu`);
+    return tumIslemler;
+  } catch (error) {
+    console.error('Plaka grubu işlemleri getirme hatası:', error);
+    return [];
+  }
+}
+
+
+window.loadPlakaGrubuIslemleri = loadPlakaGrubuIslemleri;
 
   window.checkHammaddeExists = async function(hammaddeData) {
     try {

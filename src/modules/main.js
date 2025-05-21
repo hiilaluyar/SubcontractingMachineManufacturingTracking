@@ -1258,9 +1258,12 @@ async function savePlakaGrubu() {
   }
 }
 
-// Plaka Grubu İşlem Modalı
+// Plaka Grubu İşlem Modalı için düzeltilmiş fonksiyon
 async function openPlakaGrubuIslemModal(grubuId) {
   try {
+    // Global değişkene ata
+    currentPlakaGrubuId = grubuId;
+    
     // Plaka grubu bilgilerini al
     const result = await window.electronAPI.invoke.database.getPlakaGrubuById(grubuId);
     
@@ -1269,8 +1272,6 @@ async function openPlakaGrubuIslemModal(grubuId) {
       return;
     }
     
-    // Global değişkene ata
-    currentPlakaGrubuId = grubuId;
     currentPlakaGrubu = result.plaka_grubu;
     
     // Başlığı güncelle
@@ -1308,22 +1309,6 @@ async function openPlakaGrubuIslemModal(grubuId) {
       `;
     }
     
-    // Projeleri yükle
-    await loadProjeler();
-    
-    // Müşteri listesini yükle
-    await loadMusteriler();
-    
-    // Çalışan listesini yükle
-    await loadCalisanlar();
-    
-    // Form alanlarını güncelle
-    togglePlakaGrubuFormSections();
-    
-    // Plaka sayısı alanını kalan plaka sayısı ile sınırla
-    document.getElementById('plakaGrubuPlakaSayisiInput').setAttribute('max', result.plaka_grubu.kalan_plaka_sayisi);
-    document.getElementById('plakaGrubuPlakaSayisiInput').value = 1; // Varsayılan değer
-    
     // Önce detay modalını kapat
     closeModal('detayModal');
     
@@ -1334,27 +1319,305 @@ async function openPlakaGrubuIslemModal(grubuId) {
       }
     });
     
+    // Modal açılmadan önce async olarak bekleyen işlemleri tamamla
+    try {
+      console.log("Projeler yükleniyor...");
+      await loadProjeler();
+      console.log("Projeler yüklendi");
+    } catch (e) {
+      console.error("Projeler yüklenirken hata:", e);
+    }
+    
+    try {
+      console.log("Müşteriler yükleniyor...");
+      await loadMusteriler();
+      console.log("Müşteriler yüklendi");
+    } catch (e) {
+      console.error("Müşteriler yüklenirken hata:", e);
+    }
+    
+    try {
+      console.log("Çalışanlar yükleniyor...");
+      await loadCalisanlar();
+      console.log("Çalışanlar yüklendi");
+    } catch (e) {
+      console.error("Çalışanlar yüklenirken hata:", e);
+    }
+    
     // İşlem modalını aç
+    openModal('plakaGrubuIslemModal');
+    
+    // Açıldıktan sonra form alanlarını güncelle
+    togglePlakaGrubuFormSections();
+    
+    // Plaka sayısı alanını kalan plaka sayısı ile sınırla
+    document.getElementById('plakaGrubuPlakaSayisiInput').setAttribute('max', result.plaka_grubu.kalan_plaka_sayisi);
+    document.getElementById('plakaGrubuPlakaSayisiInput').value = 1; // Varsayılan değer
+    
+    // Select elementlerinin stil düzeltmesi
     setTimeout(() => {
-      openModal('plakaGrubuIslemModal');
+      const projectSelect = document.getElementById('plakaGrubuProjeSecimi');
+      if (projectSelect) {
+        projectSelect.style.color = '#333';
+        Array.from(projectSelect.options).forEach(option => {
+          option.style.color = '#333';
+          option.style.backgroundColor = '#fff';
+        });
+      }
       
-      // Select elementlerinin stil düzeltmesi
-      setTimeout(() => {
-        const projectSelect = document.getElementById('plakaGrubuProjeSecimi');
-        if (projectSelect) {
-          projectSelect.style.color = '#333';
-          Array.from(projectSelect.options).forEach(option => {
-            option.style.color = '#333';
-            option.style.backgroundColor = '#fff';
-          });
-        }
-      }, 200);
-    }, 300);
+      const customerSelect = document.getElementById('plakaGrubuMusteriSecimi');
+      if (customerSelect) {
+        customerSelect.style.color = '#333';
+        Array.from(customerSelect.options).forEach(option => {
+          option.style.color = '#333';
+          option.style.backgroundColor = '#fff';
+        });
+      }
+      
+      const employeeSelect = document.getElementById('plakaGrubuCalisanSecimi');
+      if (employeeSelect) {
+        employeeSelect.style.color = '#333';
+        Array.from(employeeSelect.options).forEach(option => {
+          option.style.color = '#333';
+          option.style.backgroundColor = '#fff';
+        });
+      }
+    }, 200);
   } catch (error) {
     console.error('Plaka grubu işlem modalı açma hatası:', error);
     showToast('Plaka grubu işlem modalı açılırken bir hata oluştu: ' + error.message, 'error');
   }
 }
+
+
+async function loadProjeler() {
+  try {
+    console.log("loadProjeler çağrıldı");
+    const result = await window.electronAPI.invoke.database.getAllProjeler();
+    
+    if (!result.success) {
+      console.error("Projeler getirilirken hata:", result.message);
+      return;
+    }
+    
+    // Plaka grubu işlem modalı için select
+    const plakaGrubuProjeSecimi = document.getElementById('plakaGrubuProjeSecimi');
+    if (plakaGrubuProjeSecimi) {
+      // Mevcut seçenekleri temizle (ilk seçenek hariç)
+      while (plakaGrubuProjeSecimi.options.length > 1) {
+        plakaGrubuProjeSecimi.remove(1);
+      }
+      
+      // Projeleri ekle
+      result.projeler.forEach(proje => {
+        const option = document.createElement('option');
+        option.value = proje.id;
+        option.textContent = `${proje.proje_kodu} - ${proje.proje_adi}`;
+        plakaGrubuProjeSecimi.appendChild(option);
+      });
+      
+      console.log(`${result.projeler.length} proje yüklendi (Plaka Grubu)`);
+    }
+    
+    // Diğer modallar için de aynı işlemi yap
+    const plakaProjeSecimi = document.getElementById('plakaProjeSecimi');
+    if (plakaProjeSecimi) {
+      // Temizle
+      while (plakaProjeSecimi.options.length > 1) {
+        plakaProjeSecimi.remove(1);
+      }
+      
+      // Ekle
+      result.projeler.forEach(proje => {
+        const option = document.createElement('option');
+        option.value = proje.id;
+        option.textContent = `${proje.proje_kodu} - ${proje.proje_adi}`;
+        plakaProjeSecimi.appendChild(option);
+      });
+    }
+    
+    const parcaProjeSecimi = document.getElementById('parcaProjeSecimi');
+    if (parcaProjeSecimi) {
+      // Temizle
+      while (parcaProjeSecimi.options.length > 1) {
+        parcaProjeSecimi.remove(1);
+      }
+      
+      // Ekle
+      result.projeler.forEach(proje => {
+        const option = document.createElement('option');
+        option.value = proje.id;
+        option.textContent = `${proje.proje_kodu} - ${proje.proje_adi}`;
+        parcaProjeSecimi.appendChild(option);
+      });
+    }
+    
+    return result.projeler;
+  } catch (error) {
+    console.error("Projeler yüklenirken hata:", error);
+    return [];
+  }
+}
+
+// Müşterileri yükleme fonksiyonu
+async function loadMusteriler() {
+  try {
+    console.log("loadMusteriler çağrıldı");
+    const result = await window.electronAPI.invoke.database.getAllMusteriler();
+    
+    if (!result.success) {
+      console.error("Müşteriler getirilirken hata:", result.message);
+      return;
+    }
+    
+    // Plaka grubu işlem modalı için select
+    const plakaGrubuMusteriSecimi = document.getElementById('plakaGrubuMusteriSecimi');
+    if (plakaGrubuMusteriSecimi) {
+      // Mevcut seçenekleri temizle (ilk seçenek hariç)
+      while (plakaGrubuMusteriSecimi.options.length > 1) {
+        plakaGrubuMusteriSecimi.remove(1);
+      }
+      
+      // Müşterileri ekle
+      result.musteriler.forEach(musteri => {
+        const option = document.createElement('option');
+        option.value = musteri.id;
+        option.textContent = musteri.musteri_adi;
+        plakaGrubuMusteriSecimi.appendChild(option);
+      });
+      
+      console.log(`${result.musteriler.length} müşteri yüklendi (Plaka Grubu)`);
+    }
+    
+    // Diğer modallar için de aynı işlemi yap
+    const plakaMusteriSecimi = document.getElementById('plakaMusteriSecimi');
+    if (plakaMusteriSecimi) {
+      // Temizle
+      while (plakaMusteriSecimi.options.length > 1) {
+        plakaMusteriSecimi.remove(1);
+      }
+      
+      // Ekle
+      result.musteriler.forEach(musteri => {
+        const option = document.createElement('option');
+        option.value = musteri.id;
+        option.textContent = musteri.musteri_adi;
+        plakaMusteriSecimi.appendChild(option);
+      });
+    }
+    
+    const parcaMusteriSecimi = document.getElementById('parcaMusteriSecimi');
+    if (parcaMusteriSecimi) {
+      // Temizle
+      while (parcaMusteriSecimi.options.length > 1) {
+        parcaMusteriSecimi.remove(1);
+      }
+      
+      // Ekle
+      result.musteriler.forEach(musteri => {
+        const option = document.createElement('option');
+        option.value = musteri.id;
+        option.textContent = musteri.musteri_adi;
+        parcaMusteriSecimi.appendChild(option);
+      });
+    }
+    
+    return result.musteriler;
+  } catch (error) {
+    console.error("Müşteriler yüklenirken hata:", error);
+    return [];
+  }
+}
+
+// Çalışanları yükleme fonksiyonu
+async function loadCalisanlar() {
+  try {
+    console.log("loadCalisanlar çağrıldı");
+    const result = await window.electronAPI.invoke.database.getAllCalisan();
+    
+    if (!result.success) {
+      console.error("Çalışanlar getirilirken hata:", result.message);
+      return;
+    }
+    
+    // Plaka grubu işlem modalı için select
+    const plakaGrubuCalisanSecimi = document.getElementById('plakaGrubuCalisanSecimi');
+    if (plakaGrubuCalisanSecimi) {
+      // Mevcut seçenekleri temizle (ilk seçenek hariç)
+      while (plakaGrubuCalisanSecimi.options.length > 1) {
+        plakaGrubuCalisanSecimi.remove(1);
+      }
+      
+      // Çalışanları ekle
+      result.calisanlar.forEach(calisan => {
+        const option = document.createElement('option');
+        option.value = calisan.id;
+        option.textContent = `${calisan.ad} ${calisan.soyad}`;
+        plakaGrubuCalisanSecimi.appendChild(option);
+      });
+      
+      console.log(`${result.calisanlar.length} çalışan yüklendi (Plaka Grubu)`);
+    }
+    
+    // Diğer modallar için de aynı işlemi yap
+    const plakaCalisanSecimi = document.getElementById('plakaCalisanSecimi');
+    if (plakaCalisanSecimi) {
+      // Temizle
+      while (plakaCalisanSecimi.options.length > 1) {
+        plakaCalisanSecimi.remove(1);
+      }
+      
+      // Ekle
+      result.calisanlar.forEach(calisan => {
+        const option = document.createElement('option');
+        option.value = calisan.id;
+        option.textContent = `${calisan.ad} ${calisan.soyad}`;
+        plakaCalisanSecimi.appendChild(option);
+      });
+    }
+    
+    const parcaCalisanSecimi = document.getElementById('parcaCalisanSecimi');
+    if (parcaCalisanSecimi) {
+      // Temizle
+      while (parcaCalisanSecimi.options.length > 1) {
+        parcaCalisanSecimi.remove(1);
+      }
+      
+      // Ekle
+      result.calisanlar.forEach(calisan => {
+        const option = document.createElement('option');
+        option.value = calisan.id;
+        option.textContent = `${calisan.ad} ${calisan.soyad}`;
+        parcaCalisanSecimi.appendChild(option);
+      });
+    }
+    
+    return result.calisanlar;
+  } catch (error) {
+    console.error("Çalışanlar yüklenirken hata:", error);
+    return [];
+  }
+}
+
+
+// Plaka Grubu form seçeneklerini göster/gizle
+function togglePlakaGrubuFormSections() {
+  const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani').value;
+  console.log("togglePlakaGrubuFormSections çağrıldı, kullanım alanı:", kullanimAlani);
+  
+  // Müşteri panelini göster/gizle
+  const musteriPanel = document.getElementById('plakaGrubuMusteriPanel');
+  if (musteriPanel) {
+    musteriPanel.style.display = kullanimAlani === 'FasonImalat' ? 'block' : 'none';
+  }
+  
+  // Yarı mamul panelini göster/gizle
+  const yariMamulPanel = document.getElementById('plakaGrubuYariMamulPanel');
+  if (yariMamulPanel) {
+    yariMamulPanel.style.display = kullanimAlani === 'MakineImalat' ? 'block' : 'none';
+  }
+}
+
 
 // Plaka Grubu İşlem formu resetleme
 function resetPlakaGrubuIslemForm() {

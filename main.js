@@ -718,6 +718,17 @@ ipcMain.handle('database:getPlakaGrubuById', async (event, grubuId) => {
   }
 });
 
+
+ipcMain.handle('database:getIslemlerByMultiplePlakaGrubuIds', async (event, plakaGrubuIds) => {
+  try {
+    return await DatabaseService.getIslemlerByMultiplePlakaGrubuIds(plakaGrubuIds);
+  } catch (error) {
+    console.error('getIslemlerByMultiplePlakaGrubuIds error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+
 ipcMain.handle('database:getPlakaGruplariByHammaddeId', async (event, hammaddeId) => {
   try {
     return await DatabaseService.getPlakaGruplariByHammaddeId(hammaddeId);

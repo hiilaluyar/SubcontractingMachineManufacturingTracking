@@ -148,6 +148,7 @@ getParcalarByPlakaGrubuId: (grubuId) => ipcRenderer.invoke('database:getParcalar
 getPlakaGrubuById: (grubuId) => ipcRenderer.invoke('database:getPlakaGrubuById', grubuId),
 getPlakaGruplariByHammaddeId: (hammaddeId) => ipcRenderer.invoke('database:getPlakaGruplariByHammaddeId', hammaddeId),
 addPlakaGrubu: (grubuData) => ipcRenderer.invoke('database:addPlakaGrubu', grubuData),
+getIslemlerByMultiplePlakaGrubuIds: (plakaGrubuIds) => ipcRenderer.invoke('database:getIslemlerByMultiplePlakaGrubuIds', plakaGrubuIds)
         }
     }
 });
