@@ -4251,33 +4251,27 @@ async function getIslemlerByPlakaId(plakaId) {
   }
 }
 
-
 async function getParcaById(parcaId) {
   try {
     // Plaka_parcalari tablosunda kontrol et
     const [parcaRows] = await pool.execute(
       `SELECT p.*, 
-              pl.hammadde_id as plaka_hammadde_id, 
               pg.hammadde_id as grubu_hammadde_id,
               h.malzeme_adi, h.yogunluk, h.kalinlik as hammadde_kalinlik,
               h.hammadde_turu
        FROM plaka_parcalari p
-       LEFT JOIN plakalar pl ON p.plaka_id = pl.id
        LEFT JOIN plaka_gruplari pg ON p.plaka_grubu_id = pg.id
-       LEFT JOIN hammaddeler h ON COALESCE(pl.hammadde_id, pg.hammadde_id) = h.id
+       LEFT JOIN hammaddeler h ON pg.hammadde_id = h.id
        WHERE p.id = ?`,
       [parcaId]
     );
     
     if (parcaRows.length > 0) {
-      // Hammadde ID'yi uygun şekilde belirle
-      const hammadde_id = parcaRows[0].plaka_hammadde_id || parcaRows[0].grubu_hammadde_id;
-      
       return { 
         success: true, 
         parca: {
           ...parcaRows[0],
-          hammadde_id // Doğru hammadde ID'sini ekle
+          hammadde_id: parcaRows[0].grubu_hammadde_id
         }, 
         tip: 'plaka' 
       };
