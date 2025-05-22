@@ -138,67 +138,76 @@ async function loadTedarikciListesi() {
   }
   
 
+  // Tedarikçi kaydetme fonksiyonunu güncelle - plaka grubu desteği ile
+async function saveTedarikci(e) {
+  if (e) e.preventDefault();
   
-  // Save new supplier
-  async function saveTedarikci(e) {
-    if (e) e.preventDefault();
-    
-    const tedarikciAdi = document.getElementById('tedarikciAdi').value.trim();
-    
-    if (!tedarikciAdi) {
-      showToast('Lütfen tedarikçi adını girin.', 'error');
+  const tedarikciAdi = document.getElementById('tedarikciAdi').value.trim();
+  
+  if (!tedarikciAdi) {
+    showToast('Lütfen tedarikçi adını girin.', 'error');
+    return;
+  }
+  
+  try {
+    // API kontrolü
+    if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+      console.error('Database invoke metodu bulunamadı');
+      showToast('Tedarikçi eklenemedi. API erişimi yok.', 'error');
       return;
     }
+
+    const result = await window.electronAPI.invoke.database.addTedarikci({ tedarikci_adi: tedarikciAdi });
     
-    try {
-      // API kontrolü
-      if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
-        console.error('Database invoke metodu bulunamadı');
-        showToast('Tedarikçi eklenemedi. API erişimi yok.', 'error');
-        return;
-      }
-  
-      const result = await window.electronAPI.invoke.database.addTedarikci({ tedarikci_adi: tedarikciAdi });
+    if (result.success) {
+      showToast(`Tedarikçi başarıyla eklendi.`, 'success');
       
-      if (result.success) {
-        showToast(`Tedarikçi başarıyla eklendi.`, 'success');
+      // Formu temizle
+      document.getElementById('yeniTedarikciForm').reset();
+      
+      // Yeni tedarikçi modalını kapat
+      closeModal('yeniTedarikciModal');
+      
+      // Tedarikçi listesini güncelle
+      await loadTedarikciListesi();
+      
+      // Eğer bir giriş modalından geldiyse, geri dön ve yeni tedarikçiyi seç
+      if (currentModalId) {
+        const modalId = currentModalId;
         
-        // Formu temizle
-        document.getElementById('yeniTedarikciForm').reset();
-        
-        // Yeni tedarikçi modalını kapat
-        closeModal('yeniTedarikciModal');
-        
-        // Tedarikçi listesini güncelle
-        await loadTedarikciListesi();
-        
-        // Eğer bir giriş modalından geldiyse, geri dön ve yeni tedarikçiyi seç
-        if (currentModalId) {
-          const modalId = currentModalId;
-          
-          if (modalId === 'hammaddeGirisModal') {
-            const tedarikciSecimi = document.getElementById('hammaddeGirisTedarikci');
-            if (tedarikciSecimi) {
-              tedarikciSecimi.value = tedarikciAdi;
-            }
-            openModal(modalId);
-          } 
-          else if (modalId === 'sarfMalzemeGirisModal') {
-            const tedarikciSecimi = document.getElementById('sarfMalzemeGirisTedarikci');
-            if (tedarikciSecimi) {
-              tedarikciSecimi.value = tedarikciAdi;
-            }
-            openModal(modalId);
+        if (modalId === 'hammaddeGirisModal') {
+          const tedarikciSecimi = document.getElementById('hammaddeGirisTedarikci');
+          if (tedarikciSecimi) {
+            tedarikciSecimi.value = tedarikciAdi;
           }
+          openModal(modalId);
+        } 
+        else if (modalId === 'sarfMalzemeGirisModal') {
+          const tedarikciSecimi = document.getElementById('sarfMalzemeGirisTedarikci');
+          if (tedarikciSecimi) {
+            tedarikciSecimi.value = tedarikciAdi;
+          }
+          openModal(modalId);
         }
-      } else {
-        showToast('Hata: ' + result.message, 'error');
+        else if (modalId === 'yeniPlakaGrubuModal') {
+          // Plaka grubu modalına geri dön ve tedarikçiyi seç
+          const tedarikciSecimi = document.getElementById('plakaGrubuTedarikci');
+          if (tedarikciSecimi) {
+            tedarikciSecimi.value = tedarikciAdi;
+          }
+          // Tedarikçi listesini yeniden yükle
+          await loadTedarikciListesiForPlakaGrubu();
+          openModal(modalId);
+        }
       }
-    } catch (error) {
-      console.error('Tedarikçi kaydetme hatası:', error);
-      showToast('Tedarikçi kaydedilirken bir hata oluştu.', 'error');
+    } else {
+      showToast('Hata: ' + result.message, 'error');
     }
+  } catch (error) {
+    console.error('Tedarikçi kaydetme hatası:', error);
+    showToast('Tedarikçi kaydedilirken bir hata oluştu.', 'error');
   }
+}
   
   // Delete supplier
   // Delete supplier   
@@ -269,3 +278,49 @@ async function deleteTedarikci(id) {
   window.saveTedarikci = saveTedarikci;
   window.deleteTedarikci = deleteTedarikci;
   window.openNewTedarikciModal = openNewTedarikciModal;
+
+  
+// Otomatik hesaplama için event listener'lar
+document.addEventListener('DOMContentLoaded', function() {
+  // Plaka grubu form alanları değiştiğinde otomatik hesaplama
+  const plakaGrubuFormFields = ['plakaGrubuEn', 'plakaGrubuBoy', 'plakaGrubuToplamKilo'];
+  
+  plakaGrubuFormFields.forEach(fieldId => {
+    const field = document.getElementById(fieldId);
+    if (field) {
+      field.addEventListener('input', function() {
+        // Sadece gerekli alanlar doldurulmuşsa hesapla
+        const en = document.getElementById('plakaGrubuEn').value;
+        const boy = document.getElementById('plakaGrubuBoy').value;
+        const toplamKilo = document.getElementById('plakaGrubuToplamKilo').value;
+        
+        if (en && boy && toplamKilo) {
+          calculatePlakaGrubu();
+        }
+      });
+    }
+  });
+  
+  // Yeni Plaka Grubu Tedarikçi Ekleme butonu
+  const plakaGrubuYeniTedarikciEkleBtn = document.getElementById('plakaGrubuYeniTedarikciEkleBtn');
+  if (plakaGrubuYeniTedarikciEkleBtn) {
+    plakaGrubuYeniTedarikciEkleBtn.addEventListener('click', openNewTedarikciModalForPlakaGrubu);
+  }
+  
+  // Mevcut event listener'ları güncelle
+  const yeniPlakaGrubuEkleBtn = document.getElementById('yeniPlakaGrubuEkleBtn');
+  if (yeniPlakaGrubuEkleBtn) {
+    yeniPlakaGrubuEkleBtn.removeEventListener('click', openYeniPlakaGrubuModal);
+    yeniPlakaGrubuEkleBtn.addEventListener('click', openYeniPlakaGrubuModal);
+  }
+  
+  const hesaplaPlakaGrubuBtn = document.getElementById('hesaplaPlakaGrubuBtn');
+  if (hesaplaPlakaGrubuBtn) {
+    hesaplaPlakaGrubuBtn.removeEventListener('click', calculatePlakaGrubu);
+    hesaplaPlakaGrubuBtn.addEventListener('click', calculatePlakaGrubu);
+  }
+});
+
+
+window.loadTedarikciListesiForPlakaGrubu = loadTedarikciListesiForPlakaGrubu;
+window.openNewTedarikciModalForPlakaGrubu = openNewTedarikciModalForPlakaGrubu;

@@ -2615,77 +2615,121 @@
 </div>
 
 
-
-<!-- Plaka Grubu Ekle Modal -->
 <div class="modal" id="yeniPlakaGrubuModal">
-  <div class="modal-content">
-    <span class="close">&times;</span>
-    <h2>Yeni Plaka Grubu Ekle</h2>
+  <div class="modal-content plaka-grubu-modal-content">
+    <div class="modal-header-area">
+      <span class="close">&times;</span>
+      <h2>Yeni Plaka Grubu Ekle</h2>
+      
+      <!-- Hata ve başarı mesajları için alanlar -->
+      <div class="alert error" id="yeniPlakaGrubuModal-error" style="display: none;"></div>
+      <div class="alert success" id="yeniPlakaGrubuModal-success" style="display: none;"></div>
+    </div>
     
-    <form id="plakaGrubuForm" class="form-container">
-      <input type="hidden" id="hammaddeGirisHammaddeId" value="">
-      
-      <div class="form-group">
-        <label for="plakaGrubuEn">En (mm)</label>
-        <input type="number" id="plakaGrubuEn" placeholder="En (mm)" min="1" step="any" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="plakaGrubuBoy">Boy (mm)</label>
-        <input type="number" id="plakaGrubuBoy" placeholder="Boy (mm)" min="1" step="any" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="plakaGrubuPlakaSayisi">Plaka Sayısı</label>
-        <input type="number" id="plakaGrubuPlakaSayisi" placeholder="Plaka sayısı" min="1" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="plakaGrubuToplamKilo">Toplam Kilo (kg)</label>
-        <input type="number" id="plakaGrubuToplamKilo" placeholder="Toplam kilo (kg)" min="0.01" step="any" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="plakaGrubuTedarikci">Tedarikçi</label>
-        <div class="input-with-button">
-          <input type="text" id="plakaGrubuTedarikci" placeholder="Tedarikçi" required>
-          <button type="button" id="plakaGrubuYeniTedarikciEkleBtn" class="btn-secondary">
-            <i class="fas fa-plus"></i>
-          </button>
+    <div class="plaka-grubu-modal-grid">
+      <!-- Sol Sütun - Form Alanları (Kaydırılabilir) -->
+      <div class="plaka-grubu-form-column">
+        <div class="yeni-plaka-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="plakaGrubuEn">En (mm) *</label>
+              <input type="number" id="plakaGrubuEn" step="0.01" min="1" required>
+            </div>
+            <div class="form-group">
+              <label for="plakaGrubuBoy">Boy (mm) *</label>
+              <input type="number" id="plakaGrubuBoy" step="0.01" min="1" required>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="plakaGrubuToplamKilo">Toplam Kilo (kg) *</label>
+              <input type="number" id="plakaGrubuToplamKilo" step="0.01" min="0.1" required>
+              <small class="form-helper">Hesapla butonuna basarak plaka sayısını görebilirsiniz</small>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="plakaGrubuTedarikci">Tedarikçi *</label>
+              <div class="input-with-button">
+                <input 
+                  type="text" 
+                  id="plakaGrubuTedarikci" 
+                  list="plakaGrubuTedarikciListesi" 
+                  placeholder="Tedarikçi seçin veya ara..."
+                  required
+                >
+                <datalist id="plakaGrubuTedarikciListesi">
+                  <!-- Tedarikçiler dinamik olarak eklenecek -->
+                </datalist>
+                <button type="button" id="plakaGrubuYeniTedarikciEkleBtn" class="btn-secondary btn-sm">
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="plakaGrubuAnaBarkod">Ana Barkod (Opsiyonel)</label>
+              <input type="text" id="plakaGrubuAnaBarkod" placeholder="SL12345">
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="plakaGrubuBirimFiyat">Birim Fiyat *</label>
+              <input type="number" id="plakaGrubuBirimFiyat" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+              <label for="plakaGrubuBirimFiyatTuru">Para Birimi</label>
+              <select id="plakaGrubuBirimFiyatTuru">
+                <option value="TRY">TL (₺)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EURO (€)</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-buttons">
+            <button id="plakaGrubuKaydetBtn" class="btn-primary" disabled>
+              <i class="fas fa-save"></i> Plaka Grubunu Kaydet
+            </button>
+          </div>
         </div>
       </div>
       
-      <div class="form-group">
-        <label for="plakaGrubuBirimFiyat">Birim Fiyat</label>
-        <div class="input-with-currency">
-          <input type="number" id="plakaGrubuBirimFiyat" placeholder="Birim fiyat" min="0" step="any" required>
-          <select id="plakaGrubuBirimFiyatTuru" class="currency-select">
-            <option value="TRY">₺</option>
-            <option value="USD">$</option>
-            <option value="EUR">€</option>
-            <option value="GBP">£</option>
-          </select>
+      <!-- Sağ Sütun - Hesaplama Paneli (Sabit) -->
+      <div class="plaka-grubu-calculation-column">
+        <div class="calculation-panel">
+          <div class="calculation-header">
+            <h3><i class="fas fa-calculator"></i> Hesaplama</h3>
+            <button type="button" id="hesaplaPlakaGrubuBtn" class="btn-calculate">
+              <i class="fas fa-play"></i> Hesapla
+            </button>
+          </div>
+          
+          <div class="calculation-info">
+            <div class="info-item">
+              <label>Hesaplanan Plaka Sayısı:</label>
+              <input type="number" id="plakaGrubuPlakaSayisi" readonly placeholder="Hesaplanacak...">
+            </div>
+            <small class="calculation-note">
+              <i class="fas fa-info-circle"></i> 
+              En, boy ve toplam kilo girildikten sonra "Hesapla" butonuna basın
+            </small>
+          </div>
+          
+          <div id="plakaGrubuHesapSonucu" class="calculation-result" style="display: none;">
+            <!-- Hesaplama sonucu burada gösterilecek -->
+          </div>
         </div>
       </div>
-      
-      <div class="form-group">
-        <label for="plakaGrubuAnaBarkod">Ana Barkod (isteğe bağlı)</label>
-        <input type="text" id="plakaGrubuAnaBarkod" placeholder="Ana barkod">
-      </div>
-      
-      <div class="form-actions">
-        <button type="button" id="hesaplaPlakaGrubuBtn" class="btn-secondary">
-          <i class="fas fa-calculator"></i> Hesapla
-        </button>
-        <button type="button" id="plakaGrubuKaydetBtn" class="btn-primary" disabled>
-          <i class="fas fa-save"></i> Kaydet
-        </button>
-      </div>
-      
-      <div id="plakaGrubuHesapSonucu" class="hesap-sonucu" style="display: none;"></div>
-    </form>
+    </div>
   </div>
 </div>
+
 
 <!-- Plaka Grubu İşlem Modal -->
 <div class="modal" id="plakaGrubuIslemModal">
