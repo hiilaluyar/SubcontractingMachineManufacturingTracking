@@ -1624,9 +1624,6 @@ async function loadPlakaIslemleri(hammaddeId) {
 
 
 
-
-
-// Plaka Grubu Kalan Parça fonksiyonları
 function calculatePlakaGrubuWithKalanParca() {
     const en = parseFloat(document.getElementById('plakaGrubuKalanParcaEn').value);
     const boy = parseFloat(document.getElementById('plakaGrubuKalanParcaBoy').value);
@@ -1640,7 +1637,8 @@ function calculatePlakaGrubuWithKalanParca() {
     }
     
     const kalinlik = parseFloat(currentPlakaGrubu.kalinlik);
-    const yogunluk = parseFloat(currentHammadde.yogunluk); // Ana hammadde yoğunluğunu kullan
+    const yogunluk = parseFloat(currentHammadde.yogunluk);
+    const plakaSayisi = parseInt(document.getElementById('plakaGrubuPlakaSayisiInput').value) || 1;
     
     if (!en || !boy || isNaN(en) || isNaN(boy)) {
         document.getElementById('plakaGrubuKalanParcaHesapSonucu').innerHTML = 
@@ -1662,8 +1660,11 @@ function calculatePlakaGrubuWithKalanParca() {
     // Hacim hesapla (m³)
     const hacim = (en / 1000) * (boy / 1000) * (kalinlik / 1000);
     
-    // Ağırlık hesapla (kg) - DİREKT 2 ONDALIK BASAMA YUVARLA
-    const agirlik = Number((hacim * yogunluk).toFixed(2));
+    // Tek parça ağırlığı hesapla (kg)
+    const tekParcaAgirlik = Number((hacim * yogunluk).toFixed(2));
+    
+    // Toplam ağırlık (seçilen plaka sayısı kadar)
+    const toplamAgirlik = tekParcaAgirlik * plakaSayisi;
     
     // Sonucu göster
     document.getElementById('plakaGrubuKalanParcaHesapSonucu').innerHTML = `
@@ -1677,8 +1678,16 @@ function calculatePlakaGrubuWithKalanParca() {
                 <span>${kalinlik} mm</span>
             </div>
             <div class="detail-row">
-                <span>Hesaplanan Ağırlık:</span>
-                <span>${agirlik.toFixed(2)} kg</span>
+                <span>Seçilen Plaka Sayısı:</span>
+                <span>${plakaSayisi} adet</span>
+            </div>
+            <div class="detail-row">
+                <span>Tek Parça Ağırlığı:</span>
+                <span>${tekParcaAgirlik.toFixed(2)} kg</span>
+            </div>
+            <div class="detail-row highlight">
+                <span>Toplam Ağırlık (${plakaSayisi} parça):</span>
+                <span>${toplamAgirlik.toFixed(2)} kg</span>
             </div>
         </div>
     `;
@@ -1686,15 +1695,16 @@ function calculatePlakaGrubuWithKalanParca() {
     
     // Toplam kullanılabilir kilo kontrolü
     const kullanilanMiktar = parseFloat(document.getElementById('plakaGrubuKullanilanMiktar').value) || 0;
-    const toplamKilo = parseFloat(currentPlakaGrubu.kalan_kilo);
+    const plakaAgirligi = parseFloat(currentPlakaGrubu.kalan_kilo) / parseFloat(currentPlakaGrubu.kalan_plaka_sayisi);
+    const secilenPlakaToplamAgirlik = plakaSayisi * plakaAgirligi;
     const mevcutKalanParcalarToplami = window.kalanParcalar ? window.kalanParcalar.reduce((toplam, parca) => toplam + parca.agirlik, 0) : 0;
-    const kullanilabilirKilo = toplamKilo - kullanilanMiktar - mevcutKalanParcalarToplami;
+    const kullanilabilirKilo = secilenPlakaToplamAgirlik - kullanilanMiktar - mevcutKalanParcalarToplami;
     
     // Ağırlık kullanılabilir kilodan büyük mü kontrol et
-    if (agirlik > kullanilabilirKilo) {
+    if (toplamAgirlik > kullanilabilirKilo) {
         document.getElementById('plakaGrubuKalanParcaHesapSonucu').innerHTML += `
             <div class="error">
-                Hata: Bu parça ağırlığı (${agirlik.toFixed(2)} kg), kullanılabilir miktardan (${kullanilabilirKilo.toFixed(2)} kg) fazla.
+                Hata: Bu parçaların toplam ağırlığı (${toplamAgirlik.toFixed(2)} kg), kullanılabilir miktardan (${kullanilabilirKilo.toFixed(2)} kg) fazla.
             </div>
         `;
         document.getElementById('eklePlakaGrubuKalanParcaBtn').disabled = true;
@@ -1708,7 +1718,7 @@ function calculatePlakaGrubuWithKalanParca() {
         en: en,
         boy: boy,
         kalinlik: kalinlik,
-        agirlik: agirlik
+        agirlik: tekParcaAgirlik // Tek parça ağırlığı döndür
     };
 }
 
@@ -1723,16 +1733,23 @@ function addPlakaGrubuKalanParca() {
         window.kalanParcalar = [];
     }
     
-    const yeniId = Date.now();
-    const yeniParca = {
-        id: yeniId,
-        en: parcaDetay.en,
-        boy: parcaDetay.boy,
-        kalinlik: parcaDetay.kalinlik,
-        agirlik: parcaDetay.agirlik
-    };
+    // Seçilen plaka sayısını al
+    const plakaSayisi = parseInt(document.getElementById('plakaGrubuPlakaSayisiInput').value) || 1;
     
-    window.kalanParcalar.push(yeniParca);
+    // Seçilen plaka sayısı kadar parça oluştur
+    for (let i = 0; i < plakaSayisi; i++) {
+        const yeniId = Date.now() + i; // Her parça için benzersiz ID
+        const yeniParca = {
+            id: yeniId,
+            en: parcaDetay.en,
+            boy: parcaDetay.boy,
+            kalinlik: parcaDetay.kalinlik,
+            agirlik: parcaDetay.agirlik,
+            plakaIndex: i + 1 // Hangi plakadan geldiğini göstermek için
+        };
+        
+        window.kalanParcalar.push(yeniParca);
+    }
     
     updatePlakaGrubuKalanParcaListUI();
     
@@ -1742,8 +1759,11 @@ function addPlakaGrubuKalanParca() {
     document.getElementById('plakaGrubuKalanParcaHesapSonucu').style.display = 'none';
     document.getElementById('eklePlakaGrubuKalanParcaBtn').disabled = true;
     
-    // TEK HURDA HESAPLAMA ÇAĞRISI
+    // Hurda hesaplama çağrısı
     calculatePlakaGrubuHurdaMiktar();
+    
+    // Başarı mesajı göster
+    showToast(`${plakaSayisi} adet parça başarıyla eklendi`, 'success');
 }
 
 function updatePlakaGrubuKalanParcaListUI() {
@@ -1763,26 +1783,62 @@ function updatePlakaGrubuKalanParcaListUI() {
     
     listesi.innerHTML = '';
     
-    // Her parça için kart oluştur
+    // Parçaları plaka indexine göre grupla
+    const parcaGruplari = {};
     window.kalanParcalar.forEach((parca, index) => {
+        const key = `${parca.en}x${parca.boy}`;
+        if (!parcaGruplari[key]) {
+            parcaGruplari[key] = [];
+        }
+        parcaGruplari[key].push({...parca, globalIndex: index});
+    });
+    
+    // Her parça grubu için kart oluştur
+    Object.keys(parcaGruplari).forEach(key => {
+        const parcalar = parcaGruplari[key];
+        const ilkParca = parcalar[0];
+        
         const parcaCard = document.createElement('div');
         parcaCard.className = 'parca-card';
         parcaCard.innerHTML = `
-            <h4>Parça ${index + 1}</h4>
+            <h4>Parça Grubu (${parcalar.length} adet)</h4>
             <div class="parca-detail">
                 <span>Boyut:</span>
-                <span>${parca.en} x ${parca.boy} mm</span>
+                <span>${ilkParca.en} x ${ilkParca.boy} mm</span>
             </div>
             <div class="parca-detail">
-                <span>Ağırlık:</span>
-                <span>${parca.agirlik.toFixed(2)} kg</span>
+                <span>Birim Ağırlık:</span>
+                <span>${ilkParca.agirlik.toFixed(2)} kg</span>
             </div>
-            <button type="button" class="btn-danger btn-sm" onclick="removePlakaGrubuKalanParca(${parca.id})">
-                <i class="fas fa-trash"></i> Sil
+            <div class="parca-detail">
+                <span>Toplam Ağırlık:</span>
+                <span>${(ilkParca.agirlik * parcalar.length).toFixed(2)} kg</span>
+            </div>
+            <button type="button" class="btn-danger btn-sm" onclick="removePlakaGrubuKalanParcaGrubu('${key}')">
+                <i class="fas fa-trash"></i> Grubu Sil
             </button>
         `;
         listesi.appendChild(parcaCard);
     });
+}
+
+
+function removePlakaGrubuKalanParcaGrubu(parcaKey) {
+    if (!window.kalanParcalar) {
+        window.kalanParcalar = [];
+        return;
+    }
+    
+    const [en, boy] = parcaKey.split('x').map(Number);
+    
+    window.kalanParcalar = window.kalanParcalar.filter(parca => 
+        !(parca.en === en && parca.boy === boy)
+    );
+    
+    updatePlakaGrubuKalanParcaListUI();
+    calculatePlakaGrubuHurdaMiktar();
+    
+    showToast('Parça grubu silindi', 'info');
 }
 
 
@@ -1911,4 +1967,6 @@ window.loadPlakaIslemleri = loadPlakaIslemleri;
   window.resetPlakaModal = resetPlakaModal;
   window.setupPlakaEventListeners = setupPlakaEventListeners;
   window.openYeniPlakaModal = openYeniPlakaModal;
+  window.removePlakaGrubuKalanParcaGrubu = removePlakaGrubuKalanParcaGrubu;
+
 
