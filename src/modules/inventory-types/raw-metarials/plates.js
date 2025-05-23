@@ -282,7 +282,6 @@ async function loadPlakaParcalar(plakaId) {
 
 // Plaka gruplarını görüntülemek için HTML ve JavaScript
 
-// Plaka gruplarını yükle
 async function loadPlakaGruplari(hammaddeId) {
   try {
     const result = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId(hammaddeId);
@@ -325,8 +324,12 @@ async function loadPlakaGruplari(hammaddeId) {
       // Toplam Kilo
       row.insertCell(2).textContent = `${Number(grup.toplam_kilo).toFixed(2)} kg`;
       
-      // Kalan Kilo
-      row.insertCell(3).textContent = `${Number(grup.kalan_kilo).toFixed(2)} kg`;
+      // DÜZELTME: Kalan Kilo - Sadece kalan plaka sayısı * plaka ağırlığı
+      const plakaAgirligi = grup.toplam_plaka_sayisi > 0 ? 
+        Number(grup.toplam_kilo) / grup.toplam_plaka_sayisi : 0;
+      const kalanPlakaKilosu = grup.kalan_plaka_sayisi * plakaAgirligi;
+      
+      row.insertCell(3).textContent = `${kalanPlakaKilosu.toFixed(2)} kg`;
       
       // Toplam Plaka
       row.insertCell(4).textContent = grup.toplam_plaka_sayisi;
@@ -815,7 +818,7 @@ async function savePlakaGrubu() {
   }
 }
 
-// Plaka Grubu İşlem Modalı için düzeltilmiş fonksiyon
+
 async function openPlakaGrubuIslemModal(grubuId) {
   try {
     // Global değişkene ata
@@ -840,7 +843,12 @@ async function openPlakaGrubuIslemModal(grubuId) {
     // Formları sıfırla
     resetPlakaGrubuIslemForm();
     
-    // Bilgi alanını oluştur
+    // DÜZELTME: Sadece kalan plaka kg'sini hesapla
+    const plakaAgirligi = result.plaka_grubu.toplam_plaka_sayisi > 0 ? 
+      Number(result.plaka_grubu.toplam_kilo) / result.plaka_grubu.toplam_plaka_sayisi : 0;
+    const kalanPlakaKilosu = result.plaka_grubu.kalan_plaka_sayisi * plakaAgirligi;
+    
+    // Bilgi alanını oluştur - DÜZELTME: Sadece kalan plaka kg'si
     const bilgiAlani = document.getElementById('plakaGrubuIslemModalBilgi');
     
     if (!bilgiAlani) {
@@ -850,7 +858,7 @@ async function openPlakaGrubuIslemModal(grubuId) {
       yeniBilgiAlani.innerHTML = `
         <p><strong>Ölçüler:</strong> ${result.plaka_grubu.en} x ${result.plaka_grubu.boy} mm</p>
         <p><strong>Kalan Plaka Sayısı:</strong> ${result.plaka_grubu.kalan_plaka_sayisi}</p>
-        <p><strong>Kalan Kilo:</strong> ${Number(result.plaka_grubu.kalan_kilo).toFixed(2)} kg</p>
+        <p><strong>Kalan Plaka Kilosu:</strong> ${kalanPlakaKilosu.toFixed(2)} kg</p>
       `;
       
       // Bilgi alanını forma ekle
@@ -862,9 +870,12 @@ async function openPlakaGrubuIslemModal(grubuId) {
       bilgiAlani.innerHTML = `
         <p><strong>Ölçüler:</strong> ${result.plaka_grubu.en} x ${result.plaka_grubu.boy} mm</p>
         <p><strong>Kalan Plaka Sayısı:</strong> ${result.plaka_grubu.kalan_plaka_sayisi}</p>
-        <p><strong>Kalan Kilo:</strong> ${Number(result.plaka_grubu.kalan_kilo).toFixed(2)} kg</p>
+        <p><strong>Kalan Plaka Kilosu:</strong> ${kalanPlakaKilosu.toFixed(2)} kg</p>
       `;
     }
+    
+    // DÜZELTME: Güncellenmiş plaka grubu bilgisini currentPlakaGrubu'ya kaydet
+    currentPlakaGrubu.kalan_plaka_kilosu = kalanPlakaKilosu;
     
     // Önce detay modalını kapat
     closeModal('detayModal');
@@ -1211,19 +1222,21 @@ function togglePlakaGrubuFormSections() {
 }
 
 
+
 function updateKullanilanMiktarFromPlakaSayisi() {
   if (!currentPlakaGrubu) return;
   
   const plakaSayisi = parseInt(document.getElementById('plakaGrubuPlakaSayisiInput').value) || 1;
   
-  // Gerçek kalan kilodan plaka başına düşen ağırlığı hesapla (kullanıcının girdiği gerçek değer)
-  const gercekPlakaAgirligi = parseFloat(currentPlakaGrubu.kalan_kilo) / parseFloat(currentPlakaGrubu.kalan_plaka_sayisi);
+  // DÜZELTME: Sadece plaka kg'sini hesapla (parça kg'si dahil değil)
+  const plakaAgirligi = currentPlakaGrubu.toplam_plaka_sayisi > 0 ? 
+    Number(currentPlakaGrubu.toplam_kilo) / currentPlakaGrubu.toplam_plaka_sayisi : 0;
   
-  // Seçilen plaka sayısı için toplam gerçek ağırlığı hesapla
-  const toplamGercekAgirlik = plakaSayisi * gercekPlakaAgirligi;
+  // Seçilen plaka sayısı için toplam ağırlığı hesapla
+  const toplamAgirlik = plakaSayisi * plakaAgirligi;
   
-  // Kullanılan miktar alanını güncelle (gerçek ağırlık olarak)
-  document.getElementById('plakaGrubuKullanilanMiktar').value = toplamGercekAgirlik.toFixed(2);
+  // Kullanılan miktar alanını güncelle
+  document.getElementById('plakaGrubuKullanilanMiktar').value = toplamAgirlik.toFixed(2);
   
   // Hurda miktarını otomatik hesapla
   calculatePlakaGrubuHurdaMiktar();
@@ -1246,9 +1259,6 @@ if (originalRemovePlakaGrubuKalanParca) {
     setTimeout(calculatePlakaGrubuHurdaMiktar, 100);
   };
 }
-
-
-
 
 
 
@@ -1300,8 +1310,9 @@ async function savePlakaGrubuIslem() {
       return;
     }
     
-    // DÜZELTME: Sadece seçilen plaka sayısı kadar miktar kontrolü
-    const plakaAgirligi = parseFloat(currentPlakaGrubu.kalan_kilo) / parseFloat(currentPlakaGrubu.kalan_plaka_sayisi);
+    // DÜZELTME: Sadece plaka ağırlığını kontrol et
+    const plakaAgirligi = currentPlakaGrubu.toplam_plaka_sayisi > 0 ? 
+      Number(currentPlakaGrubu.toplam_kilo) / currentPlakaGrubu.toplam_plaka_sayisi : 0;
     const secilenPlakaToplamAgirlik = plakaSayisi * plakaAgirligi;
     const toplamKullanilacak = kullanilanMiktar + hurdaMiktar;
     
@@ -1310,7 +1321,7 @@ async function savePlakaGrubuIslem() {
     
     if (toplamKullanilacak > (secilenPlakaToplamAgirlik + HASSASIYET_TOLERANSI)) {
       showModalError('plakaGrubuIslemModal', 
-          `Kullanmak istediğiniz toplam miktar (${toplamKullanilacak.toFixed(2)} kg) seçilen ${plakaSayisi} plakanın toplam ağırlığından (${secilenPlakaToplamAgirlik.toFixed(2)} kg) fazla.`);
+        `Kullanmak istediğiniz toplam miktar (${toplamKullanilacak.toFixed(2)} kg) seçilen ${plakaSayisi} plakanın toplam ağırlığından (${secilenPlakaToplamAgirlik.toFixed(2)} kg) fazla.`);
       return;
     }
     
@@ -1331,7 +1342,7 @@ async function savePlakaGrubuIslem() {
       
       if (tumToplamKullanilacak > (secilenPlakaToplamAgirlik + HASSASIYET_TOLERANSI)) {
         showModalError('plakaGrubuIslemModal', 
-            `Kullanılan miktar + hurda + kalan parçalar toplamı (${tumToplamKullanilacak.toFixed(2)} kg) seçilen ${plakaSayisi} plakanın toplam ağırlığından (${secilenPlakaToplamAgirlik.toFixed(2)} kg) fazla.`);
+          `Kullanılan miktar + hurda + kalan parçalar toplamı (${tumToplamKullanilacak.toFixed(2)} kg) seçilen ${plakaSayisi} plakanın toplam ağırlığından (${secilenPlakaToplamAgirlik.toFixed(2)} kg) fazla.`);
         return;
       }
     }
@@ -1443,53 +1454,35 @@ async function savePlakaGrubuIslem() {
 }
 
 
-
 function calculatePlakaGrubuHurdaMiktar() {
-    if (!currentPlakaGrubu) return;
-    
-    const plakaSayisi = parseInt(document.getElementById('plakaGrubuPlakaSayisiInput').value) || 1;
-    const kullanilanMiktar = parseFloat(document.getElementById('plakaGrubuKullanilanMiktar').value) || 0;
-    
-    // Gerçek kalan kilodan plaka başına düşen ağırlığı hesapla
-    const gercekPlakaAgirligi = parseFloat(currentPlakaGrubu.kalan_kilo) / parseFloat(currentPlakaGrubu.kalan_plaka_sayisi);
-    
-    // Seçilen plaka sayısı için toplam gerçek ağırlığı hesapla
-    const secilenPlakaToplamAgirlik = plakaSayisi * gercekPlakaAgirligi;
-    
-    // Kalan parça ağırlığını hesapla (eğer varsa)
-    let toplamKalanParcaAgirligi = 0;
-    if (window.kalanParcalar && window.kalanParcalar.length > 0) {
-        // Sadece parça ağırlıklarını topla
-        toplamKalanParcaAgirligi = window.kalanParcalar.reduce((toplam, parca) => {
-            return toplam + parseFloat(parca.agirlik || 0);
-        }, 0);
-    }
-    
-    // Hurda miktarını hesapla: Seçilen plaka ağırlığı - kullanılan miktar - kalan parça ağırlığı
-    const hurdaMiktar = Math.max(0, secilenPlakaToplamAgirlik - kullanilanMiktar - toplamKalanParcaAgirligi);
-    
-    // Hurda miktar alanını güncelle
-    document.getElementById('plakaGrubuHurdaMiktar').value = hurdaMiktar.toFixed(2);
+  if (!currentPlakaGrubu) return;
+  
+  const plakaSayisi = parseInt(document.getElementById('plakaGrubuPlakaSayisiInput').value) || 1;
+  const kullanilanMiktar = parseFloat(document.getElementById('plakaGrubuKullanilanMiktar').value) || 0;
+  
+  // DÜZELTME: Sadece plaka ağırlığını hesapla
+  const plakaAgirligi = currentPlakaGrubu.toplam_plaka_sayisi > 0 ? 
+    Number(currentPlakaGrubu.toplam_kilo) / currentPlakaGrubu.toplam_plaka_sayisi : 0;
+  
+  // Seçilen plaka sayısı için toplam ağırlığı hesapla
+  const secilenPlakaToplamAgirlik = plakaSayisi * plakaAgirligi;
+  
+  // Kalan parça ağırlığını hesapla (eğer varsa)
+  let toplamKalanParcaAgirligi = 0;
+  if (window.kalanParcalar && window.kalanParcalar.length > 0) {
+    toplamKalanParcaAgirligi = window.kalanParcalar.reduce((toplam, parca) => {
+      return toplam + parseFloat(parca.agirlik || 0);
+    }, 0);
+  }
+  
+  // Hurda miktarını hesapla: Seçilen plaka ağırlığı - kullanılan miktar - kalan parça ağırlığı
+  const hurdaMiktar = Math.max(0, secilenPlakaToplamAgirlik - kullanilanMiktar - toplamKalanParcaAgirligi);
+  
+  // Hurda miktar alanını güncelle
+  document.getElementById('plakaGrubuHurdaMiktar').value = hurdaMiktar.toFixed(2);
 }
 
-// Bu fonksiyon kalacak ama sadece kullanılan miktar güncellemesi yapacak
-function updateKullanilanMiktarFromPlakaSayisi() {
-    if (!currentPlakaGrubu) return;
-    
-    const plakaSayisi = parseInt(document.getElementById('plakaGrubuPlakaSayisiInput').value) || 1;
-    
-    // Gerçek kalan kilodan plaka başına düşen ağırlığı hesapla
-    const gercekPlakaAgirligi = parseFloat(currentPlakaGrubu.kalan_kilo) / parseFloat(currentPlakaGrubu.kalan_plaka_sayisi);
-    
-    // Seçilen plaka sayısı için toplam gerçek ağırlığı hesapla
-    const toplamGercekAgirlik = plakaSayisi * gercekPlakaAgirligi;
-    
-    // Kullanılan miktar alanını güncelle (gerçek ağırlık olarak)
-    document.getElementById('plakaGrubuKullanilanMiktar').value = toplamGercekAgirlik.toFixed(2);
-    
-    // Hurda miktarını otomatik hesapla
-    calculatePlakaGrubuHurdaMiktar();
-}
+
 
 // Bu fonksiyon da kalacak, sadece hurda hesaplamayı çağıracak
 function onPlakaGrubuKullanilanMiktarChange() {
@@ -1531,8 +1524,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Global fonksiyonları window'a ekle
-window.updateKullanilanMiktarFromPlakaSayisi = updateKullanilanMiktarFromPlakaSayisi;
+
 window.onPlakaGrubuKullanilanMiktarChange = onPlakaGrubuKullanilanMiktarChange;
 
 
@@ -1955,7 +1947,6 @@ window.calculatePlakaGrubuWithKalanParca = calculatePlakaGrubuWithKalanParca;
 window.addPlakaGrubuKalanParca = addPlakaGrubuKalanParca;
 window.removePlakaGrubuKalanParca = removePlakaGrubuKalanParca;
 window.updatePlakaGrubuKalanParcaListUI = updatePlakaGrubuKalanParcaListUI;
-window.updatePlakaGrubuHurdaHesaplama = updatePlakaGrubuHurdaHesaplama;
 window.removePlakaGrubuYariMamul = removePlakaGrubuYariMamul;
 window.addPlakaGrubuYariMamul = addPlakaGrubuYariMamul;
 window.updateKullanilanMiktarFromPlakaSayisi = updateKullanilanMiktarFromPlakaSayisi;
