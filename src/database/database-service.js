@@ -4328,6 +4328,7 @@ async function addParcaIslem(islemData) {
     }
     
     let hammadde_id;
+    let plakaStokKodu = null;
     
     // Plaka grubu bilgilerini al
     const [grubuRows] = await connection.execute(
@@ -4341,6 +4342,7 @@ async function addParcaIslem(islemData) {
     
     const plaka_grubu = grubuRows[0];
     hammadde_id = plaka_grubu.hammadde_id;
+    plakaStokKodu = plaka_grubu.stok_kodu;
     
     // Ana işlem kaydını ekle (plaka grubu için)
     const [islemResult] = await connection.execute(
@@ -4452,7 +4454,7 @@ async function addParcaIslem(islemData) {
       }
     }
     
-    // YENİ: Çoklu Yarı Mamul İşlemleri
+    // YENİ: Çoklu Yarı Mamul İşlemleri - DÜZELTME: NULL değerler kontrolü eklendi
     if (islemData.kullanim_alani === 'MakineImalat' && islemData.yari_mamuller && islemData.yari_mamuller.length > 0) {
       console.log(`${islemData.yari_mamuller.length} adet yarı mamul işlemi başlatılıyor`);
       
@@ -4480,7 +4482,7 @@ async function addParcaIslem(islemData) {
             [yariMamul.miktar, yariMamul.miktar, existingYariMamulId]
           );
           
-          // Yarı mamul girişi ekle
+          // Yarı mamul girişi ekle - DÜZELTME: NULL değerler kontrol edildi
           await connection.execute(
             `INSERT INTO yari_mamul_giris_gecmisi (
               yari_mamul_id, 
@@ -4490,16 +4492,18 @@ async function addParcaIslem(islemData) {
               hammadde_kodu,
               ekleyen_id, 
               giris_tarihi,
+              plaka_id,
               plaka_grubu_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
             [
               existingYariMamulId,
               yariMamul.miktar,
               yariMamul.birim,
               hammadde_id,
-              plaka_grubu.stok_kodu,
+              plakaStokKodu || null, // NULL kontrolü
               islemData.kullanici_id,
-              plaka_grubu_id
+              null, // plaka_id NULL
+              plaka_grubu_id // plaka_grubu_id
             ]
           );
         } else {
@@ -4553,7 +4557,7 @@ async function addParcaIslem(islemData) {
           
           const newYariMamulId = yariMamulResult.insertId;
           
-          // Yarı mamul girişi ekle
+          // Yarı mamul girişi ekle - DÜZELTME: NULL değerler kontrol edildi
           await connection.execute(
             `INSERT INTO yari_mamul_giris_gecmisi (
               yari_mamul_id, 
@@ -4563,16 +4567,18 @@ async function addParcaIslem(islemData) {
               hammadde_kodu,
               ekleyen_id, 
               giris_tarihi,
+              plaka_id,
               plaka_grubu_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
             [
               newYariMamulId,
               yariMamul.miktar,
               yariMamul.birim,
               hammadde_id,
-              plaka_grubu.stok_kodu,
+              plakaStokKodu || null, // NULL kontrolü
               islemData.kullanici_id,
-              plaka_grubu_id
+              null, // plaka_id NULL
+              plaka_grubu_id // plaka_grubu_id
             ]
           );
         }
@@ -5528,9 +5534,10 @@ async function addPlakaGrubuIslem(islemData) {
     await connection.beginTransaction();
     transaction = true;
     
-    // Plaka grubu bilgilerini al
+    // Plaka grubu bilgilerini al - stok_kodu da dahil
     const [grubuRows] = await connection.execute(
-      `SELECT id, hammadde_id, kalan_plaka_sayisi, kalan_kilo, plaka_agirlik, toplam_plaka_sayisi, toplam_kilo
+      `SELECT id, hammadde_id, kalan_plaka_sayisi, kalan_kilo, plaka_agirlik, 
+              toplam_plaka_sayisi, toplam_kilo, stok_kodu
        FROM plaka_gruplari WHERE id = ?`,
       [islemData.plaka_grubu_id]
     );
@@ -5632,52 +5639,55 @@ async function addPlakaGrubuIslem(islemData) {
     );
     
     // Kalan parçalar oluşturulacaksa
-    // In the kalan parçalar section of addPlakaGrubuIslem
-if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
-  for (const kalanParca of islemData.kalan_parcalar) {
-    // Parça no hesaplama
-    const [parcaNoResult] = await connection.execute(
-      `SELECT COALESCE(MAX(parca_no), 0) + 1 as next_parca_no 
-       FROM plaka_parcalari 
-       WHERE plaka_grubu_id = ?`,
-      [plaka_grubu.id]
-    );
+    if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
+      for (const kalanParca of islemData.kalan_parcalar) {
+        // Parça no hesaplama
+        const [parcaNoResult] = await connection.execute(
+          `SELECT COALESCE(MAX(parca_no), 0) + 1 as next_parca_no 
+           FROM plaka_parcalari 
+           WHERE plaka_grubu_id = ?`,
+          [plaka_grubu.id]
+        );
+        
+        const parcaNo = parcaNoResult[0].next_parca_no;
+        const parcaBarkod = plaka_grubu.stok_kodu + '-P' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const parcaAgirlik = parseFloat(kalanParca.hesaplanan_agirlik);
+        
+        // Kalan parçayı ekle - plaka_id NULL olarak ayarla
+        await connection.execute(
+          `INSERT INTO plaka_parcalari (
+            plaka_id, plaka_grubu_id, parca_no, barkod_kodu, 
+            en, boy, kalinlik, 
+            orijinal_kilo, kalan_kilo, kullanim_orani, durum, 
+            ekleme_tarihi, ekleyen_id, islem_id
+          ) VALUES (NULL, ?, ?, ?, ?, ?, ?, 
+                    ROUND(?, 2), ROUND(?, 2), ?, ?, 
+                    NOW(), ?, ?)`,
+          [
+            plaka_grubu.id,
+            parcaNo,
+            parcaBarkod,
+            kalanParca.en,
+            kalanParca.boy,
+            kalanParca.kalinlik,
+            parcaAgirlik,
+            parcaAgirlik,
+            0,
+            'TAM',
+            islemData.kullanici_id,
+            islemId
+          ]
+        );
+      }
+    }
     
-    const parcaNo = parcaNoResult[0].next_parca_no;
-    const parcaBarkod = plaka_grubu.stok_kodu + '-P' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const parcaAgirlik = parseFloat(kalanParca.hesaplanan_agirlik);
-    
-    // Kalan parçayı ekle - plaka_id NULL olarak ayarla
-    await connection.execute(
-      `INSERT INTO plaka_parcalari (
-        plaka_id, plaka_grubu_id, parca_no, barkod_kodu, 
-        en, boy, kalinlik, 
-        orijinal_kilo, kalan_kilo, kullanim_orani, durum, 
-        ekleme_tarihi, ekleyen_id, islem_id
-      ) VALUES (NULL, ?, ?, ?, ?, ?, ?, 
-                ROUND(?, 2), ROUND(?, 2), ?, ?, 
-                NOW(), ?, ?)`,
-      [
-        plaka_grubu.id,
-        parcaNo,
-        parcaBarkod,
-        kalanParca.en,
-        kalanParca.boy,
-        kalanParca.kalinlik,
-        parcaAgirlik,
-        parcaAgirlik,
-        0,
-        'TAM',
-        islemData.kullanici_id,
-        islemId
-      ]
-    );
-  }
-}
-    
-    // YENİ: Çoklu Yarı Mamul İşlemleri
+    // YENİ: Çoklu Yarı Mamul İşlemleri - DÜZELTME: plaka_id kolonu eklendi
     if (islemData.kullanim_alani === 'MakineImalat' && islemData.yari_mamuller && islemData.yari_mamuller.length > 0) {
+      console.log(`${islemData.yari_mamuller.length} adet yarı mamul işlemi başlatılıyor`);
+      
       for (const yariMamul of islemData.yari_mamuller) {
+        console.log(`Yarı mamul işleniyor: ${yariMamul.adi}, Miktar: ${yariMamul.miktar} ${yariMamul.birim}`);
+        
         // Mevcut bir yarı mamul var mı kontrol et
         const [existingYariMamulRows] = await connection.execute(
           `SELECT id, kalan_miktar, toplam_miktar FROM yari_mamuller WHERE malzeme_adi = ? AND birim = ?`,
@@ -5686,6 +5696,8 @@ if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
         
         if (existingYariMamulRows.length > 0) {
           const existingYariMamulId = existingYariMamulRows[0].id;
+          
+          console.log(`Mevcut yarı mamul güncelleniyor: id=${existingYariMamulId}, miktar=${yariMamul.miktar}`);
           
           // Mevcut yarı mamulü güncelle
           await connection.execute(
@@ -5696,7 +5708,7 @@ if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
             [yariMamul.miktar, yariMamul.miktar, existingYariMamulId]
           );
           
-          // Yarı mamul girişi ekle
+          // Yarı mamul girişi ekle - DÜZELTME: plaka_id kolonu eklendi ve NULL kontrolü yapıldı
           await connection.execute(
             `INSERT INTO yari_mamul_giris_gecmisi (
               yari_mamul_id, 
@@ -5706,16 +5718,18 @@ if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
               hammadde_kodu,
               ekleyen_id, 
               giris_tarihi,
+              plaka_id,
               plaka_grubu_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
             [
               existingYariMamulId,
               yariMamul.miktar,
               yariMamul.birim,
               hammadde.id,
-              plaka_grubu.stok_kodu,
+              plaka_grubu.stok_kodu || null, // NULL kontrolü
               islemData.kullanici_id,
-              plaka_grubu.id
+              null, // plaka_id NULL (plaka grubu işlemi)
+              plaka_grubu.id // plaka_grubu_id
             ]
           );
         } else {
@@ -5739,6 +5753,8 @@ if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
           
           const yariMamulStokKodu = 'YM' + nextYMNumber.toString().padStart(3, '0');
           const yariMamulBarkod = 'YM' + dateCode + '-' + Math.floor(Math.random() * 100).toString().padStart(2, '0');
+          
+          console.log(`Yeni yarı mamul oluşturuluyor: ${yariMamul.adi}, stok kodu: ${yariMamulStokKodu}`);
           
           // Yeni yarı mamul ekle
           const [yariMamulResult] = await connection.execute(
@@ -5767,7 +5783,7 @@ if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
           
           const newYariMamulId = yariMamulResult.insertId;
           
-          // Yarı mamul girişi ekle
+          // Yarı mamul girişi ekle - DÜZELTME: plaka_id kolonu eklendi ve NULL kontrolü yapıldı
           await connection.execute(
             `INSERT INTO yari_mamul_giris_gecmisi (
               yari_mamul_id, 
@@ -5777,16 +5793,18 @@ if (islemData.kalan_parcalar && islemData.kalan_parcalar.length > 0) {
               hammadde_kodu,
               ekleyen_id, 
               giris_tarihi,
+              plaka_id,
               plaka_grubu_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
             [
               newYariMamulId,
               yariMamul.miktar,
               yariMamul.birim,
               hammadde.id,
-              plaka_grubu.stok_kodu,
+              plaka_grubu.stok_kodu || null, // NULL kontrolü
               islemData.kullanici_id,
-              plaka_grubu.id
+              null, // plaka_id NULL (plaka grubu işlemi)
+              plaka_grubu.id // plaka_grubu_id
             ]
           );
         }

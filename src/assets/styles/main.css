@@ -3255,9 +3255,345 @@ tr:has(.plaka-checkbox:checked) {
   }
 }
 
+/* === Plaka ve Parça İşlem Modal - Optimize Edilmiş CSS === */
 
 
 
+/* Form Alanları */
+#plakaIslemModal .plaka-islem-form,
+#parcaIslemModal .parca-islem-form {
+  max-height: none;
+  overflow-y: visible;
+  padding: 10px;
+}
+
+/* Başlıklar */
+#plakaIslemModal h2, 
+#parcaIslemModal h2 {
+  color: #2c3e50;
+  border-bottom: 2px solid #2ecc71;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+
+
+#plakaIslemModal .form-column,
+#parcaIslemModal .form-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Form Bölümleri */
+#plakaIslemModal .form-section,
+#parcaIslemModal .form-section {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+#plakaIslemModal .form-section h3,
+#parcaIslemModal .form-section h3 {
+  margin: 0 0 8px 0;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+/* Form Satırları */
+#plakaIslemModal .form-row,
+#parcaIslemModal .form-row {
+  margin-bottom: 8px;
+  display: flex;
+  gap: 10px;
+}
+
+#plakaIslemModal .form-row-two,
+#parcaIslemModal .form-row-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+/* Form Grupları */
+#plakaIslemModal .form-group,
+#parcaIslemModal .form-group {
+  margin-bottom: 8px;
+}
+
+#plakaIslemModal .form-group label,
+#parcaIslemModal .form-group label {
+  display: block;
+  margin-bottom: 4px;
+  color: #2c3e50;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+#plakaIslemModal .form-group input,
+#plakaIslemModal .form-group select,
+#parcaIslemModal .form-group input,
+#parcaIslemModal .form-group select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background: white;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+#plakaIslemModal .form-group input:focus,
+#plakaIslemModal .form-group select:focus,
+#parcaIslemModal .form-group input:focus,
+#parcaIslemModal .form-group select:focus {
+  outline: none;
+  border-color: #2ecc71;
+}
+
+/* Seçim Alanları */
+#plakaIslemModal .project-selection,
+#plakaIslemModal .customer-selection,
+#parcaIslemModal .project-selection,
+#parcaIslemModal .customer-selection {
+  display: flex;
+  gap: 6px;
+}
+
+#plakaIslemModal .project-selection select,
+#plakaIslemModal .customer-selection select,
+#parcaIslemModal .project-selection select,
+#parcaIslemModal .customer-selection select {
+  flex: 1;
+}
+
+/* Butonlar */
+#plakaIslemModal .btn-secondary,
+#parcaIslemModal .btn-secondary {
+  background: #f1f3f5;
+  color: #2c3e50;
+  border: 1px solid #ced4da;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+#plakaIslemModal .btn-secondary:hover,
+#parcaIslemModal .btn-secondary:hover {
+  background: #e9ecef;
+}
+
+#plakaIslemModal .btn-primary,
+#parcaIslemModal .btn-primary {
+  background: #0de5678f;
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+  font-weight: 500;
+}
+
+#plakaIslemModal .btn-primary:hover,
+#parcaIslemModal .btn-primary:hover {
+  background: #27ae60;
+}
+
+#plakaIslemModal .btn-primary:disabled,
+#parcaIslemModal .btn-primary:disabled {
+  background: #adb5bd;
+  cursor: not-allowed;
+}
+
+/* Sticky Panel */
+#plakaIslemModal .sticky-panel,
+#parcaIslemModal .sticky-panel {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  height: 100%;
+}
+
+#plakaIslemModal .panel,
+#parcaIslemModal .panel {
+  padding: 12px;
+}
+
+#plakaIslemModal .panel-header,
+#parcaIslemModal .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+#plakaIslemModal .panel-header h3,
+#parcaIslemModal .panel-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Toggle Switch */
+#plakaIslemModal .toggle-switch,
+#parcaIslemModal .toggle-switch {
+  position: relative;
+  display: inline-block;
+}
+
+#plakaIslemModal .toggle-input,
+#parcaIslemModal .toggle-input {
+  display: none;
+}
+
+#plakaIslemModal .toggle-label,
+#parcaIslemModal .toggle-label {
+  display: block;
+  width: 36px;
+  height: 18px;
+  background: #ced4da;
+  border-radius: 18px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+#plakaIslemModal .toggle-label::after,
+#parcaIslemModal .toggle-label::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s;
+}
+
+#plakaIslemModal .toggle-input:checked + .toggle-label,
+#parcaIslemModal .toggle-input:checked + .toggle-label {
+  background: #2ecc71;
+}
+
+#plakaIslemModal .toggle-input:checked + .toggle-label::after,
+#parcaIslemModal .toggle-input:checked + .toggle-label::after {
+  transform: translateX(18px);
+}
+
+/* Bilgi Metni */
+#plakaIslemModal .info-text,
+#parcaIslemModal .info-text {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  background: #f1f3f5;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: #495057;
+}
+
+/* Uyarı Kutuları */
+#plakaIslemModal .alert,
+#parcaIslemModal .alert {
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+#plakaIslemModal .alert.error,
+#parcaIslemModal .alert.error {
+  background: #fff5f5;
+  border: 1px solid #ffe3e3;
+  color: #e03131;
+}
+
+#plakaIslemModal .alert.success,
+#parcaIslemModal .alert.success {
+  background: #ebfbee;
+  border: 1px solid #d3f9d8;
+  color: #2f9e44;
+}
+
+/* Form Butonları Bölümü */
+#plakaIslemModal .form-buttons,
+#parcaIslemModal .form-buttons {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+  text-align: center;
+}
+
+/* Parça Listesi */
+#plakaIslemModal .parca-listesi,
+#parcaIslemModal .parca-listesi {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 6px;
+  background: #f8f9fa;
+  margin-top: 6px;
+}
+
+/* Hesaplama Sonucu */
+#plakaIslemModal .calculation-result,
+#parcaIslemModal .calculation-result {
+  background: #e6f7ee;
+  border: 1px solid #c3e6cb;
+  color: #2c3e50;
+  padding: 10px;
+  border-radius: 4px;
+  margin-top: 10px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+/* Özel Scrollbar - Sadece gerekli yerlerde */
+#plakaIslemModal .parca-listesi::-webkit-scrollbar,
+#parcaIslemModal .parca-listesi::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+#plakaIslemModal .parca-listesi::-webkit-scrollbar-track,
+#parcaIslemModal .parca-listesi::-webkit-scrollbar-track {
+  background: #f1f3f5;
+}
+
+#plakaIslemModal .parca-listesi::-webkit-scrollbar-thumb,
+#parcaIslemModal .parca-listesi::-webkit-scrollbar-thumb {
+  background: #ced4da;
+  border-radius: 2px;
+}
+
+/* Yeni Plaka Modalı - Özel Stiller */
+#yeniPlakaModal .modal-content {
+  max-width: 600px;
+  margin: 2% auto;
+  padding: 16px;
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
 
 #yeniPlakaModal h2 {
   color: #2c3e50;
@@ -3366,6 +3702,32 @@ tr:has(.plaka-checkbox:checked) {
   display: none;
 }
 
+/* Responsive Düzenlemeler */
+@media (max-width: 1000px) {
+  #plakaIslemModal .form-grid,
+  #parcaIslemModal .form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  #plakaIslemModal .modal-content,
+  #parcaIslemModal .modal-content {
+    max-width: 95%;
+  }
+}
+
+@media (max-width: 768px) {
+  #plakaIslemModal .form-row-two,
+  #parcaIslemModal .form-row-two {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  #yeniPlakaModal .modal-content,
+  #yeniProjeModal .modal-content {
+    max-width: 95%;
+  }
+}
 
 
 
@@ -3436,175 +3798,410 @@ tr:has(.plaka-checkbox:checked) {
 
 /* Plaka Grubu Modal için özel CSS - sadece bu modal için geçerli */
 
-/* Responsive Design */
+/* Plaka Grubu Modal'ın kendisi için özel boyutlandırma */
+#yeniPlakaGrubuModal .plaka-grubu-modal-content {
+  max-width: 900px;
+  width: 85%;
+  height: 90vh;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Modal başlık alanı */
+#yeniPlakaGrubuModal .modal-header-area {
+  flex-shrink: 0;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+/* İki sütunlu grid sistemi - daha dengeli boyutlar */
+.plaka-grubu-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 20px;
+  flex: 1;
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+/* Sol sütun - Form alanları */
+.plaka-grubu-form-column {
+  overflow-y: auto;
+  padding-right: 10px;
+  padding-bottom: 20px;
+}
+
+/* Sağ sütun - Hesaplama paneli */
+.plaka-grubu-calculation-column {
+  border-left: 2px solid #e9ecef;
+  padding-left: 15px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Form satırları için daha kompakt düzen */
+#yeniPlakaGrubuModal .yeni-plaka-form .form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+#yeniPlakaGrubuModal .yeni-plaka-form .form-group {
+  flex: 1;
+  min-width: 0; /* Flexbox overflow sorunu için */
+}
+
+#yeniPlakaGrubuModal .yeni-plaka-form .form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+#yeniPlakaGrubuModal .yeni-plaka-form .form-group input,
+#yeniPlakaGrubuModal .yeni-plaka-form .form-group select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#yeniPlakaGrubuModal .yeni-plaka-form .form-group input:focus,
+#yeniPlakaGrubuModal .yeni-plaka-form .form-group select:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
+#yeniPlakaGrubuModal .form-helper {
+  display: block;
+  font-size: 10px;
+  color: #6c757d;
+  margin-top: 3px;
+  font-style: italic;
+}
+
+/* Form butonları */
+#yeniPlakaGrubuModal .yeni-plaka-form .form-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e9ecef;
+}
+
+/* Hesaplama paneli */
+.calculation-panel {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 15px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.calculation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+}
+
+.calculation-header h3 {
+  margin: 0;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.calculation-header h3 i {
+  color: #2196F3;
+  margin-right: 6px;
+}
+
+/* Hesapla butonu özel stil */
+.btn-calculate {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
+.btn-calculate:hover {
+  background: linear-gradient(135deg, #1976D2, #1565C0);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+}
+
+.btn-calculate:active {
+  transform: translateY(0);
+}
+
+/* Hesaplama bilgi alanı */
+.calculation-info {
+  margin-bottom: 15px;
+  flex-shrink: 0;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.info-item label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+.info-item input {
+  width: 120px;
+  padding: 6px 8px;
+  border: 1px solid #ced4da;
+  border-radius: 3px;
+  background-color: #fff;
+  color: #2196F3;
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.calculation-note {
+  display: block;
+  color: #6c757d;
+  font-size: 10px;
+  margin-top: 8px;
+  padding: 8px;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  border-left: 3px solid #2196F3;
+  line-height: 1.3;
+}
+
+.calculation-note i {
+  color: #2196F3;
+  margin-right: 4px;
+}
+
+/* Hesaplama sonuçları alanı - kaydırılabilir */
+#yeniPlakaGrubuModal .calculation-result {
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 0;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 150px;
+  font-size: 12px;
+}
+
+#yeniPlakaGrubuModal .calculation-result .error {
+  color: #721c24;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 8px;
+  border-radius: 3px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+#yeniPlakaGrubuModal .calculation-result .warning {
+  color: #856404;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  padding: 8px;
+  border-radius: 3px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+#yeniPlakaGrubuModal .calculation-result .success {
+  color: #155724;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  padding: 8px;
+  border-radius: 3px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+/* Input with button düzeni */
+#yeniPlakaGrubuModal .input-with-button {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+#yeniPlakaGrubuModal .input-with-button input {
+  flex: 1;
+}
+
+#yeniPlakaGrubuModal .btn-sm {
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+/* Buton stilleri */
+#yeniPlakaGrubuModal .btn-primary {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+#yeniPlakaGrubuModal .btn-primary:hover {
+  background: linear-gradient(135deg, #218838, #1ea574);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
+}
+
+#yeniPlakaGrubuModal .btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+#yeniPlakaGrubuModal .btn-primary:disabled:hover {
+  background: #ccc;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+/* Detay satırları */
+.calculation-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 11px;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row.highlight {
+  background-color: #e8f4f8;
+  padding: 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  margin: 2px 0;
+}
+
+.detail-row.error-text {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.detail-row.success-text {
+  color: #28a745;
+  font-weight: 600;
+}
+
+/* Responsive tasarım */
 @media (max-width: 1200px) {
-    #plakaGrubuIslemModal .modal-content,
-    #parcaIslemModal .modal-content {
-        max-width: 95%;
-    }
-    
-    #plakaGrubuIslemModal .plaka-islem-form,
-    #parcaIslemModal .form-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
-    }
-
-    #plakaGrubuIslemModal .form-row,
-    #parcaIslemModal .form-row,
-    #parcaIslemModal .form-row-two,
-    #parcaIslemModal .form-row-three {
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-    }
+  #yeniPlakaGrubuModal .plaka-grubu-modal-content {
+    max-width: 95%;
+    width: 90%;
+  }
 }
 
-@media (max-width: 768px) {
-    #plakaGrubuIslemModal .modal-content,
-    #parcaIslemModal .modal-content {
-        width: 98%;
-        max-height: 92vh;
-    }
-
-    #plakaGrubuIslemModal .plaka-islem-form,
-    #parcaIslemModal .parca-islem-form {
-        padding: 12px;
-    }
-
-    #plakaGrubuIslemModal .plaka-islem-form,
-    #parcaIslemModal .form-grid {
-        grid-template-columns: 1fr;
-    }
-
-    #plakaGrubuIslemModal .form-row,
-    #parcaIslemModal .form-row,
-    #parcaIslemModal .form-row-two,
-    #parcaIslemModal .form-row-three {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
-    #plakaGrubuIslemModal .form-info,
-    #parcaIslemModal .form-info {
-        grid-template-columns: 1fr;
-        gap: 6px;
-    }
+@media (max-width: 900px) {
+  #yeniPlakaGrubuModal .plaka-grubu-modal-content {
+    height: 90vh;
+    max-height: 90vh;
+  }
+  
+  .plaka-grubu-modal-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .plaka-grubu-calculation-column {
+    border-left: none;
+    border-top: 1px solid #e9ecef;
+    padding-left: 0;
+    padding-top: 15px;
+  }
+  
+  .calculation-panel {
+    height: auto;
+    max-height: 250px;
+  }
 }
 
-/* Hesap Sonucu - Her iki modal için */
-#plakaGrubuIslemModal .hesap-sonucu,
-#parcaIslemModal .calculation-result {
-    background: var(--bg-light);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 10px;
-    margin-top: 8px;
-    font-size: 0.8rem;
+@media (max-width: 600px) {
+  #yeniPlakaGrubuModal .yeni-plaka-form .form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 
-#plakaGrubuIslemModal .calculation-details,
-#parcaIslemModal .calculation-details {
-    display: grid;
-    gap: 4px;
-}
 
-#plakaGrubuIslemModal .detail-row,
-#parcaIslemModal .detail-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 0;
-    border-bottom: 1px solid #f0f0f0;
-}
+/* Sadece Plaka Grubu İşlem Modal için kompakt CSS */
 
-#plakaGrubuIslemModal .detail-row:last-child,
-#parcaIslemModal .detail-row:last-child {
-    border-bottom: none;
-}
-
-#plakaGrubuIslemModal .detail-row.highlight,
-#parcaIslemModal .detail-row.highlight {
-    background: rgba(97, 153, 59, 0.1);
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-    font-weight: 600;
-    color: var(--primary-color);
-}
-
-/* Parça Listesi - Her iki modal için */
-#plakaGrubuIslemModal .parca-listesi,
-#parcaIslemModal .parca-listesi {
-    display: grid;
-    gap: 8px;
-}
-
-#plakaGrubuIslemModal .parca-card,
-#parcaIslemModal .parca-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 10px;
-}
-
-#plakaGrubuIslemModal .parca-card h4,
-#parcaIslemModal .parca-card h4 {
-    color: var(--primary-color);
-    margin-bottom: 6px;
-    font-size: 0.9rem;
-}
-
-#plakaGrubuIslemModal .parca-detail,
-#parcaIslemModal .parca-detail {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 2px 0;
-    font-size: 0.8rem;
-}
-
-/* Toplamlar - Her iki modal için */
-#plakaGrubuIslemModal .toplamlar,
-#parcaIslemModal .info-text {
-    background: var(--bg-light);
-    border-radius: 4px;
-    padding: 8px;
-    margin-top: 8px;
-}
-
-#plakaGrubuIslemModal .toplam-row,
-#parcaIslemModal .info-text span {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 4px 0;
-    font-weight: 600;
-    font-size: 0.8rem;
-}
-
-/* Scrollbar Styling - Her iki modal için */
-#plakaGrubuIslemModal .plaka-islem-form::-webkit-scrollbar,
-#parcaIslemModal .parca-islem-form::-webkit-scrollbar {
-    width: 4px;
-}
-
-#plakaGrubuIslemModal .plaka-islem-form::-webkit-scrollbar-track,
-#parcaIslemModal .parca-islem-form::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-#plakaGrubuIslemModal .plaka-islem-form::-webkit-scrollbar-thumb,
-#parcaIslemModal .parca-islem-form::-webkit-scrollbar-thumb {
-    background: var(--primary-light);
-    border-radius: 2px;
-}
-
-#plakaGrubuIslemModal .plaka-islem-form::-webkit-scrollbar-thumb:hover,
-#parcaIslemModal .parca-islem-form::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-color);
-}
-    /* Sadece Plaka Grubu ve Parça İşlem Modal için kompakt CSS */
-
-/* Plaka Grubu Modal */
 #plakaGrubuIslemModal .modal-content {
     max-width: 1100px;
     width: 90%;
@@ -3613,18 +4210,7 @@ tr:has(.plaka-checkbox:checked) {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
-/* Parça İşlem Modal */
-#parcaIslemModal .modal-content {
-    max-width: 1100px;
-    width: 90%;
-    max-height: 88vh;
-    border-radius: 8px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-/* Modal Header - Her iki modal için */
-#plakaGrubuIslemModal .modal-header,
-#parcaIslemModal .modal-header {
+#plakaGrubuIslemModal .modal-header {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
     color: white;
     padding: 12px 20px;
@@ -3634,15 +4220,13 @@ tr:has(.plaka-checkbox:checked) {
     align-items: center;
 }
 
-#plakaGrubuIslemModal h2,
-#parcaIslemModal h2 {
+#plakaGrubuIslemModal h2 {
     font-size: 1.1rem;
     font-weight: 600;
     margin: 0;
 }
 
-#plakaGrubuIslemModal .close,
-#parcaIslemModal .close {
+#plakaGrubuIslemModal .close {
     background: rgba(255, 255, 255, 0.2);
     border: none;
     color: white;
@@ -3653,12 +4237,11 @@ tr:has(.plaka-checkbox:checked) {
     transition: all 0.2s;
 }
 
-#plakaGrubuIslemModal .close:hover,
-#parcaIslemModal .close:hover {
+#plakaGrubuIslemModal .close:hover {
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* Grid Layout - Plaka Grubu Modal */
+/* Kompakt Grid Layout */
 #plakaGrubuIslemModal .plaka-islem-form {
     padding: 18px;
     display: grid;
@@ -3668,28 +4251,8 @@ tr:has(.plaka-checkbox:checked) {
     overflow-y: auto;
 }
 
-/* Grid Layout - Parça İşlem Modal */
-#parcaIslemModal .parca-islem-form {
-    padding: 18px;
-    max-height: calc(88vh - 80px);
-    overflow-y: auto;
-}
-
-#parcaIslemModal .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-}
-
-#parcaIslemModal .form-column {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-/* Bilgi Alanı - Her iki modal için */
-#plakaGrubuIslemModal .form-info,
-#parcaIslemModal .form-info {
+/* Bilgi Alanı */
+#plakaGrubuIslemModal .form-info {
     grid-column: 1 / -1;
     background: var(--bg-light);
     border: 1px solid var(--border-color);
@@ -3701,19 +4264,16 @@ tr:has(.plaka-checkbox:checked) {
     gap: 10px;
 }
 
-#plakaGrubuIslemModal .form-info p,
-#parcaIslemModal .form-info p {
+#plakaGrubuIslemModal .form-info p {
     margin: 0;
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    gap: 8px;
     font-size: 0.85rem;
     color: var(--text-color);
 }
 
-#plakaGrubuIslemModal .form-info strong,
-#parcaIslemModal .form-info strong {
+#plakaGrubuIslemModal .form-info strong {
     font-weight: 600;
     color: var(--primary-color);
 }
@@ -3745,30 +4305,21 @@ tr:has(.plaka-checkbox:checked) {
     gap: 6px;
 }
 
-/* Form Row Düzenlemesi - Her iki modal için */
-#plakaGrubuIslemModal .form-row,
-#parcaIslemModal .form-row,
-#parcaIslemModal .form-row-two,
-#parcaIslemModal .form-row-three {
+/* Form Row Düzenlemesi */
+#plakaGrubuIslemModal .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
     margin-bottom: 10px;
 }
 
-#parcaIslemModal .form-row-three {
-    grid-template-columns: 1fr 1fr 1fr;
-}
-
-#plakaGrubuIslemModal .form-group,
-#parcaIslemModal .form-group {
+#plakaGrubuIslemModal .form-group {
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 
-#plakaGrubuIslemModal label,
-#parcaIslemModal label {
+#plakaGrubuIslemModal label {
     font-weight: 500;
     color: var(--text-color);
     font-size: 0.85rem;
@@ -3776,9 +4327,7 @@ tr:has(.plaka-checkbox:checked) {
 }
 
 #plakaGrubuIslemModal input,
-#plakaGrubuIslemModal select,
-#parcaIslemModal input,
-#parcaIslemModal select {
+#plakaGrubuIslemModal select {
     padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
@@ -3788,9 +4337,7 @@ tr:has(.plaka-checkbox:checked) {
 }
 
 #plakaGrubuIslemModal input:focus,
-#plakaGrubuIslemModal select:focus,
-#parcaIslemModal input:focus,
-#parcaIslemModal select:focus {
+#plakaGrubuIslemModal select:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(97, 153, 59, 0.1);
@@ -3854,9 +4401,8 @@ tr:has(.plaka-checkbox:checked) {
     transform: translateY(-1px);
 }
 
-/* Switch Stilleri - Her iki modal için */
-#plakaGrubuIslemModal .switch-container,
-#parcaIslemModal .panel-header {
+/* Switch Stilleri */
+#plakaGrubuIslemModal .switch-container {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -3866,8 +4412,7 @@ tr:has(.plaka-checkbox:checked) {
     margin: 8px 0;
 }
 
-#plakaGrubuIslemModal .switch,
-#parcaIslemModal .toggle-label {
+#plakaGrubuIslemModal .switch {
     position: relative;
     display: inline-block;
     width: 40px;
@@ -3878,8 +4423,7 @@ tr:has(.plaka-checkbox:checked) {
     cursor: pointer;
 }
 
-#plakaGrubuIslemModal .switch::before,
-#parcaIslemModal .toggle-label::before {
+#plakaGrubuIslemModal .switch::before {
     content: '';
     position: absolute;
     width: 16px;
@@ -3891,32 +4435,26 @@ tr:has(.plaka-checkbox:checked) {
     transition: all 0.3s;
 }
 
-#plakaGrubuIslemModal input[type="checkbox"]:checked + .switch,
-#parcaIslemModal .toggle-input:checked + .toggle-label {
+#plakaGrubuIslemModal input[type="checkbox"]:checked + .switch {
     background: var(--primary-color);
 }
 
-#plakaGrubuIslemModal input[type="checkbox"]:checked + .switch::before,
-#parcaIslemModal .toggle-input:checked + .toggle-label::before {
+#plakaGrubuIslemModal input[type="checkbox"]:checked + .switch::before {
     transform: translateX(20px);
 }
 
-#plakaGrubuIslemModal input[type="checkbox"],
-#parcaIslemModal .toggle-input {
+#plakaGrubuIslemModal input[type="checkbox"] {
     display: none;
 }
 
-#plakaGrubuIslemModal .switch-label,
-#parcaIslemModal .panel-header h3 {
+#plakaGrubuIslemModal .switch-label {
     font-size: 0.85rem;
     color: var(--text-color);
     font-weight: 500;
 }
 
-/* Panel Stilleri - Her iki modal için */
-#plakaGrubuIslemModal .panel,
-#parcaIslemModal .panel,
-#parcaIslemModal .sticky-panel {
+/* Panel Stilleri */
+#plakaGrubuIslemModal .panel {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 6px;
@@ -3924,51 +4462,23 @@ tr:has(.plaka-checkbox:checked) {
     margin-top: 8px;
 }
 
-#plakaGrubuIslemModal #plakaGrubuMusteriPanel,
-#parcaIslemModal #parcaMusteriPanel {
+#plakaGrubuIslemModal #plakaGrubuMusteriPanel {
     border-color: var(--accent-color);
     background: rgba(217, 167, 74, 0.05);
 }
 
-#plakaGrubuIslemModal #plakaGrubuYariMamulPanel,
-#parcaIslemModal #parcaYariMamulPanel {
+#plakaGrubuIslemModal #plakaGrubuYariMamulPanel {
     border-color: var(--warning-color);
     background: rgba(243, 156, 18, 0.05);
 }
 
-#plakaGrubuIslemModal #plakaGrubuKalanParcaPanel,
-#parcaIslemModal #parcaKalanParcaPanel {
+#plakaGrubuIslemModal #plakaGrubuKalanParcaPanel {
     border-color: var(--success-color);
     background: rgba(40, 167, 69, 0.05);
 }
 
-/* Parça İşlem Modal özel sınıfları */
-#parcaIslemModal .project-selection,
-#parcaIslemModal .customer-selection {
-    display: flex;
-    gap: 5px;
-    align-items: end;
-}
-
-#parcaIslemModal .project-selection select,
-#parcaIslemModal .customer-selection select {
-    flex: 1;
-}
-
-#parcaIslemModal .project-selection button,
-#parcaIslemModal .customer-selection button {
-    flex-shrink: 0;
-    height: 44px;
-    width: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-}
-
-/* Yarı Mamul Item Stilleri - Her iki modal için */
-#plakaGrubuIslemModal .yarimamul-item,
-#parcaIslemModal .yarimamul-item {
+/* Yarı Mamul Item Stilleri */
+#plakaGrubuIslemModal .yarimamul-item {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 4px;
@@ -3976,29 +4486,24 @@ tr:has(.plaka-checkbox:checked) {
     margin-bottom: 10px;
 }
 
-#plakaGrubuIslemModal .yarimamul-actions,
-#parcaIslemModal .yarimamul-actions,
-#parcaIslemModal .buttons-group {
+#plakaGrubuIslemModal .yarimamul-actions {
     display: flex;
     justify-content: flex-end;
     margin-top: 8px;
 }
 
-/* Input with Button - Her iki modal için */
-#plakaGrubuIslemModal .input-with-button,
-#parcaIslemModal .input-with-button {
+/* Input with Button */
+#plakaGrubuIslemModal .input-with-button {
     display: flex;
     gap: 5px;
     align-items: end;
 }
 
-#plakaGrubuIslemModal .input-with-button select,
-#parcaIslemModal .input-with-button select {
+#plakaGrubuIslemModal .input-with-button select {
     flex: 1;
 }
 
-#plakaGrubuIslemModal .input-with-button button,
-#parcaIslemModal .input-with-button button {
+#plakaGrubuIslemModal .input-with-button button {
     flex-shrink: 0;
     height: 32px;
     width: 32px;
@@ -4008,10 +4513,8 @@ tr:has(.plaka-checkbox:checked) {
     padding: 0;
 }
 
-/* Form Actions - Her iki modal için */
-#plakaGrubuIslemModal .form-actions,
-#parcaIslemModal .form-actions,
-#parcaIslemModal .form-buttons {
+/* Form Actions */
+#plakaGrubuIslemModal .form-actions {
     display: flex;
     justify-content: center;
     gap: 8px;
@@ -4019,31 +4522,10 @@ tr:has(.plaka-checkbox:checked) {
     margin-top: 10px;
 }
 
-#plakaGrubuIslemModal .form-actions.final-actions,
-#parcaIslemModal .form-buttons {
+#plakaGrubuIslemModal .form-actions.final-actions {
     grid-column: 1 / -1;
     border-top: 1px solid var(--border-color);
     padding-top: 15px;
-}
-
-/* Alert Stilleri - Parça Modal için */
-#parcaIslemModal .alert {
-    padding: 10px;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    font-size: 0.85rem;
-}
-
-#parcaIslemModal .alert.error {
-    background: rgba(220, 53, 69, 0.1);
-    border: 1px solid var(--danger-color);
-    color: var(--danger-color);
-}
-
-#parcaIslemModal .alert.success {
-    background: rgba(40, 167, 69, 0.1);
-    border: 1px solid var(--success-color);
-    color: var(--success-color);
 }
 
 /* Hesap Sonucu */
@@ -4181,4 +4663,614 @@ tr:has(.plaka-checkbox:checked) {
 
 #plakaGrubuIslemModal .plaka-islem-form::-webkit-scrollbar-thumb:hover {
     background: var(--primary-color);
+}
+
+
+/* Sadece Parça İşlem Modal için - Important CSS */
+
+/* Modal Content */
+#parcaIslemModal .modal-content {
+    max-width: 1100px !important;
+    width: 90% !important;
+    max-height: 88vh !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Modal Header */
+#parcaIslemModal .modal-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%) !important;
+    color: white !important;
+    padding: 12px 20px !important;
+    border-radius: 8px 8px 0 0 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+
+#parcaIslemModal h2 {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+}
+
+#parcaIslemModal .close {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border: none !important;
+    color: white !important;
+    font-size: 1.2rem !important;
+    cursor: pointer !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    transition: all 0.2s !important;
+}
+
+#parcaIslemModal .close:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Form Container */
+#parcaIslemModal .parca-islem-form {
+    padding: 18px !important;
+    max-height: calc(88vh - 80px) !important;
+    overflow-y: auto !important;
+}
+
+/* Grid Layout */
+#parcaIslemModal .form-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 18px !important;
+}
+
+#parcaIslemModal .left-column,
+#parcaIslemModal .right-column,
+#parcaIslemModal .form-column {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+}
+
+/* Bilgi Alanı */
+#parcaIslemModal .form-info {
+    grid-column: 1 / -1 !important;
+    background: var(--bg-light) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    padding: 12px !important;
+    margin-bottom: 10px !important;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+    gap: 10px !important;
+}
+
+#parcaIslemModal .form-info p {
+    margin: 0 !important;
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 0.85rem !important;
+    color: var(--text-color) !important;
+}
+
+#parcaIslemModal .form-info strong {
+    font-weight: 600 !important;
+    color: var(--primary-color) !important;
+}
+
+/* Form Section */
+#parcaIslemModal .form-section {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    padding: 15px !important;
+    transition: all 0.2s ease !important;
+    height: fit-content !important;
+}
+
+#parcaIslemModal .form-section:hover {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 4px 12px rgba(97, 153, 59, 0.1) !important;
+}
+
+#parcaIslemModal .form-section-title,
+#parcaIslemModal .form-section h3 {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    color: var(--primary-color) !important;
+    margin-bottom: 10px !important;
+    padding-bottom: 5px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+/* Form Row */
+#parcaIslemModal .form-row,
+#parcaIslemModal .form-row-two,
+#parcaIslemModal .form-row-three {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+}
+
+#parcaIslemModal .form-row-three {
+    grid-template-columns: 1fr 1fr auto !important;
+}
+
+#parcaIslemModal .form-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+#parcaIslemModal .buttons-group {
+    display: flex !important;
+    align-items: end !important;
+    justify-content: center !important;
+}
+
+/* Form Elements */
+#parcaIslemModal label {
+    font-weight: 500 !important;
+    color: var(--text-color) !important;
+    font-size: 0.85rem !important;
+    margin-bottom: 2px !important;
+}
+
+#parcaIslemModal input,
+#parcaIslemModal select {
+    padding: 10px !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    font-size: 0.9rem !important;
+    transition: all 0.2s !important;
+    background: var(--bg-card) !important;
+}
+
+#parcaIslemModal input:focus,
+#parcaIslemModal select:focus {
+    outline: none !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 2px rgba(97, 153, 59, 0.1) !important;
+}
+
+/* Buttons */
+#parcaIslemModal .btn-primary {
+    background: var(--primary-color) !important;
+    color: white !important;
+    border: none !important;
+    padding: 10px 18px !important;
+    border-radius: 4px !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    justify-content: center !important;
+}
+
+#parcaIslemModal .btn-primary:hover {
+    background: var(--primary-hover) !important;
+    transform: translateY(-1px) !important;
+}
+
+#parcaIslemModal .btn-primary:disabled {
+    background: #ccc !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+#parcaIslemModal .btn-secondary {
+    background: var(--accent-color) !important;
+    color: white !important;
+    border: none !important;
+    padding: 8px 14px !important;
+    border-radius: 4px !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+#parcaIslemModal .btn-secondary:hover {
+    background: #c8963f !important;
+    transform: translateY(-1px) !important;
+}
+
+#parcaIslemModal .btn-danger {
+    background: var(--danger-color) !important;
+    color: white !important;
+    border: none !important;
+    padding: 5px 10px !important;
+    border-radius: 4px !important;
+    font-size: 0.75rem !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+}
+
+#parcaIslemModal .btn-danger:hover {
+    background: #c82333 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Switch */
+#parcaIslemModal .switch-container {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px !important;
+    background: var(--bg-light) !important;
+    border-radius: 4px !important;
+    margin: 8px 0 !important;
+}
+
+#parcaIslemModal .switch {
+    position: relative !important;
+    display: inline-block !important;
+    width: 40px !important;
+    height: 20px !important;
+    background: #ccc !important;
+    border-radius: 20px !important;
+    transition: all 0.3s !important;
+    cursor: pointer !important;
+}
+
+#parcaIslemModal .switch::before {
+    content: '' !important;
+    position: absolute !important;
+    width: 16px !important;
+    height: 16px !important;
+    border-radius: 50% !important;
+    background: white !important;
+    top: 2px !important;
+    left: 2px !important;
+    transition: all 0.3s !important;
+}
+
+#parcaIslemModal input[type="checkbox"]:checked + .switch {
+    background: var(--primary-color) !important;
+}
+
+#parcaIslemModal input[type="checkbox"]:checked + .switch::before {
+    transform: translateX(20px) !important;
+}
+
+#parcaIslemModal input[type="checkbox"] {
+    display: none !important;
+}
+
+#parcaIslemModal .switch-label {
+    font-size: 0.85rem !important;
+    color: var(--text-color) !important;
+    font-weight: 500 !important;
+}
+
+/* Toggle Label (alternatif switch) */
+#parcaIslemModal .toggle-label {
+    position: relative !important;
+    display: inline-block !important;
+    width: 40px !important;
+    height: 20px !important;
+    background: #ccc !important;
+    border-radius: 20px !important;
+    transition: all 0.3s !important;
+    cursor: pointer !important;
+}
+
+#parcaIslemModal .toggle-label::before {
+    content: '' !important;
+    position: absolute !important;
+    width: 16px !important;
+    height: 16px !important;
+    border-radius: 50% !important;
+    background: white !important;
+    top: 2px !important;
+    left: 2px !important;
+    transition: all 0.3s !important;
+}
+
+#parcaIslemModal .toggle-input:checked + .toggle-label {
+    background: var(--primary-color) !important;
+}
+
+#parcaIslemModal .toggle-input:checked + .toggle-label::before {
+    transform: translateX(20px) !important;
+}
+
+#parcaIslemModal .toggle-input {
+    display: none !important;
+}
+
+/* Panel */
+#parcaIslemModal .panel,
+#parcaIslemModal .sticky-panel {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    padding: 12px !important;
+    margin-top: 8px !important;
+}
+
+#parcaIslemModal .panel-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 10px !important;
+    padding: 8px !important;
+    background: var(--bg-light) !important;
+    border-radius: 4px !important;
+}
+
+#parcaIslemModal .panel-header h3 {
+    margin: 0 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    color: var(--primary-color) !important;
+}
+
+#parcaIslemModal .panel-content {
+    padding-top: 10px !important;
+}
+
+/* Özel Panel Renkleri */
+#parcaIslemModal #parcaMusteriPanel {
+    border-color: var(--accent-color) !important;
+    background: rgba(217, 167, 74, 0.05) !important;
+}
+
+#parcaIslemModal #parcaYariMamulPanel {
+    border-color: var(--warning-color) !important;
+    background: rgba(243, 156, 18, 0.05) !important;
+}
+
+#parcaIslemModal #parcaKalanParcaPanel {
+    border-color: var(--success-color) !important;
+    background: rgba(40, 167, 69, 0.05) !important;
+}
+
+/* Project/Customer Selection */
+#parcaIslemModal .project-selection,
+#parcaIslemModal .customer-selection {
+    display: flex !important;
+    gap: 5px !important;
+    align-items: end !important;
+}
+
+#parcaIslemModal .project-selection select,
+#parcaIslemModal .customer-selection select {
+    flex: 1 !important;
+}
+
+#parcaIslemModal .project-selection button,
+#parcaIslemModal .customer-selection button {
+    flex-shrink: 0 !important;
+    height: 44px !important;
+    width: 60px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+}
+
+/* Input with Button */
+#parcaIslemModal .input-with-button {
+    display: flex !important;
+    gap: 5px !important;
+    align-items: end !important;
+}
+
+#parcaIslemModal .input-with-button select {
+    flex: 1 !important;
+}
+
+#parcaIslemModal .input-with-button button {
+    flex-shrink: 0 !important;
+    height: 44px !important;
+    width: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+}
+
+/* Yarı Mamul */
+#parcaIslemModal .yarimamul-item {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    padding: 10px !important;
+    margin-bottom: 10px !important;
+}
+
+#parcaIslemModal .yarimamul-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin-top: 8px !important;
+}
+
+/* Form Actions */
+#parcaIslemModal .form-actions,
+#parcaIslemModal .form-buttons {
+    display: flex !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding-top: 10px !important;
+    margin-top: 10px !important;
+}
+
+#parcaIslemModal .form-actions.final-actions,
+#parcaIslemModal .form-buttons {
+    grid-column: 1 / -1 !important;
+    border-top: 1px solid var(--border-color) !important;
+    padding-top: 15px !important;
+}
+
+/* Alert */
+#parcaIslemModal .alert {
+    grid-column: 1 / -1 !important;
+    padding: 10px !important;
+    border-radius: 4px !important;
+    margin-bottom: 10px !important;
+    font-size: 0.85rem !important;
+}
+
+#parcaIslemModal .alert.error {
+    background: rgba(220, 53, 69, 0.1) !important;
+    border: 1px solid var(--danger-color) !important;
+    color: var(--danger-color) !important;
+}
+
+#parcaIslemModal .alert.success {
+    background: rgba(40, 167, 69, 0.1) !important;
+    border: 1px solid var(--success-color) !important;
+    color: var(--success-color) !important;
+}
+
+/* Calculation Result */
+#parcaIslemModal .calculation-result {
+    background: var(--bg-light) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    padding: 10px !important;
+    margin-top: 8px !important;
+    font-size: 0.8rem !important;
+}
+
+#parcaIslemModal .calculation-details {
+    display: grid !important;
+    gap: 4px !important;
+}
+
+#parcaIslemModal .detail-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 4px 0 !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+}
+
+#parcaIslemModal .detail-row:last-child {
+    border-bottom: none !important;
+}
+
+#parcaIslemModal .detail-row.highlight {
+    background: rgba(97, 153, 59, 0.1) !important;
+    padding: 6px !important;
+    border-radius: 3px !important;
+    border: none !important;
+    font-weight: 600 !important;
+    color: var(--primary-color) !important;
+}
+
+/* Parça Listesi */
+#parcaIslemModal .parca-listesi {
+    display: grid !important;
+    gap: 8px !important;
+}
+
+#parcaIslemModal .parca-card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    padding: 10px !important;
+}
+
+#parcaIslemModal .parca-card h4 {
+    color: var(--primary-color) !important;
+    margin-bottom: 6px !important;
+    font-size: 0.9rem !important;
+}
+
+#parcaIslemModal .parca-detail {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 2px 0 !important;
+    font-size: 0.8rem !important;
+}
+
+/* Info Text */
+#parcaIslemModal .info-text {
+    background: var(--bg-light) !important;
+    border-radius: 4px !important;
+    padding: 8px !important;
+    margin-top: 8px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    #parcaIslemModal .modal-content {
+        max-width: 95% !important;
+    }
+    
+    #parcaIslemModal .form-grid {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+
+    #parcaIslemModal .form-row,
+    #parcaIslemModal .form-row-two,
+    #parcaIslemModal .form-row-three {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #parcaIslemModal .modal-content {
+        width: 98% !important;
+        max-height: 92vh !important;
+    }
+
+    #parcaIslemModal .parca-islem-form {
+        padding: 12px !important;
+    }
+
+    #parcaIslemModal .form-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    #parcaIslemModal .form-row,
+    #parcaIslemModal .form-row-two,
+    #parcaIslemModal .form-row-three {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    #parcaIslemModal .form-info {
+        grid-template-columns: 1fr !important;
+        gap: 6px !important;
+    }
+}
+
+/* Scrollbar */
+#parcaIslemModal .parca-islem-form::-webkit-scrollbar {
+    width: 4px !important;
+}
+
+#parcaIslemModal .parca-islem-form::-webkit-scrollbar-track {
+    background: #f1f1f1 !important;
+}
+
+#parcaIslemModal .parca-islem-form::-webkit-scrollbar-thumb {
+    background: var(--primary-light) !important;
+    border-radius: 2px !important;
+}
+
+#parcaIslemModal .parca-islem-form::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color) !important;
 }

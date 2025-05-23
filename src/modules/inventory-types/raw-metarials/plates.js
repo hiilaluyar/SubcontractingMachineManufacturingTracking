@@ -1168,7 +1168,6 @@ async function loadCalisanlar() {
 }
 
 
-// Plaka Grubu form seçeneklerini göster/gizle
 function togglePlakaGrubuFormSections() {
   const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani').value;
   console.log("togglePlakaGrubuFormSections çağrıldı, kullanım alanı:", kullanimAlani);
@@ -1184,6 +1183,143 @@ function togglePlakaGrubuFormSections() {
   if (yariMamulPanel) {
     yariMamulPanel.style.display = kullanimAlani === 'MakineImalat' ? 'block' : 'none';
   }
+  
+  // Makine imalat seçildiğinde plaka sayısını 1 yap ve readonly yap
+  const plakaSayisiInput = document.getElementById('plakaGrubuPlakaSayisiInput');
+  const kullanilanMiktarInput = document.getElementById('plakaGrubuKullanilanMiktar');
+  const hurdaMiktarInput = document.getElementById('plakaGrubuHurdaMiktar');
+  
+  if (kullanimAlani === 'MakineImalat') {
+    // Plaka sayısını 1 yap ve readonly yap
+    if (plakaSayisiInput) {
+      plakaSayisiInput.value = '1';
+      plakaSayisiInput.readOnly = true;
+      plakaSayisiInput.style.backgroundColor = '#f5f5f5';
+      plakaSayisiInput.style.color = '#666';
+    }
+    
+    // Kullanılan miktar ve hurda alanlarını readonly yap
+    if (kullanilanMiktarInput) {
+      kullanilanMiktarInput.readOnly = true;
+      kullanilanMiktarInput.style.backgroundColor = '#f5f5f5';
+      kullanilanMiktarInput.style.color = '#666';
+      kullanilanMiktarInput.placeholder = 'Yarı mamul bilgilerine göre otomatik hesaplanır';
+    }
+    
+    if (hurdaMiktarInput) {
+      hurdaMiktarInput.readOnly = true;
+      hurdaMiktarInput.style.backgroundColor = '#f5f5f5';
+      hurdaMiktarInput.style.color = '#666';
+      hurdaMiktarInput.placeholder = 'Otomatik hesaplanır';
+    }
+    
+    // Plaka sayısı değişim olayını kaldır
+    if (plakaSayisiInput) {
+      plakaSayisiInput.removeEventListener('input', updateKullanilanMiktarFromPlakaSayisi);
+      plakaSayisiInput.removeEventListener('change', updateKullanilanMiktarFromPlakaSayisi);
+    }
+    
+    // Kullanılan miktar değişim olayını kaldır
+    if (kullanilanMiktarInput) {
+      kullanilanMiktarInput.removeEventListener('input', onPlakaGrubuKullanilanMiktarChange);
+      kullanilanMiktarInput.removeEventListener('change', onPlakaGrubuKullanilanMiktarChange);
+    }
+    
+    // Başlangıç hesaplaması
+    updateKullanilanMiktarFromPlakaSayisi();
+    
+  } else {
+    // Normal mod - alanları normale döndür
+    if (plakaSayisiInput) {
+      plakaSayisiInput.readOnly = false;
+      plakaSayisiInput.style.backgroundColor = '';
+      plakaSayisiInput.style.color = '';
+      plakaSayisiInput.value = '1'; // Varsayılan değer
+    }
+    
+    if (kullanilanMiktarInput) {
+      kullanilanMiktarInput.readOnly = false;
+      kullanilanMiktarInput.style.backgroundColor = '';
+      kullanilanMiktarInput.style.color = '';
+      kullanilanMiktarInput.placeholder = '';
+    }
+    
+    if (hurdaMiktarInput) {
+      hurdaMiktarInput.readOnly = false;
+      hurdaMiktarInput.style.backgroundColor = '';
+      hurdaMiktarInput.style.color = '';
+      hurdaMiktarInput.placeholder = '';
+    }
+    
+    // Event listener'ları geri ekle
+    if (plakaSayisiInput) {
+      plakaSayisiInput.addEventListener('input', updateKullanilanMiktarFromPlakaSayisi);
+      plakaSayisiInput.addEventListener('change', updateKullanilanMiktarFromPlakaSayisi);
+    }
+    
+    if (kullanilanMiktarInput) {
+      kullanilanMiktarInput.addEventListener('input', onPlakaGrubuKullanilanMiktarChange);
+      kullanilanMiktarInput.addEventListener('change', onPlakaGrubuKullanilanMiktarChange);
+    }
+  }
+}
+
+
+// Yarı mamul değişikliklerini dinleyen fonksiyon - YENİ
+function onPlakaGrubuYariMamulChange() {
+  const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani').value;
+  
+  if (kullanimAlani === 'MakineImalat') {
+    calculatePlakaGrubuMakineImalatMiktarlari();
+  }
+}
+
+function calculatePlakaGrubuMakineImalatMiktarlari() {
+  if (!currentPlakaGrubu) return;
+  
+  const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani').value;
+  if (kullanimAlani !== 'MakineImalat') return;
+  
+  // Tek plaka ağırlığını hesapla
+  const plakaAgirligi = currentPlakaGrubu.toplam_plaka_sayisi > 0 ? 
+    Number(currentPlakaGrubu.toplam_kilo) / currentPlakaGrubu.toplam_plaka_sayisi : 0;
+  
+  // Yarı mamul toplam ağırlığını hesapla
+  let toplamYariMamulAgirligi = 0;
+  const yarimamulItems = document.querySelectorAll('#plakaGrubuYariMamulList .yarimamul-item');
+  
+  yarimamulItems.forEach(item => {
+    const index = item.dataset.index;
+    const miktar = parseFloat(document.getElementById(`plakaGrubuYariMamulMiktar_${index}`)?.value) || 0;
+    const birimAgirlik = parseFloat(document.getElementById(`plakaGrubuYariMamulAgirlik_${index}`)?.value) || 0;
+    toplamYariMamulAgirligi += miktar * birimAgirlik;
+  });
+  
+  // Kalan parça ağırlığını hesapla
+  let toplamKalanParcaAgirligi = 0;
+  if (window.kalanParcalar && window.kalanParcalar.length > 0) {
+    toplamKalanParcaAgirligi = window.kalanParcalar.reduce((toplam, parca) => {
+      return toplam + parseFloat(parca.agirlik || 0);
+    }, 0);
+  }
+  
+  // Kullanılan miktar = yarı mamul ağırlığı
+  const kullanilanMiktar = toplamYariMamulAgirligi;
+  
+  // Hurda miktar = plaka ağırlığı - kullanılan miktar - kalan parça ağırlığı
+  const hurdaMiktar = Math.max(0, plakaAgirligi - kullanilanMiktar - toplamKalanParcaAgirligi);
+  
+  // Alanları güncelle
+  document.getElementById('plakaGrubuKullanilanMiktar').value = kullanilanMiktar.toFixed(2);
+  document.getElementById('plakaGrubuHurdaMiktar').value = hurdaMiktar.toFixed(2);
+  
+  console.log('Makine imalat hesaplama:', {
+    plakaAgirligi: plakaAgirligi.toFixed(2),
+    toplamYariMamulAgirligi: toplamYariMamulAgirligi.toFixed(2),
+    toplamKalanParcaAgirligi: toplamKalanParcaAgirligi.toFixed(2),
+    kullanilanMiktar: kullanilanMiktar.toFixed(2),
+    hurdaMiktar: hurdaMiktar.toFixed(2)
+  });
 }
 
 
@@ -1203,25 +1339,6 @@ function resetPlakaGrubuIslemForm() {
   const yariMamulPanel = document.getElementById('plakaGrubuYariMamulPanel');
   if (yariMamulPanel) yariMamulPanel.style.display = 'none';
 }
-
-// Plaka Grubu form seçeneklerini göster/gizle
-function togglePlakaGrubuFormSections() {
-  const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani').value;
-  
-  // Müşteri panelini göster/gizle
-  const musteriPanel = document.getElementById('plakaGrubuMusteriPanel');
-  if (musteriPanel) {
-    musteriPanel.style.display = kullanimAlani === 'FasonImalat' ? 'block' : 'none';
-  }
-  
-  // Yarı mamul panelini göster/gizle
-  const yariMamulPanel = document.getElementById('plakaGrubuYariMamulPanel');
-  if (yariMamulPanel) {
-    yariMamulPanel.style.display = kullanimAlani === 'MakineImalat' ? 'block' : 'none';
-  }
-}
-
-
 
 function updateKullanilanMiktarFromPlakaSayisi() {
   if (!currentPlakaGrubu) return;
@@ -1804,8 +1921,83 @@ function removePlakaGrubuYariMamul(index) {
     const item = document.querySelector(`.yarimamul-item[data-index="${index}"]`);
     if (item) {
         item.remove();
+        
+        // Makine imalat modundaysa hesaplama yap
+        const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani').value;
+        if (kullanimAlani === 'MakineImalat') {
+            calculatePlakaGrubuMakineImalatMiktarlari();
+        }
     }
 }
+
+
+// Kalan parça ekleme/silme işlemlerinde de hesaplama yapalım
+const originalAddPlakaGrubuKalanParca = window.addPlakaGrubuKalanParca;
+if (originalAddPlakaGrubuKalanParca) {
+  window.addPlakaGrubuKalanParca = function() {
+    originalAddPlakaGrubuKalanParca();
+    
+    // Makine imalat modundaysa hesaplama yap
+    const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani')?.value;
+    if (kullanimAlani === 'MakineImalat') {
+        setTimeout(calculatePlakaGrubuMakineImalatMiktarlari, 100);
+    } else {
+        setTimeout(calculatePlakaGrubuHurdaMiktar, 100);
+    }
+  };
+}
+
+const originalRemovePlakaGrubuKalanParcaGrubu = window.removePlakaGrubuKalanParcaGrubu;
+if (originalRemovePlakaGrubuKalanParcaGrubu) {
+  window.removePlakaGrubuKalanParcaGrubu = function(parcaKey) {
+    originalRemovePlakaGrubuKalanParcaGrubu(parcaKey);
+    
+    // Makine imalat modundaysa hesaplama yap
+    const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani')?.value;
+    if (kullanimAlani === 'MakineImalat') {
+        setTimeout(calculatePlakaGrubuMakineImalatMiktarlari, 100);
+    } else {
+        setTimeout(calculatePlakaGrubuHurdaMiktar, 100);
+    }
+  };
+}
+
+// Event listener eklemeleri
+document.addEventListener('DOMContentLoaded', function() {
+    // Kullanım alanı değiştiğinde
+    const plakaGrubuKullanimAlani = document.getElementById('plakaGrubuKullanimAlani');
+    if (plakaGrubuKullanimAlani) {
+        plakaGrubuKullanimAlani.addEventListener('change', togglePlakaGrubuFormSections);
+    }
+    
+    // Kalan Parça Switch'i
+    const plakaGrubuKalanParcaSwitch = document.getElementById('plakaGrubuKalanParcaSwitch');
+    if (plakaGrubuKalanParcaSwitch) {
+        plakaGrubuKalanParcaSwitch.addEventListener('change', function() {
+            const panel = document.getElementById('plakaGrubuKalanParcaPanel');
+            if (panel) {
+                panel.style.display = this.checked ? 'block' : 'none';
+            }
+            
+            if (!this.checked) {
+                window.kalanParcalar = [];
+                updatePlakaGrubuKalanParcaListUI();
+                
+                // Makine imalat modundaysa özel hesaplama
+                const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani')?.value;
+                if (kullanimAlani === 'MakineImalat') {
+                    calculatePlakaGrubuMakineImalatMiktarlari();
+                } else {
+                    calculatePlakaGrubuHurdaMiktar();
+                }
+            }
+        });
+    }
+});
+
+// Global fonksiyonları ekle
+window.onPlakaGrubuYariMamulChange = onPlakaGrubuYariMamulChange;
+window.calculatePlakaGrubuMakineImalatMiktarlari = calculatePlakaGrubuMakineImalatMiktarlari;
 
 function addPlakaGrubuYariMamul() {
     const yariMamulList = document.getElementById('plakaGrubuYariMamulList');
@@ -1834,12 +2026,14 @@ function addPlakaGrubuYariMamul() {
             <div class="form-row">
                 <div class="form-group col-half">
                     <label for="plakaGrubuYariMamulMiktar_${newIndex}">Miktar</label>
-                    <input type="number" id="plakaGrubuYariMamulMiktar_${newIndex}" placeholder="Miktar" min="0">
+                    <input type="number" id="plakaGrubuYariMamulMiktar_${newIndex}" placeholder="Miktar" min="0" 
+                           onchange="onPlakaGrubuYariMamulChange()" oninput="onPlakaGrubuYariMamulChange()">
                 </div>
                 
                 <div class="form-group col-half">
                     <label for="plakaGrubuYariMamulAgirlik_${newIndex}">Birim Ağırlık (kg)</label>
-                    <input type="number" id="plakaGrubuYariMamulAgirlik_${newIndex}" placeholder="Birim ağırlık" min="0" step="0.01">
+                    <input type="number" id="plakaGrubuYariMamulAgirlik_${newIndex}" placeholder="Birim ağırlık" min="0" step="0.01"
+                           onchange="onPlakaGrubuYariMamulChange()" oninput="onPlakaGrubuYariMamulChange()">
                 </div>
             </div>
             
@@ -1852,6 +2046,12 @@ function addPlakaGrubuYariMamul() {
     `;
     
     yariMamulList.insertAdjacentHTML('beforeend', yariMamulHtml);
+    
+    // Makine imalat modundaysa hesaplama yap
+    const kullanimAlani = document.getElementById('plakaGrubuKullanimAlani').value;
+    if (kullanimAlani === 'MakineImalat') {
+        calculatePlakaGrubuMakineImalatMiktarlari();
+    }
 }
 
 // DOM yüklendiğinde event listener'ları ekle
