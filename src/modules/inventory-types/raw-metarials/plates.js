@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Projeleri yükle
-        loadProjeler();
+        loadProjelerForPlates();
       }, 100);
     });
   }
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Projeleri yükle
-        loadProjeler();
+        loadProjelerForPlates();
       }, 100);
     });
   }
@@ -890,7 +890,7 @@ async function openPlakaGrubuIslemModal(grubuId) {
     // Modal açılmadan önce async olarak bekleyen işlemleri tamamla
     try {
       console.log("Projeler yükleniyor...");
-      await loadProjeler();
+      await loadProjelerForPlates();
       console.log("Projeler yüklendi");
     } catch (e) {
       console.error("Projeler yüklenirken hata:", e);
@@ -958,9 +958,9 @@ async function openPlakaGrubuIslemModal(grubuId) {
 }
 
 
-async function loadProjeler() {
+async function loadProjelerForPlates() {
   try {
-    console.log("loadProjeler çağrıldı");
+    console.log("loadProjelerForPlates çağrıldı");
     const result = await window.electronAPI.invoke.database.getAllProjeler();
     
     if (!result.success) {

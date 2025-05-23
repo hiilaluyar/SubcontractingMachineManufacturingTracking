@@ -1,6 +1,6 @@
 
 
-async function loadProjelerForPlakaIslemModal() {
+/* async function loadProjelerForPlakaIslemModal() {
     try {
         // Dikkat: window.electronAPI.invoke.database.getAllProjeler() kullanın
         const result = await window.electronAPI.invoke.database.getAllProjeler();
@@ -135,7 +135,12 @@ if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.inv
         return { success: true, projeler: mockProjeler };
     };
 }
- */
+
+
+window.loadProjelerForPlakaIslemModal = loadProjelerForPlakaIslemModal;
+window.setupPlakaIslemModalProjects = setupPlakaIslemModalProjects;
+window.loadPlakaIslemModalProjects=loadPlakaIslemModalProjects;
+ */  
 
 
 
@@ -229,8 +234,6 @@ function updateProjeSelection(projeler) {
     });
 }
 
-window.loadProjelerForPlakaIslemModal = loadProjelerForPlakaIslemModal;
-window.setupPlakaIslemModalProjects = setupPlakaIslemModalProjects;
-window.loadPlakaIslemModalProjects=loadPlakaIslemModalProjects;
+
 window.loadProjeler = loadProjeler;
 window.updateProjeSelection = updateProjeSelection;
