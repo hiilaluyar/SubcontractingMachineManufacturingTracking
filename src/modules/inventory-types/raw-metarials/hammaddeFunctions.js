@@ -2120,24 +2120,21 @@ async function openIslemModal(parcaId, parcaNo) {
 
 
 
+// Sadeleştirilmiş loadIslemGecmisi fonksiyonu - tek plaka işlemleri kaldırıldı
 async function loadIslemGecmisi(hammaddeId) {
   try {
     console.log("loadIslemGecmisi başlıyor - hammaddeId:", hammaddeId);
     
-    // Plaka işlemlerini yükle
-    const plakaIslemleri = await loadPlakaIslemleri(hammaddeId);
-    console.log("Plaka işlemleri yüklendi:", plakaIslemleri.length);
-    
-    // Plaka grubu işlemlerini yükle (YENİ)
+    // Sadece plaka grubu işlemlerini yükle
     const plakaGrubuIslemleri = await loadPlakaGrubuIslemleri(hammaddeId);
     console.log("Plaka grubu işlemleri yüklendi:", plakaGrubuIslemleri.length);
     
-    // Parça işlemlerini yükle
+    // Parça işlemlerini yükle (plaka grubundan oluşan parçalar için)
     const parcaIslemleri = await loadParcaIslemleri(hammaddeId);
     console.log("Parça işlemleri yüklendi:", parcaIslemleri.length);
     
-    // İşlemleri birleştir
-    const tumIslemler = [...plakaIslemleri, ...plakaGrubuIslemleri, ...parcaIslemleri];
+    // İşlemleri birleştir - artık sadece 2 kaynak
+    const tumIslemler = [...plakaGrubuIslemleri, ...parcaIslemleri];
     console.log("Toplam işlem sayısı:", tumIslemler.length);
     
     // Tarihe göre sırala (en yeni en üstte)
@@ -2161,8 +2158,14 @@ async function loadIslemGecmisi(hammaddeId) {
         // Tarih
         row.insertCell(0).textContent = new Date(islem.tarih).toLocaleString('tr-TR');
         
-        // Plaka/Parça
-        row.insertCell(1).textContent = islem.plakaNo || islem.parcaNo || '-';
+        // Plaka/Parça - Kaynak türünü belirt
+        let kaynakText = '-';
+        if (islem.plakaNo && islem.plakaNo.includes('Plaka Grubu')) {
+          kaynakText = islem.plakaNo; // "Plaka Grubu #ABC123"
+        } else if (islem.parcaNo) {
+          kaynakText = islem.parcaNo; // "Parça #123"
+        }
+        row.insertCell(1).textContent = kaynakText;
         
         // İşlem
         row.insertCell(2).textContent = formatIslemTuru(islem.islem_turu);

@@ -1565,55 +1565,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-/**
- * Plaka işlemlerini belirtilen hammadde ID'sine göre yükler.
- * 
- * @param {number} hammaddeId - Hammadde ID
- * @returns {Promise<Array>} - İşlem listesi
- */
-async function loadPlakaIslemleri(hammaddeId) {
-  try {
-    console.log("loadPlakaIslemleri başlıyor - hammaddeId:", hammaddeId);
-    
-    // Plaka gruplarını al
-    const plakaGruplariResult = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId(hammaddeId);
-    
-    if (!plakaGruplariResult.success || !plakaGruplariResult.gruplar || plakaGruplariResult.gruplar.length === 0) {
-      console.log("Bu hammadde için plaka grubu bulunamadı");
-      return [];
-    }
-    
-    // Tüm plaka grubu ID'lerini bir dizide topla
-    const plakaGrubuIds = plakaGruplariResult.gruplar.map(grup => grup.id);
-    
-    // Tek bir sorgu ile tüm plaka gruplarının işlemlerini al
-    const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByMultiplePlakaGrubuIds(plakaGrubuIds);
-    
-    if (!islemlerResult.success || !islemlerResult.islemler) {
-      console.log("Plaka gruplarına ait işlem bulunamadı");
-      return [];
-    }
-    
-    // İşlemleri plaka grubu bilgisiyle eşleştir
-    const tumIslemler = islemlerResult.islemler.map(islem => {
-      const plakaGrubu = plakaGruplariResult.gruplar.find(g => g.id === islem.plaka_grubu_id);
-      return {
-        ...islem,
-        plakaNo: plakaGrubu ? `Plaka Grubu #${plakaGrubu.stok_kodu}` : 'Bilinmiyor',
-        tarih: islem.islem_tarihi,
-        kullanici: islem.kullanici_ad ? `${islem.kullanici_ad} ${islem.kullanici_soyad}` : 'Bilinmiyor'
-      };
-    });
-    
-    console.log(`Toplam ${tumIslemler.length} plaka grubu işlemi bulundu`);
-    return tumIslemler;
-  } catch (error) {
-    console.error('Plaka işlemleri getirme hatası:', error);
-    return [];
-  }
-}
-
-
 
 
 function calculatePlakaGrubuWithKalanParca() {
@@ -1953,8 +1904,7 @@ window.updateKullanilanMiktarFromPlakaSayisi = updateKullanilanMiktarFromPlakaSa
 window.onPlakaGrubuKullanilanMiktarChange = onPlakaGrubuKullanilanMiktarChange;
 window.togglePlakaGrubuFormSections = togglePlakaGrubuFormSections;
 
-// Fonksiyonu global window nesnesine ekleyin
-window.loadPlakaIslemleri = loadPlakaIslemleri;
+
   window.resetPlakaModal = resetPlakaModal;
   window.setupPlakaEventListeners = setupPlakaEventListeners;
   window.openYeniPlakaModal = openYeniPlakaModal;
