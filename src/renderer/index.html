@@ -2333,27 +2333,32 @@
 </div>
 </div>
 
-
-<!-- Parça İşlem Modal - İyileştirilmiş Versiyon -->
 <div class="modal" id="parcaIslemModal">
-    <div class="modal-content large-modal">
-        <span class="close">&times;</span>
-        <h2>Parça İşlemi Yap - <span id="parcaDetayHeader"></span></h2>
+    <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header">
+            <h2>Parça İşlemi Yap - <span id="parcaDetayHeader"></span></h2>
+            <span class="close">&times;</span>
+        </div>
         
-        <div class="parca-islem-form">
-            <!-- GRID YAPILANDIRMASI -->
+        <form id="parcaIslemForm" class="form-container parca-islem-form">
+            <!-- Bilgi alanı burada oluşturulacak (JavaScript ile) -->
+            
+            <!-- Hata ve başarı mesajları -->
+            <div class="alert error" id="parcaIslemModal-error" style="display: none;"></div>
+            <div class="alert success" id="parcaIslemModal-success" style="display: none;"></div>
+            
+            <!-- Grid Layout -->
             <div class="form-grid">
                 
-                <!-- SOL KOLON: Form Alanları -->
-                <div class="form-column">
-                    <!-- Hata ve başarı mesajları üstte -->
-                    <div class="alert error" id="parcaIslemModal-error" style="display: none;"></div>
-                    <div class="alert success" id="parcaIslemModal-success" style="display: none;"></div>
-                    
+                <!-- Sol Kolon: Temel Bilgiler -->
+                <div class="left-column">
                     <!-- Kullanım Bilgisi -->
                     <div class="form-section">
-                        <h3>Kullanım Bilgisi</h3>
-                        <div class="form-row-two">
+                        <div class="form-section-title">
+                            <i class="fas fa-weight-hanging"></i> Kullanım Bilgisi
+                        </div>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="parcaKullanilanMiktar">Kullanılan Miktar (kg)</label>
                                 <input type="number" id="parcaKullanilanMiktar" step="0.01" min="0" required>
@@ -2367,8 +2372,10 @@
                     
                     <!-- İşlem Bilgileri -->
                     <div class="form-section">
-                        <h3>İşlem Bilgileri</h3>
-                        <div class="form-row-two">
+                        <div class="form-section-title">
+                            <i class="fas fa-cogs"></i> İşlem Bilgileri
+                        </div>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="parcaIslemTuru">İşlem Türü</label>
                                 <select id="parcaIslemTuru">
@@ -2389,8 +2396,10 @@
 
                     <!-- Makine ve Personel -->
                     <div class="form-section">
-                        <h3>Makine ve Personel</h3>
-                        <div class="form-row-two">
+                        <div class="form-section-title">
+                            <i class="fas fa-tools"></i> Makine ve Personel
+                        </div>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="parcaMakineSecimi">Makine</label>
                                 <select id="parcaMakineSecimi">
@@ -2406,117 +2415,130 @@
                             </div>
                             <div class="form-group">
                                 <label for="parcaCalisanSecimi">İşleyen Kişi</label>
-                                <select id="parcaCalisanSecimi">
-                                    <option value="">-- Çalışan Seçin --</option>
-                                </select>
+                                <div class="input-with-button">
+                                    <select id="parcaCalisanSecimi">
+                                        <option value="">-- Çalışan Seçin --</option>
+                                    </select>
+                                    <button type="button" id="parcaYeniCalisanEkleBtn" class="btn-secondary">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Proje Seçimi -->
                     <div class="form-section">
-                        <h3>Proje Bilgisi</h3>
+                        <div class="form-section-title">
+                            <i class="fas fa-project-diagram"></i> Proje Bilgisi
+                        </div>
                         <div class="form-group">
                             <label for="parcaProjeSecimi">Proje</label>
-                            <div class="project-selection">
+                            <div class="input-with-button">
                                 <select id="parcaProjeSecimi">
                                     <option value="">-- Proje Seçin --</option>
                                 </select>
                                 <button type="button" id="parcaYeniProjeEkleBtn" class="btn-secondary">
-                                    <i class="fas fa-plus"></i> Yeni
+                                    <i class="fas fa-plus"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
-                    
+                </div>
+
+                <!-- Sağ Kolon: Özel Paneller -->
+                <div class="right-column">
                     <!-- Müşteri Bilgisi (Fason İmalat için) -->
-                    <div id="parcaMusteriPanel" class="form-section" style="display: none;">
-                        <h3>Müşteri Bilgisi</h3>
+                    <div id="parcaMusteriPanel" class="panel" style="display: none;">
+                        <div class="form-section-title">
+                            <i class="fas fa-building"></i> Müşteri Bilgileri
+                        </div>
                         <div class="form-group">
                             <label for="parcaMusteriSecimi">Müşteri</label>
-                            <div class="customer-selection">
+                            <div class="input-with-button">
                                 <select id="parcaMusteriSecimi">
                                     <option value="">-- Müşteri Seçin --</option>
                                 </select>
                                 <button type="button" id="parcaYeniMusteriEkleBtn" class="btn-secondary">
-                                    <i class="fas fa-plus"></i> Yeni
+                                    <i class="fas fa-plus"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Yarı Mamul Paneli -->
-                   <div id="parcaYariMamulPanel" style="display: none;" class="form-section">
-    <h3>Yarı Mamul Bilgileri</h3>
-    
-    <div id="parcaYariMamulList">
-        <!-- Yarı Mamul girişleri buraya dinamik olarak eklenecek -->
-        <div class="yarimamul-item" data-index="0">
-            <div class="form-row-two">
-                <div class="form-group">
-                    <label for="parcaYariMamulAdi_0">Yarı Mamul Adı</label>
-                    <input type="text" id="parcaYariMamulAdi_0" class="yarimamul-adi" placeholder="Sac Kapak, Profil vs.">
-                </div>
-                <div class="form-group">
-                    <label for="parcaYariMamulBirim_0">Birim</label>
-                    <select id="parcaYariMamulBirim_0" class="yarimamul-birim">
-                        <option value="adet">Adet</option>
-                        <option value="kg">kg</option>
-                        <option value="m">m</option>
-                        <option value="m2">m²</option>
-                        <option value="m3">m³</option>
-                        <option value="lt">lt</option>
-                        <option value="kutu">Kutu</option>
-                        <option value="paket">Paket</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-row-three">
-                <div class="form-group">
-                    <label for="parcaYariMamulMiktar_0">Adet</label>
-                    <input type="number" id="parcaYariMamulMiktar_0" class="yarimamul-miktar" step="1" min="1" value="1">
-                </div>
-                <div class="form-group">
-                    <label for="parcaYariMamulAgirlik_0">Birim Ağırlık (kg)</label>
-                    <input type="number" id="parcaYariMamulAgirlik_0" class="yarimamul-agirlik" step="0.01" min="0.01">
-                </div>
-                <div class="form-group buttons-group">
-                    <label>&nbsp;</label>
-                    <button type="button" class="btn-danger remove-yarimamul" style="display: none;">
-                        <i class="fas fa-trash"></i> Sil
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="form-row" style="margin-top: 10px;">
-        <button type="button" id="addMoreParcaYariMamul" class="btn-secondary">
-            <i class="fas fa-plus"></i> Yeni Yarı Mamul Ekle
-        </button>
-    </div>
-    
-    <div class="form-row" style="margin-top: 15px;">
-        <div class="form-info" id="parcaYarimamulToplam">
-            <p><strong>Toplam Kullanılacak:</strong> <span id="toplamParcaYarimamulAgirlik">0.00</span> kg</p>
-        </div>
-    </div>
-</div>
-                </div>
-                
-                <!-- SAĞ KOLON: Kalan Parça Paneli -->
-                <div class="form-column">
-                    <div class="panel sticky-panel">
-                        <div class="panel-header">
-                            <h3>Kalan Parça Oluştur</h3>
-                            <div class="toggle-switch">
-                                <input type="checkbox" id="parcaKalanParcaSwitch" class="toggle-input" onchange="toggleParcaKalanParcaPanel()">
-                                <label for="parcaKalanParcaSwitch" class="toggle-label"></label>
+                    <div id="parcaYariMamulPanel" style="display: none;" class="panel">
+                        <div class="form-section-title">
+                            <i class="fas fa-industry"></i> Yarı Mamul Bilgileri
+                        </div>
+                        
+                        <div id="parcaYariMamulList">
+                            <div class="yarimamul-item" data-index="0">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="parcaYariMamulAdi_0">Yarı Mamul Adı</label>
+                                        <input type="text" id="parcaYariMamulAdi_0" class="yarimamul-adi" placeholder="Sac Kapak, Profil vs.">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="parcaYariMamulBirim_0">Birim</label>
+                                        <select id="parcaYariMamulBirim_0" class="yarimamul-birim">
+                                            <option value="adet">Adet</option>
+                                            <option value="kg">kg</option>
+                                            <option value="m">m</option>
+                                            <option value="m2">m²</option>
+                                            <option value="m3">m³</option>
+                                            <option value="lt">lt</option>
+                                            <option value="kutu">Kutu</option>
+                                            <option value="paket">Paket</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row" style="grid-template-columns: 1fr 1fr auto;">
+                                    <div class="form-group">
+                                        <label for="parcaYariMamulMiktar_0">Adet</label>
+                                        <input type="number" id="parcaYariMamulMiktar_0" class="yarimamul-miktar" step="1" min="1" value="1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="parcaYariMamulAgirlik_0">Birim Ağırlık (kg)</label>
+                                        <input type="number" id="parcaYariMamulAgirlik_0" class="yarimamul-agirlik" step="0.01" min="0.01">
+                                    </div>
+                                    <div class="form-group buttons-group">
+                                        <label>&nbsp;</label>
+                                        <button type="button" class="btn-danger remove-yarimamul" style="display: none;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
-                        <div id="parcaKalanParcaPanel" style="display: none;" class="panel-content">
-                            <div class="form-row-two">
+                        <div class="form-actions" style="margin-top: 10px;">
+                            <button type="button" id="addMoreParcaYariMamul" class="btn-secondary">
+                                <i class="fas fa-plus"></i> Yeni Yarı Mamul Ekle
+                            </button>
+                        </div>
+                        
+                        <div class="form-info" id="parcaYarimamulToplam" style="margin-top: 15px;">
+                            <p><strong>Toplam Kullanılacak:</strong> <span id="toplamParcaYarimamulAgirlik">0.00</span> kg</p>
+                        </div>
+                    </div>
+
+                    <!-- Kalan Parça Paneli -->
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-puzzle-piece"></i> Kalan Parça İşlemleri
+                        </div>
+                        
+                        <div class="switch-container">
+                            <label class="switch-label">
+                                <input type="checkbox" id="parcaKalanParcaSwitch" onchange="toggleParcaKalanParcaPanel()">
+                                <span class="switch"></span>
+                                <span>Kalan Parça Oluştur</span>
+                            </label>
+                        </div>
+                        
+                        <div id="parcaKalanParcaPanel" style="display: none;" class="panel">
+                            <div class="form-row">
                                 <div class="form-group">
                                     <label for="parcaKalanParcaEn">En (mm)</label>
                                     <input type="number" id="parcaKalanParcaEn" step="0.01" min="1">
@@ -2527,7 +2549,7 @@
                                 </div>
                             </div>
                             
-                            <div class="form-row">
+                            <div class="form-actions">
                                 <button type="button" id="hesaplaParcaKalanParcaBtn" class="btn-secondary">
                                     <i class="fas fa-calculator"></i> Hesapla
                                 </button>
@@ -2555,10 +2577,13 @@
                 </div>
             </div>
             
-            <div class="form-buttons">
-                <button id="parcaIslemKaydetBtn" class="btn-primary">Kaydet</button>
+            <!-- Kaydet Butonu -->
+            <div class="form-actions final-actions">
+                <button type="button" id="parcaIslemKaydetBtn" class="btn-primary">
+                    <i class="fas fa-save"></i> Kaydet
+                </button>
             </div>
-        </div>
+        </form>
     </div>
 </div>
 
@@ -2731,218 +2756,253 @@
 </div>
 
 
-<!-- Plaka Grubu İşlem Modal -->
+
 <div class="modal" id="plakaGrubuIslemModal">
   <div class="modal-content">
-    <span class="close">&times;</span>
-    <h2 id="plakaGrubuIslemHeader">Plaka Grubu İşlem</h2>
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <h2 id="plakaGrubuIslemHeader">Plaka Grubu İşlem</h2>
+      <span class="close">&times;</span>
+    </div>
     
     <form id="plakaGrubuIslemForm" class="form-container plaka-islem-form">
-      <!-- Bilgi alanı burada oluşturulacak -->
+      <!-- Bilgi alanı burada oluşturulacak (JavaScript ile) -->
       
-      <div class="form-row">
-        <div class="form-group col-half">
-          <label for="plakaGrubuPlakaSayisiInput">Plaka Sayısı</label>
-          <input type="number" id="plakaGrubuPlakaSayisiInput" min="1" value="1">
-        </div>
-        
-        <div class="form-group col-half">
-          <label for="plakaGrubuIslemTuru">İşlem Türü</label>
-          <select id="plakaGrubuIslemTuru">
-            <option value="LazerKesim">Lazer Kesim</option>
-            <option value="PlazmaKesim">Plazma Kesim</option>
-            <option value="OksijenKesim">Oksijen Kesim</option>
-            <option value="AbkantBukum">Abkant Büküm</option>
-            <option value="Diger">Diğer</option>
-          </select>
-        </div>
-      </div>
-      
-      <div class="form-row">
-        <div class="form-group col-half">
-          <label for="plakaGrubuKullanilanMiktar">Kullanılan Miktar (kg)</label>
-          <input type="number" id="plakaGrubuKullanilanMiktar" min="0" step="any" placeholder="0.00">
-        </div>
-        
-        <div class="form-group col-half">
-          <label for="plakaGrubuHurdaMiktar">Hurda Miktar (kg)</label>
-          <input type="number" id="plakaGrubuHurdaMiktar" min="0" step="any" value="0">
-        </div>
-      </div>
-      
-      <div class="form-group">
-        <label for="plakaGrubuKullanimAlani">Kullanım Alanı</label>
-        <select id="plakaGrubuKullanimAlani" onchange="togglePlakaGrubuFormSections()">
-          <option value="FasonImalat">Fason İmalat</option>
-          <option value="MakineImalat">Makine İmalat</option>
-          <option value="IsEkipman">İş Ekipmanı</option>
-          <option value="Diger">Diğer</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="plakaGrubuMakineSecimi">Makine</label>
-        <select id="plakaGrubuMakineSecimi">
-          <option value="">Makine Seçin</option>
-          <option value="FiberLazer">Fiber Lazer</option>
-          <option value="CO2Lazer">CO2 Lazer</option>
-          <option value="PlazmaKesim">Plazma Kesim</option>
-          <option value="OksijenKesim">Oksijen Kesim</option>
-          <option value="AbkantPress">Abkant Pres</option>
-          <option value="GuillotineMakas">Guillotine Makas</option>
-          <option value="RuloBukme">Rulo Bükme</option>
-          <option value="KaynakRobotu">Kaynak Robotu</option>
-          <option value="DigerKaynak">Diğer Kaynak</option>
-          <option value="TornaTezgahi">Torna Tezgahı</option>
-          <option value="FrezeTezgahi">Freze Tezgahı</option>
-          <option value="DigerTalaslı">Diğer Talaşlı İmalat</option>
-          <option value="DigerMakine">Diğer Makine</option>
-        </select>
-      </div>
-      
-      <div class="form-group">
-        <label for="plakaGrubuCalisanSecimi">İşleyen Çalışan</label>
-        <div class="input-with-button">
-          <select id="plakaGrubuCalisanSecimi">
-            <option value="">Çalışan Seçin</option>
-            <!-- Çalışanlar burada listelenecek -->
-          </select>
-          <button type="button" id="plakaGrubuYeniCalisanEkleBtn" class="btn-secondary">
-            <i class="fas fa-plus"></i>
-          </button>
-        </div>
-      </div>
-      
-      <div class="form-group">
-        <label for="plakaGrubuProjeSecimi">Proje</label>
-        <div class="input-with-button">
-          <select id="plakaGrubuProjeSecimi">
-            <option value="">Proje Seçin</option>
-            <!-- Projeler burada listelenecek -->
-          </select>
-          <button type="button" id="plakaGrubuYeniProjeEkleBtn" class="btn-secondary">
-            <i class="fas fa-plus"></i>
-          </button>
-        </div>
-      </div>
-      
-      <!-- Müşteri seçimi paneli - FasonImalat seçildiğinde gösterilecek -->
-      <div id="plakaGrubuMusteriPanel" class="panel" style="display: none;">
-        <div class="form-group">
-          <label for="plakaGrubuMusteriSecimi">Müşteri</label>
-          <div class="input-with-button">
-            <select id="plakaGrubuMusteriSecimi">
-              <option value="">Müşteri Seçin</option>
-              <!-- Müşteriler burada listelenecek -->
+      <!-- Sol Kolon: Temel Bilgiler -->
+      <div class="left-column">
+        <!-- Temel İşlem Bilgileri -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <i class="fas fa-cogs"></i> Temel İşlem Bilgileri
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="plakaGrubuPlakaSayisiInput">Plaka Sayısı</label>
+              <input type="number" id="plakaGrubuPlakaSayisiInput" min="1" value="1">
+            </div>
+            
+            <div class="form-group">
+              <label for="plakaGrubuIslemTuru">İşlem Türü</label>
+              <select id="plakaGrubuIslemTuru">
+                <option value="LazerKesim">Lazer Kesim</option>
+                <option value="PlazmaKesim">Plazma Kesim</option>
+                <option value="OksijenKesim">Oksijen Kesim</option>
+                <option value="AbkantBukum">Abkant Büküm</option>
+                <option value="Diger">Diğer</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="plakaGrubuKullanilanMiktar">Kullanılan Miktar (kg)</label>
+              <input type="number" id="plakaGrubuKullanilanMiktar" min="0" step="any" placeholder="0.00">
+            </div>
+            
+            <div class="form-group">
+              <label for="plakaGrubuHurdaMiktar">Hurda Miktar (kg)</label>
+              <input type="number" id="plakaGrubuHurdaMiktar" min="0" step="any" value="0">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="plakaGrubuKullanimAlani">Kullanım Alanı</label>
+            <select id="plakaGrubuKullanimAlani" onchange="togglePlakaGrubuFormSections()">
+              <option value="FasonImalat">Fason İmalat</option>
+              <option value="MakineImalat">Makine İmalat</option>
+              <option value="IsEkipman">İş Ekipmanı</option>
+              <option value="Diger">Diğer</option>
             </select>
-            <button type="button" id="plakaGrubuYeniMusteriEkleBtn" class="btn-secondary">
-              <i class="fas fa-plus"></i>
-            </button>
           </div>
         </div>
-      </div>
-      
-      <!-- Kalan parça oluşturma paneli -->
-      <div class="form-group switch-container">
-        <label class="switch-label">
-          <input type="checkbox" id="plakaGrubuKalanParcaSwitch">
-          <span class="switch"></span>
-          <span>Kalan Parça Oluştur</span>
-        </label>
-      </div>
-      
-      <div id="plakaGrubuKalanParcaPanel" class="panel" style="display: none;">
-        <div class="form-row">
-          <div class="form-group col-half">
-            <label for="plakaGrubuKalanParcaEn">En (mm)</label>
-            <input type="number" id="plakaGrubuKalanParcaEn" placeholder="En (mm)" min="1">
+
+        <!-- Makine ve Çalışan Bilgileri -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <i class="fas fa-tools"></i> Makine ve Çalışan
           </div>
           
-          <div class="form-group col-half">
-            <label for="plakaGrubuKalanParcaBoy">Boy (mm)</label>
-            <input type="number" id="plakaGrubuKalanParcaBoy" placeholder="Boy (mm)" min="1">
+          <div class="form-group">
+            <label for="plakaGrubuMakineSecimi">Makine</label>
+            <select id="plakaGrubuMakineSecimi">
+              <option value="">Makine Seçin</option>
+              <option value="FiberLazer">Fiber Lazer</option>
+              <option value="CO2Lazer">CO2 Lazer</option>
+              <option value="PlazmaKesim">Plazma Kesim</option>
+              <option value="OksijenKesim">Oksijen Kesim</option>
+              <option value="AbkantPress">Abkant Pres</option>
+              <option value="GuillotineMakas">Guillotine Makas</option>
+              <option value="RuloBukme">Rulo Bükme</option>
+              <option value="KaynakRobotu">Kaynak Robotu</option>
+              <option value="DigerKaynak">Diğer Kaynak</option>
+              <option value="TornaTezgahi">Torna Tezgahı</option>
+              <option value="FrezeTezgahi">Freze Tezgahı</option>
+              <option value="DigerTalaslı">Diğer Talaşlı İmalat</option>
+              <option value="DigerMakine">Diğer Makine</option>
+            </select>
           </div>
-        </div>
-        
-        <div class="form-actions">
-          <button type="button" id="hesaplaPlakaGrubuKalanParcaBtn" class="btn-secondary">
-            <i class="fas fa-calculator"></i> Hesapla
-          </button>
-          <button type="button" id="eklePlakaGrubuKalanParcaBtn" class="btn-primary" disabled>
-            <i class="fas fa-plus"></i> Ekle
-          </button>
-        </div>
-        
-        <div id="plakaGrubuKalanParcaHesapSonucu" class="hesap-sonucu" style="display: none;"></div>
-        
-        <div id="plakaGrubuKalanParcaListesiContainer" class="kalan-parca-listesi-container" style="display: none;">
-          <h4>Kalan Parçalar</h4>
-          <div id="plakaGrubuKalanParcaListesi" class="parca-listesi"></div>
           
-          <div class="toplamlar">
-            <div class="toplam-row">
-              <span>Toplam Kullanılan Ağırlık:</span>
-              <span id="plakaGrubuToplamKullanilanAgirlik">0.00</span>
+          <div class="form-group">
+            <label for="plakaGrubuCalisanSecimi">İşleyen Çalışan</label>
+            <div class="input-with-button">
+              <select id="plakaGrubuCalisanSecimi">
+                <option value="">Çalışan Seçin</option>
+                <!-- Çalışanlar burada listelenecek -->
+              </select>
+              <button type="button" id="plakaGrubuYeniCalisanEkleBtn" class="btn-secondary">
+                <i class="fas fa-plus"></i>
+              </button>
             </div>
-            <div class="toplam-row">
-              <span>Toplam Kalan Ağırlık:</span>
-              <span id="plakaGrubuToplamKalanAgirlik">0.00</span>
+          </div>
+          
+          <div class="form-group">
+            <label for="plakaGrubuProjeSecimi">Proje</label>
+            <div class="input-with-button">
+              <select id="plakaGrubuProjeSecimi">
+                <option value="">Proje Seçin</option>
+                <!-- Projeler burada listelenecek -->
+              </select>
+              <button type="button" id="plakaGrubuYeniProjeEkleBtn" class="btn-secondary">
+                <i class="fas fa-plus"></i>
+              </button>
             </div>
           </div>
         </div>
       </div>
-      
-      <!-- Yarı mamul paneli - MakineImalat seçildiğinde gösterilecek -->
-      <div id="plakaGrubuYariMamulPanel" class="panel" style="display: none;">
-        <h4>Yarı Mamul Bilgileri</h4>
-        
-        <div id="plakaGrubuYariMamulList">
-          <div class="yarimamul-item" data-index="0">
-            <div class="form-row">
-              <div class="form-group col-half">
-                <label for="plakaGrubuYariMamulAdi_0">Yarı Mamul Adı</label>
-                <input type="text" id="plakaGrubuYariMamulAdi_0" placeholder="Yarı mamul adı">
-              </div>
-              
-              <div class="form-group col-half">
-                <label for="plakaGrubuYariMamulBirim_0">Birim</label>
-                <select id="plakaGrubuYariMamulBirim_0">
-                  <option value="adet">Adet</option>
-                  <option value="metre">Metre</option>
-                  <option value="kg">Kilogram</option>
-                  <option value="set">Set</option>
-                </select>
-              </div>
-            </div>
-            
-            <div class="form-row">
-              <div class="form-group col-half">
-                <label for="plakaGrubuYariMamulMiktar_0">Miktar</label>
-                <input type="number" id="plakaGrubuYariMamulMiktar_0" placeholder="Miktar" min="0">
-              </div>
-              
-              <div class="form-group col-half">
-                <label for="plakaGrubuYariMamulAgirlik_0">Birim Ağırlık (kg)</label>
-                <input type="number" id="plakaGrubuYariMamulAgirlik_0" placeholder="Birim ağırlık" min="0" step="0.01">
-              </div>
-            </div>
-            
-            <div class="form-actions yarimamul-actions">
-              <button type="button" class="btn-danger btn-sm" onclick="removePlakaGrubuYariMamul(0)">
-                <i class="fas fa-trash"></i> Sil
+
+      <!-- Sağ Kolon: Özel Paneller -->
+      <div class="right-column">
+        <!-- Müşteri seçimi paneli - FasonImalat seçildiğinde gösterilecek -->
+        <div id="plakaGrubuMusteriPanel" class="panel" style="display: none;">
+          <div class="form-section-title">
+            <i class="fas fa-building"></i> Müşteri Bilgileri
+          </div>
+          <div class="form-group">
+            <label for="plakaGrubuMusteriSecimi">Müşteri</label>
+            <div class="input-with-button">
+              <select id="plakaGrubuMusteriSecimi">
+                <option value="">Müşteri Seçin</option>
+                <!-- Müşteriler burada listelenecek -->
+              </select>
+              <button type="button" id="plakaGrubuYeniMusteriEkleBtn" class="btn-secondary">
+                <i class="fas fa-plus"></i>
               </button>
             </div>
           </div>
         </div>
         
-        <div class="form-actions mt-2">
-          <button type="button" id="ekleYeniPlakaGrubuYariMamulBtn" class="btn-secondary">
-            <i class="fas fa-plus"></i> Yeni Yarı Mamul Ekle
-          </button>
+        <!-- Kalan parça oluşturma paneli -->
+        <div class="form-section">
+          <div class="form-section-title">
+            <i class="fas fa-puzzle-piece"></i> Kalan Parça İşlemleri
+          </div>
+          
+          <div class="switch-container">
+            <label class="switch-label">
+              <input type="checkbox" id="plakaGrubuKalanParcaSwitch">
+              <span class="switch"></span>
+              <span>Kalan Parça Oluştur</span>
+            </label>
+          </div>
+          
+          <div id="plakaGrubuKalanParcaPanel" class="panel" style="display: none;">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="plakaGrubuKalanParcaEn">En (mm)</label>
+                <input type="number" id="plakaGrubuKalanParcaEn" placeholder="En (mm)" min="1">
+              </div>
+              
+              <div class="form-group">
+                <label for="plakaGrubuKalanParcaBoy">Boy (mm)</label>
+                <input type="number" id="plakaGrubuKalanParcaBoy" placeholder="Boy (mm)" min="1">
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button type="button" id="hesaplaPlakaGrubuKalanParcaBtn" class="btn-secondary">
+                <i class="fas fa-calculator"></i> Hesapla
+              </button>
+              <button type="button" id="eklePlakaGrubuKalanParcaBtn" class="btn-primary" disabled>
+                <i class="fas fa-plus"></i> Ekle
+              </button>
+            </div>
+            
+            <div id="plakaGrubuKalanParcaHesapSonucu" class="hesap-sonucu" style="display: none;"></div>
+            
+            <div id="plakaGrubuKalanParcaListesiContainer" class="kalan-parca-listesi-container" style="display: none;">
+              <h4>Kalan Parçalar</h4>
+              <div id="plakaGrubuKalanParcaListesi" class="parca-listesi"></div>
+              
+              <div class="toplamlar">
+                <div class="toplam-row">
+                  <span>Toplam Kullanılan Ağırlık:</span>
+                  <span id="plakaGrubuToplamKullanilanAgirlik">0.00</span>
+                </div>
+                <div class="toplam-row">
+                  <span>Toplam Kalan Ağırlık:</span>
+                  <span id="plakaGrubuToplamKalanAgirlik">0.00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yarı mamul paneli - MakineImalat seçildiğinde gösterilecek -->
+        <div id="plakaGrubuYariMamulPanel" class="panel" style="display: none;">
+          <div class="form-section-title">
+            <i class="fas fa-industry"></i> Yarı Mamul Bilgileri
+          </div>
+          
+          <div id="plakaGrubuYariMamulList">
+            <div class="yarimamul-item" data-index="0">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="plakaGrubuYariMamulAdi_0">Yarı Mamul Adı</label>
+                  <input type="text" id="plakaGrubuYariMamulAdi_0" placeholder="Yarı mamul adı">
+                </div>
+                
+                <div class="form-group">
+                  <label for="plakaGrubuYariMamulBirim_0">Birim</label>
+                  <select id="plakaGrubuYariMamulBirim_0">
+                    <option value="adet">Adet</option>
+                    <option value="metre">Metre</option>
+                    <option value="kg">Kilogram</option>
+                    <option value="set">Set</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="plakaGrubuYariMamulMiktar_0">Miktar</label>
+                  <input type="number" id="plakaGrubuYariMamulMiktar_0" placeholder="Miktar" min="0">
+                </div>
+                
+                <div class="form-group">
+                  <label for="plakaGrubuYariMamulAgirlik_0">Birim Ağırlık (kg)</label>
+                  <input type="number" id="plakaGrubuYariMamulAgirlik_0" placeholder="Birim ağırlık" min="0" step="0.01">
+                </div>
+              </div>
+              
+              <div class="form-actions yarimamul-actions">
+                <button type="button" class="btn-danger btn-sm" onclick="removePlakaGrubuYariMamul(0)">
+                  <i class="fas fa-trash"></i> Sil
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-actions mt-2">
+            <button type="button" id="ekleYeniPlakaGrubuYariMamulBtn" class="btn-secondary">
+              <i class="fas fa-plus"></i> Yeni Yarı Mamul Ekle
+            </button>
+          </div>
         </div>
       </div>
       
-      <div class="form-actions">
+      <!-- Kaydet Butonu -->
+      <div class="form-actions final-actions">
         <button type="button" id="plakaGrubuIslemKaydetBtn" class="btn-primary">
           <i class="fas fa-save"></i> Kaydet
         </button>
@@ -2950,6 +3010,7 @@
     </form>
   </div>
 </div>
+
 
 <!-- Yeni Tedarikçi Ekle Modal -->
 <div class="modal" id="yeniTedarikciModal">
