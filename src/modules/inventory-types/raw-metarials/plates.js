@@ -1,4 +1,4 @@
-
+//plates.js
 
 // Hammadde detay modalı açıldığında tab sistemini ve event listener'ları kur
 function setupHammaddeDetailModal() {
@@ -715,8 +715,22 @@ function openNewTedarikciModalForPlakaGrubu() {
 // Plaka grubu kaydetme
 async function savePlakaGrubu() {
   try {
-    // Mevcut form verilerini temizleyelim - eski değerler kalırsa ekstra plakalar oluşabilir
-    window.isProcessingPlakaGrubuSubmit = true; // İşlem yapılıyor bayrağı
+    console.log('savePlakaGrubu çağrıldı - Normal ekleme modu');
+    
+    // Düzenleme modundaysa hata ver
+    if (isEditMode) {
+      console.error('HATA: savePlakaGrubu düzenleme modunda çağrıldı!');
+      showToast('Hata: Düzenleme modunda ekleme fonksiyonu çağrıldı!', 'error');
+      return;
+    }
+    
+    // İşlem kontrolü
+    if (window.isProcessingPlakaGrubuSubmit) {
+      console.log('İşlem zaten devam ediyor, çıkılıyor...');
+      return;
+    }
+    
+    window.isProcessingPlakaGrubuSubmit = true;
 
     // Hesaplama detayları
     if (!window.plakaGrubuHesaplamaDetaylari) {
@@ -748,27 +762,6 @@ async function savePlakaGrubu() {
       return;
     }
     
-    // Ana barkod kontrolü
-    if (!anaBarkod && !window.confirmMissingBarkod) {
-      const confirmResult = await new Promise((resolve) => {
-        Notiflix.Confirm.show(
-          'Ana Barkod Eksik',
-          'Ana barkod girmediniz. Devam etmek istiyor musunuz?',
-          'Evet, devam et',
-          'İptal',
-          function() { resolve(true); },
-          function() { resolve(false); }
-        );
-      });
-      
-      if (!confirmResult) {
-        window.isProcessingPlakaGrubuSubmit = false;
-        return;
-      }
-      
-      window.confirmMissingBarkod = true;
-    }
-    
     // İşlem başlıyor mesajı
     showModalSuccess('yeniPlakaGrubuModal', 'Plaka grubu oluşturuluyor. Lütfen bekleyin...');
     
@@ -792,9 +785,9 @@ async function savePlakaGrubu() {
     if (result.success) {
       showToast(`Plaka grubu başarıyla eklendi. Stok Kodu: ${result.stokKodu}`, 'success');
       
-      // Formu sıfırla ve modalı kapat
-      resetPlakaGrubuModal();
+      // Modalı kapat ve sıfırla
       closeModal('yeniPlakaGrubuModal');
+      resetModalState();
       
       // Dashboard'ı güncelle
       updateDashboard();
@@ -1651,39 +1644,6 @@ window.loadPlakaGruplari = loadPlakaGruplari;
 
 
 
-
-document.addEventListener('DOMContentLoaded', function() {
-  // Yeni Plaka Grubu Ekle butonu
-  const yeniPlakaGrubuEkleBtn = document.getElementById('yeniPlakaGrubuEkleBtn');
-  if (yeniPlakaGrubuEkleBtn) {
-    yeniPlakaGrubuEkleBtn.addEventListener('click', openYeniPlakaGrubuModal);
-  }
-  
-  // Plaka Grubu Hesaplama butonu
-  const hesaplaPlakaGrubuBtn = document.getElementById('hesaplaPlakaGrubuBtn');
-  if (hesaplaPlakaGrubuBtn) {
-    hesaplaPlakaGrubuBtn.addEventListener('click', calculatePlakaGrubu);
-  }
-  
-  // Plaka Grubu Kaydet butonu
-  const plakaGrubuKaydetBtn = document.getElementById('plakaGrubuKaydetBtn');
-  if (plakaGrubuKaydetBtn) {
-    plakaGrubuKaydetBtn.addEventListener('click', savePlakaGrubu);
-  }
-  
-  // Plaka Grubu İşlem Kaydet butonu
-  const plakaGrubuIslemKaydetBtn = document.getElementById('plakaGrubuIslemKaydetBtn');
-  if (plakaGrubuIslemKaydetBtn) {
-    plakaGrubuIslemKaydetBtn.addEventListener('click', savePlakaGrubuIslem);
-  }
-  
-  // Diğer event listener'lar...
-});
-
-
-
-
-
 function calculatePlakaGrubuWithKalanParca() {
     const en = parseFloat(document.getElementById('plakaGrubuKalanParcaEn').value);
     const boy = parseFloat(document.getElementById('plakaGrubuKalanParcaBoy').value);
@@ -2109,5 +2069,5 @@ window.togglePlakaGrubuFormSections = togglePlakaGrubuFormSections;
   window.setupPlakaEventListeners = setupPlakaEventListeners;
   window.openYeniPlakaModal = openYeniPlakaModal;
   window.removePlakaGrubuKalanParcaGrubu = removePlakaGrubuKalanParcaGrubu;
-
-
+  window.savePlakaGrubu = savePlakaGrubu;
+window.originalSavePlakaGrubu = savePlakaGrubu;
