@@ -540,14 +540,6 @@ ipcMain.handle('database:getIslemlerByPlakaId', async (event, plakaId) => {
 });
 
 
-ipcMain.handle('database:removePlakaFromIslemde', async (event, plakaId) => {
-  try {
-    return await DatabaseService.removePlakaFromIslemde(plakaId);
-  } catch (error) {
-    console.error('Plaka işlem  getirme hatası:', error);
-    return { success: false, message: error.message, islemler: [] };
-  }
-});
 
 ipcMain.handle('database:addParcaIslem', async (event, islemData) => {
   try {
@@ -568,35 +560,6 @@ ipcMain.handle('database:addTopluHammaddeGiris', async (event, girisData) => {
 });
 
 
-ipcMain.handle('database:addPlakaToIslemde', async (event, plakaId, hammaddeId, userId) => {
-  try {
-    return await DatabaseService.addPlakaToIslemde(plakaId, hammaddeId, userId);
-  } catch (error) {
-    console.error('Toplu giriş ekleme hatası:', error);
-    return { success: false, message: error.message };
-  }
-});
-
-
-
-ipcMain.handle('database:getAllIslemdekiPlakalar', async () => {
-  try {
-    return await DatabaseService.getAllIslemdekiPlakalar();
-  } catch (error) {
-    console.error('Toplu giriş ekleme hatası:', error);
-    return { success: false, message: error.message };
-  }
-});
-
-
-ipcMain.handle('database:removeFromIslemde', async (event, hammaddeId) => {
-  try {
-    return await DatabaseService.removeFromIslemde(hammaddeId);
-  } catch (error) {
-    console.error('Plaka işlem çıkarrma hatası:', error);
-    return { success: false, message: error.message, islemler: [] };
-  }
-});
 
 
 

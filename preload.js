@@ -119,18 +119,11 @@ getAllTedarikci: () => ipcRenderer.invoke('database:getAllTedarikci'),
      addMusteri: (musteriData) => ipcRenderer.invoke('database:addMusteri', musteriData),
      getAllMusteriler: () => ipcRenderer.invoke('database', 'getAllMusteriler'),
      getIslemlerByHammaddeId: (hammaddeId) => ipcRenderer.invoke('database:getIslemlerByHammaddeId', hammaddeId),
-     removeFromIslemde: (hammaddeId) => ipcRenderer.invoke('database:removeFromIslemde', hammaddeId),
      addTopluHammaddeGiris: (girisData) => ipcRenderer.invoke('database:addTopluHammaddeGiris', girisData),
-      // Plakayı işlem listesine ekle
-  addPlakaToIslemde: (plakaId, hammaddeId, userId) =>
-    ipcRenderer.invoke('database', 'addPlakaToIslemde', plakaId, hammaddeId, userId),
-  removePlakaFromIslemde: (plakaId) => ipcRenderer.invoke('database:removePlakaFromIslemde', plakaId),
 
 
 
-  // İşlemdeki tüm plakaları getir
-  getAllIslemdekiPlakalar: () =>
-    ipcRenderer.invoke('database', 'getAllIslemdekiPlakalar'),
+
   loadHammaddeFasonIslemlerById: (parcaId) => ipcRenderer.invoke('database', 'loadHammaddeFasonIslemlerById', parcaId),
   loadHammaddeMakineIslemlerById: (parcaId) => ipcRenderer.invoke('database', 'loadHammaddeMakineIslemlerById', parcaId),
   getFasonIslemlerHepsiBirlikte: () => ipcRenderer.invoke('database:getFasonIslemlerHepsiBirlikte'),

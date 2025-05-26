@@ -4228,7 +4228,7 @@ async function updateHammaddeDurum(hammaddeId) {
 }
 
 async function getIslemlerByPlakaId(plakaId) {
-  try {
+ try {
     const [islemler] = await pool.execute(
       `SELECT pi.*, p.proje_kodu, p.proje_adi, 
               u.ad as kullanici_ad, u.soyad as kullanici_soyad,
@@ -4239,14 +4239,12 @@ async function getIslemlerByPlakaId(plakaId) {
        LEFT JOIN kullanicilar u ON pi.kullanici_id = u.id
        LEFT JOIN musteriler m ON pi.musteri_id = m.id
        LEFT JOIN calisanlar c ON pi.calisan_id = c.id
-       WHERE pi.plaka_id = ?
-       ORDER BY pi.islem_tarihi DESC`,
-      [plakaId]
+       ORDER BY pi.islem_tarihi DESC`
     );
     
     return { success: true, islemler: islemler };
   } catch (error) {
-    console.error('Plaka işlem geçmişi getirme hatası:', error);
+    console.error('İşlem geçmişi getirme hatası:', error);
     return { success: false, message: error.message, islemler: [] };
   }
 }
@@ -4429,11 +4427,11 @@ async function addParcaIslem(islemData) {
         // Yeni parçayı ekle - plaka_grubu_id'ye göre
         await connection.execute(
           `INSERT INTO plaka_parcalari (
-            plaka_id, plaka_grubu_id, parca_no, barkod_kodu, 
+            plaka_grubu_id, parca_no, barkod_kodu, 
             en, boy, kalinlik, 
             orijinal_kilo, kalan_kilo, kullanim_orani, durum, 
             ekleme_tarihi, ekleyen_id, parent_parca_id
-          ) VALUES (NULL, ?, ?, ?, ?, ?, ?, 
+          ) VALUES (?, ?, ?, ?, ?, ?, 
                     ROUND(?, 2), ROUND(?, 2), ?, ?, 
                     NOW(), ?, ?)`,
           [
@@ -4492,9 +4490,8 @@ async function addParcaIslem(islemData) {
               hammadde_kodu,
               ekleyen_id, 
               giris_tarihi,
-              plaka_id,
               plaka_grubu_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
             [
               existingYariMamulId,
               yariMamul.miktar,
@@ -4567,9 +4564,8 @@ async function addParcaIslem(islemData) {
               hammadde_kodu,
               ekleyen_id, 
               giris_tarihi,
-              plaka_id,
               plaka_grubu_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
             [
               newYariMamulId,
               yariMamul.miktar,
@@ -4577,7 +4573,6 @@ async function addParcaIslem(islemData) {
               hammadde_id,
               plakaStokKodu || null, // NULL kontrolü
               islemData.kullanici_id,
-              null, // plaka_id NULL
               plaka_grubu_id // plaka_grubu_id
             ]
           );
@@ -4770,101 +4765,6 @@ async function getIslemlerByHammaddeId(hammaddeId) {
 
 
 
-async function addPlakaToIslemde(plakaId, hammaddeId, userId) {
-  try {
-    const [exists] = await pool.execute(
-      'SELECT id FROM islemdeki_plakalar WHERE plaka_id = ?',
-      [plakaId]
-    );
-
-    if (exists.length > 0) {
-      return { success: true, message: 'Plaka zaten işlemde' };
-    }
-
-    const [result] = await pool.execute(
-      `INSERT INTO islemdeki_plakalar (plaka_id, hammadde_id, ekleyen_id)
-       VALUES (?, ?, ?)`,
-      [plakaId, hammaddeId, userId]
-    );
-
-    return { success: true, insertId: result.insertId };
-  } catch (error) {
-    console.error('Plaka eklenirken hata oluştu:', error);
-    return { success: false, message: error.message };
-  }
-}
-
-
-// İşlemdeki tüm plakaları getir
-async function getAllIslemdekiPlakalar() {
-  try {
-    const [results] = await pool.execute(`
-      SELECT ip.*, p.id as plaka_id, p.stok_kodu, p.durum, p.en, p.boy, p.kalinlik, p.kalan_kilo,
-             h.id as hammadde_id, h.stok_kodu as hammadde_stok_kodu, 
-             h.malzeme_adi, h.hammadde_turu, h.kalinlik as hammadde_kalinlik,
-             h.cap, h.uzunluk, h.toplam_kilo, h.kalan_kilo as hammadde_kalan_kilo,
-             h.barkod, h.durum as hammadde_durum
-      FROM islemdeki_plakalar ip
-      JOIN plakalar p ON ip.plaka_id = p.id
-      JOIN hammaddeler h ON ip.hammadde_id = h.id
-    `);
-
-    return { success: true, data: results };
-  } catch (error) {
-    console.error('İşlemdeki plakalar getirilirken hata oluştu:', error);
-    return { success: false, message: error.message };
-  }
-}
-
-
-
-
-async function removeFromIslemde(hammaddeId) {
-  try {
-    const [result] = await pool.execute(
-      `DELETE FROM islemdeki_plakalar WHERE hammadde_id = ?`,
-      [hammaddeId]
-    );
-
-    return { success: true, affectedRows: result.affectedRows };
-  } catch (error) {
-    console.error('İşlemdekilerden silme hatası:', error);
-    return { success: false, message: error.message };
-  }
-}
-
-
-
-async function removePlakaFromIslemde(plakaId) {
-  try {
-    console.log(`removePlakaFromIslemde çağrıldı, plakaId: ${plakaId}`);
-    
-    // Plaka işlemde var mı kontrol et
-    const [exists] = await pool.execute(
-      'SELECT id FROM islemdeki_plakalar WHERE plaka_id = ?',
-      [plakaId]
-    );
-    
-    if (exists.length === 0) {
-      return { success: false, message: 'Plaka işlemde bulunamadı' };
-    }
-    
-    // Plakayı işlemden çıkar
-    const [result] = await pool.execute(
-      `DELETE FROM islemdeki_plakalar WHERE plaka_id = ?`,
-      [plakaId]
-    );
-
-    return { 
-      success: true, 
-      affectedRows: result.affectedRows,
-      message: `Plaka #${plakaId} işlemden çıkarıldı`
-    };
-  } catch (error) {
-    console.error('Plakayı işlemden çıkarma hatası:', error);
-    return { success: false, message: error.message };
-  }
-}
 
 
 
@@ -5283,14 +5183,12 @@ async function getIslemlerByMultiplePlakaIds(plakaIds) {
         p.proje_kodu, p.proje_adi, 
         u.ad as kullanici_ad, u.soyad as kullanici_soyad,
         m.musteri_adi,
-        c.ad as calisan_ad, c.soyad as calisan_soyad,
-        pi.plaka_id
+        c.ad as calisan_ad, c.soyad as calisan_soyad
       FROM plaka_islemler pi
       LEFT JOIN projeler p ON pi.proje_id = p.id
       LEFT JOIN kullanicilar u ON pi.kullanici_id = u.id
       LEFT JOIN musteriler m ON pi.musteri_id = m.id
       LEFT JOIN calisanlar c ON pi.calisan_id = c.id
-      WHERE pi.plaka_id IN (${placeholders})
       ORDER BY pi.islem_tarihi DESC
     `, plakaIds);
     
@@ -5656,11 +5554,11 @@ async function addPlakaGrubuIslem(islemData) {
         // Kalan parçayı ekle - plaka_id NULL olarak ayarla
         await connection.execute(
           `INSERT INTO plaka_parcalari (
-            plaka_id, plaka_grubu_id, parca_no, barkod_kodu, 
+           plaka_grubu_id, parca_no, barkod_kodu, 
             en, boy, kalinlik, 
             orijinal_kilo, kalan_kilo, kullanim_orani, durum, 
             ekleme_tarihi, ekleyen_id, islem_id
-          ) VALUES (NULL, ?, ?, ?, ?, ?, ?, 
+          ) VALUES (?, ?, ?, ?, ?, ?, 
                     ROUND(?, 2), ROUND(?, 2), ?, ?, 
                     NOW(), ?, ?)`,
           [
@@ -5718,9 +5616,8 @@ async function addPlakaGrubuIslem(islemData) {
               hammadde_kodu,
               ekleyen_id, 
               giris_tarihi,
-              plaka_id,
               plaka_grubu_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
             [
               existingYariMamulId,
               yariMamul.miktar,
@@ -5793,9 +5690,8 @@ async function addPlakaGrubuIslem(islemData) {
               hammadde_kodu,
               ekleyen_id, 
               giris_tarihi,
-              plaka_id,
               plaka_grubu_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)`,
             [
               newYariMamulId,
               yariMamul.miktar,
@@ -5803,7 +5699,6 @@ async function addPlakaGrubuIslem(islemData) {
               hammadde.id,
               plaka_grubu.stok_kodu || null, // NULL kontrolü
               islemData.kullanici_id,
-              null, // plaka_id NULL (plaka grubu işlemi)
               plaka_grubu.id // plaka_grubu_id
             ]
           );
@@ -6113,10 +6008,6 @@ checkYariMamulExists,
   addMusteri,
   getAllMusteriler,
   getIslemlerByHammaddeId,
-  getAllIslemdekiPlakalar,
-  addPlakaToIslemde,
-  removeFromIslemde,
-  removePlakaFromIslemde,
   loadHammaddeFasonIslemlerById,
   loadHammaddeMakineIslemlerById,
   getFasonIslemlerHepsiBirlikte,
