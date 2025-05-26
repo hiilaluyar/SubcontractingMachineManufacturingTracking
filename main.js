@@ -714,3 +714,71 @@ ipcMain.handle('database:isPlakaGrubuIslemde', async (event, plakaGrubuId) => {
     return false;
   }
 });
+
+
+ipcMain.handle('database:getPlakaGrubuByGirisId', async (event, girisId) => {
+  try {
+    return await DatabaseService.getPlakaGrubuByGirisId(girisId);
+  } catch (error) {
+    console.error('Error in getPlakaGrubuByGirisId:', error);
+    return false;
+  }
+});
+
+
+ipcMain.handle('database:checkPlakaGrubuIslemDurumu', async (event, plakaGrubuId) => {
+  try {
+    return await DatabaseService.checkPlakaGrubuIslemDurumu(plakaGrubuId);
+  } catch (error) {
+    console.error('Error in checkPlakaGrubuIslemDurumu:', error);
+    return false;
+  }
+});
+
+
+
+ipcMain.handle('database:updatePlakaGrubu', async (event, updateData) => {
+  try {
+    return await DatabaseService.updatePlakaGrubu(updateData);
+  } catch (error) {
+    console.error('Error in updatePlakaGrubu:', error);
+    return false;
+  }
+});
+
+
+ipcMain.handle('database:getPlakaGrubuGuncellemeGecmisi', async (event, plakaGrubuId) => {
+  try {
+    return await DatabaseService.getPlakaGrubuGuncellemeGecmisi(plakaGrubuId);
+  } catch (error) {
+    console.error('Error in getPlakaGrubuGuncellemeGecmisi:', error);
+    return false;
+  }
+});
+
+
+ipcMain.handle('database:canUpdatePlakaGrubu', async (event, plakaGrubuId, yeniPlakaSayisi) => {
+  try {
+    return await DatabaseService.canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi);
+  } catch (error) {
+    console.error('Error in canUpdatePlakaGrubu:', error);
+    return false;
+  }
+});
+
+
+ipcMain.handle('database:createPlakaGrubuGuncellemeTablosu', async () => {
+  try {
+    return await DatabaseService.createPlakaGrubuGuncellemeTablosu(); // DatabaseService kullanın
+  } catch (error) {
+    console.error('createPlakaGrubuGuncellemeTablosu error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+
+
+
+
+
+

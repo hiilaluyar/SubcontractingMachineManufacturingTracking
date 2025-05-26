@@ -5930,6 +5930,281 @@ async function isPlakaGrubuIslemde(plakaGrubuId) {
   }
 }
 
+
+
+// Plaka grubunu giriş ID'sine göre getir
+async function getPlakaGrubuByGirisId(girisId) {
+  try {
+    // Giriş bilgilerini al
+    const [girisRows] = await pool.execute(
+      `SELECT hammadde_id, giris_tarihi, plaka_sayisi 
+       FROM hammadde_giris_gecmisi 
+       WHERE id = ?`,
+      [girisId]
+    );
+    
+    if (girisRows.length === 0) {
+      return { success: false, message: 'Giriş kaydı bulunamadı' };
+    }
+    
+    const giris = girisRows[0];
+    
+    // Bu girişe ait plaka grubunu bul
+    // Giriş tarihi ve hammadde ID'si ile eşleşen en yakın plaka grubunu bulalım
+    const [plakaGrubuRows] = await pool.execute(
+      `SELECT pg.*, h.yogunluk, h.malzeme_adi
+       FROM plaka_gruplari pg
+       JOIN hammaddeler h ON pg.hammadde_id = h.id
+       WHERE pg.hammadde_id = ? 
+       AND pg.ekleme_tarihi >= DATE_SUB(?, INTERVAL 5 MINUTE)
+       AND pg.ekleme_tarihi <= DATE_ADD(?, INTERVAL 5 MINUTE)
+       ORDER BY ABS(TIMESTAMPDIFF(SECOND, pg.ekleme_tarihi, ?)) ASC
+       LIMIT 1`,
+      [giris.hammadde_id, giris.giris_tarihi, giris.giris_tarihi, giris.giris_tarihi]
+    );
+    
+    if (plakaGrubuRows.length === 0) {
+      return { success: false, message: 'Bu girişe ait plaka grubu bulunamadı' };
+    }
+    
+    return { success: true, plakaGrubu: plakaGrubuRows[0] };
+  } catch (error) {
+    console.error('Plaka grubu giriş ID ile getirme hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Plaka grubu işlem durumunu kontrol et
+async function checkPlakaGrubuIslemDurumu(plakaGrubuId) {
+  try {
+    // Plaka grubundan yapılan işlemleri kontrol et
+    const [islemRows] = await pool.execute(
+      `SELECT 
+        COUNT(*) as islem_sayisi,
+        SUM(plaka_sayisi) as toplam_kullanilan_plaka,
+        SUM(kullanilan_miktar + hurda_miktar) as toplam_kullanilan_kilo
+       FROM plaka_islemler 
+       WHERE plaka_grubu_id = ?`,
+      [plakaGrubuId]
+    );
+    
+    const islemSayisi = islemRows[0].islem_sayisi || 0;
+    const kullanilanPlakaSayisi = islemRows[0].toplam_kullanilan_plaka || 0;
+    const kullanilanKilo = islemRows[0].toplam_kullanilan_kilo || 0;
+    
+    // Oluşturulan parça sayısını kontrol et
+    const [parcaRows] = await pool.execute(
+      `SELECT COUNT(*) as parca_sayisi FROM plaka_parcalari WHERE plaka_grubu_id = ?`,
+      [plakaGrubuId]
+    );
+    
+    const parcaSayisi = parcaRows[0].parca_sayisi || 0;
+    
+    return {
+      success: true,
+      islemYapildi: islemSayisi > 0 || parcaSayisi > 0,
+      islemSayisi,
+      kullanilanPlakaSayisi,
+      kullanilanKilo: Number(kullanilanKilo),
+      parcaSayisi
+    };
+  } catch (error) {
+    console.error('Plaka grubu işlem durumu kontrol hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Plaka grubunu güncelle
+// BACKEND - Basit updatePlakaGrubu fonksiyonu
+async function updatePlakaGrubu(updateData) {
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Mevcut plaka grubu bilgilerini al
+    const [plakaGrubuRows] = await connection.execute(
+      `SELECT * FROM plaka_gruplari WHERE id = ?`,
+      [updateData.plakaGrubuId]
+    );
+    
+    if (plakaGrubuRows.length === 0) {
+      throw new Error('Plaka grubu bulunamadı');
+    }
+    
+    const eskiPlakaGrubu = plakaGrubuRows[0];
+    
+    // İşlem durumunu kontrol et
+    const islemDurumu = await checkPlakaGrubuIslemDurumu(updateData.plakaGrubuId);
+    const kullanilanPlakaSayisi = islemDurumu.kullanilanPlakaSayisi || 0;
+    
+    // Yeni plaka sayısı kullanılan sayıdan az olamaz
+    if (updateData.plakaSayisi < kullanilanPlakaSayisi) {
+      throw new Error(`Yeni plaka sayısı (${updateData.plakaSayisi}) kullanılan plaka sayısından (${kullanilanPlakaSayisi}) az olamaz`);
+    }
+    
+    // Değerler
+    const eskiToplamKilo = Number(eskiPlakaGrubu.toplam_kilo);
+    const yeniToplamKilo = Number(updateData.toplamKilo);
+    const kiloFarki = yeniToplamKilo - eskiToplamKilo;
+    
+    const yeniPlakaAgirligi = yeniToplamKilo / updateData.plakaSayisi;
+    const yeniKalanPlakaSayisi = updateData.plakaSayisi - kullanilanPlakaSayisi;
+    const yeniKalanKilo = yeniToplamKilo - (islemDurumu.kullanilanKilo || 0);
+    
+    // 1. PLAKA GRUBUNU GÜNCELLE
+    await connection.execute(
+      `UPDATE plaka_gruplari 
+       SET en = ?, boy = ?, toplam_plaka_sayisi = ?, kalan_plaka_sayisi = ?,
+           toplam_kilo = ?, kalan_kilo = ?, plaka_agirlik = ?,
+           tedarikci = ?, birim_fiyat = ?, birim_fiyat_turu = ?
+       WHERE id = ?`,
+      [
+        updateData.en, updateData.boy, updateData.plakaSayisi, yeniKalanPlakaSayisi,
+        yeniToplamKilo, yeniKalanKilo, yeniPlakaAgirligi,
+        updateData.tedarikci, updateData.birimFiyat, updateData.birimFiyatTuru,
+        updateData.plakaGrubuId
+      ]
+    );
+    
+    // 2. HAMMADDE TABLOSUNU GÜNCELLE (fark kadar)
+    await connection.execute(
+      `UPDATE hammaddeler 
+       SET toplam_kilo = toplam_kilo + ?, 
+           kalan_kilo = kalan_kilo + ?
+       WHERE id = ?`,
+      [kiloFarki, kiloFarki, eskiPlakaGrubu.hammadde_id]
+    );
+    
+    // 3. GİRİŞ GEÇMİŞİNİ GÜNCELLE
+    // Bu plaka grubuna ait giriş kaydını bul ve güncelle
+    await connection.execute(
+      `UPDATE hammadde_giris_gecmisi 
+       SET miktar = ?, birim_fiyat = ?, birim_fiyat_turu = ?, 
+           tedarikci = ?, plaka_sayisi = ?
+       WHERE hammadde_id = ? 
+       AND plaka_sayisi IS NOT NULL
+       AND ABS(TIMESTAMPDIFF(MINUTE, giris_tarihi, ?)) <= 5
+       ORDER BY ABS(TIMESTAMPDIFF(SECOND, giris_tarihi, ?)) ASC
+       LIMIT 1`,
+      [
+        yeniToplamKilo, updateData.birimFiyat, updateData.birimFiyatTuru,
+        updateData.tedarikci, updateData.plakaSayisi,
+        eskiPlakaGrubu.hammadde_id, eskiPlakaGrubu.ekleme_tarihi, eskiPlakaGrubu.ekleme_tarihi
+      ]
+    );
+    
+    await connection.commit();
+    
+    return { 
+      success: true, 
+      message: 'Plaka grubu başarıyla güncellendi'
+    };
+    
+  } catch (error) {
+    await connection.rollback();
+    console.error('Plaka grubu güncelleme hatası:', error);
+    return { success: false, message: error.message };
+  } finally {
+    connection.release();
+  }
+}
+
+
+
+// Plaka grubu güncelleme geçmişini getir
+async function getPlakaGrubuGuncellemeGecmisi(plakaGrubuId) {
+  try {
+    const [rows] = await pool.execute(
+      `SELECT pgg.*, u.ad as kullanici_ad, u.soyad as kullanici_soyad
+       FROM plaka_grubu_guncelleme_gecmisi pgg
+       LEFT JOIN kullanicilar u ON pgg.guncelleyen_id = u.id
+       WHERE pgg.plaka_grubu_id = ?
+       ORDER BY pgg.guncelleme_tarihi DESC`,
+      [plakaGrubuId]
+    );
+    
+    return { success: true, gecmis: rows };
+  } catch (error) {
+    console.error('Plaka grubu güncelleme geçmişi getirme hatası:', error);
+    return { success: false, message: error.message, gecmis: [] };
+  }
+}
+
+// Güncelleme yapılabilir mi kontrol et
+async function canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi) {
+  try {
+    // İşlem durumunu kontrol et
+    const islemDurumu = await checkPlakaGrubuIslemDurumu(plakaGrubuId);
+    
+    if (!islemDurumu.success) {
+      return { success: false, message: 'İşlem durumu kontrol edilemedi' };
+    }
+    
+    // Eğer işlem yapılmışsa kontrol et
+    if (islemDurumu.islemYapildi) {
+      const kullanilanPlakaSayisi = islemDurumu.kullanilanPlakaSayisi;
+      
+      if (yeniPlakaSayisi < kullanilanPlakaSayisi) {
+        return { 
+          success: false, 
+          message: `Yeni plaka sayısı (${yeniPlakaSayisi}) kullanılan plaka sayısından (${kullanilanPlakaSayisi}) az olamaz`,
+          canUpdate: false,
+          reason: 'INSUFFICIENT_PLATES'
+        };
+      }
+      
+      return {
+        success: true,
+        canUpdate: true,
+        warning: `Bu plaka grubundan ${kullanilanPlakaSayisi} plaka kullanılmış. Güncelleme yapılabilir ancak işlem geçmişi korunacaktır.`,
+        kullanilanPlakaSayisi
+      };
+    }
+    
+    return {
+      success: true,
+      canUpdate: true,
+      message: 'Bu plaka grubundan henüz işlem yapılmamış. Güncelleme serbest.'
+    };
+    
+  } catch (error) {
+    console.error('Plaka grubu güncellenebilirlik kontrolü hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Veritabanına tablo oluşturma scripti (sadece bir kez çalıştırılacak)
+async function createPlakaGrubuGuncellemeTablosu() {
+  try {
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS plaka_grubu_guncelleme_gecmisi (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        plaka_grubu_id INT NOT NULL,
+        guncelleyen_id INT NOT NULL,
+        guncelleme_tarihi DATETIME NOT NULL,
+        eski_plaka_sayisi INT,
+        yeni_plaka_sayisi INT,
+        eski_toplam_kilo DECIMAL(10,2),
+        yeni_toplam_kilo DECIMAL(10,2),
+        guncelleme_aciklamasi TEXT,
+        INDEX idx_plaka_grubu (plaka_grubu_id),
+        INDEX idx_guncelleme_tarihi (guncelleme_tarihi),
+        FOREIGN KEY (plaka_grubu_id) REFERENCES plaka_gruplari(id) ON DELETE CASCADE,
+        FOREIGN KEY (guncelleyen_id) REFERENCES kullanicilar(id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    
+    console.log('Plaka grubu güncelleme geçmişi tablosu oluşturuldu/kontrol edildi');
+    return { success: true };
+  } catch (error) {
+    console.error('Plaka grubu güncelleme tablosu oluşturma hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+
+
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
   loginUser,
@@ -6025,6 +6300,14 @@ addPlakaGrubuToIslemde,
   getAllIslemdekiPlakaGruplari,
   removePlakaGrubuFromIslemde,
   removePlakaGruplarıFromIslemdeByHammadde,
-  isPlakaGrubuIslemde
+  isPlakaGrubuIslemde,
+
+
+    getPlakaGrubuByGirisId,
+  checkPlakaGrubuIslemDurumu,
+  updatePlakaGrubu,
+  getPlakaGrubuGuncellemeGecmisi,
+  canUpdatePlakaGrubu,
+  createPlakaGrubuGuncellemeTablosu
 
 };

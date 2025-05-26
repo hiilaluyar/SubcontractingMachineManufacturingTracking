@@ -1599,13 +1599,13 @@ async function deleteHammadde(id) {
 
 
 
-  async function loadHammaddeGirisGecmisi(hammaddeId) {
+async function loadHammaddeGirisGecmisi(hammaddeId) {
     try {
         if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
             console.error('Database invoke metodu bulunamadı');
             return;
         }
-  
+
         const result = await window.electronAPI.invoke.database.getHammaddeGirisGecmisi(hammaddeId);
         
         const girisGecmisiTable = document.getElementById('girisGecmisiTable').getElementsByTagName('tbody')[0];
@@ -1616,7 +1616,7 @@ async function deleteHammadde(id) {
             row.innerHTML = '<td colspan="8" class="text-center">Giriş geçmişi bulunamadı</td>';
             return;
         }
-  
+
         // Parçaları al - İşlem kontrolü için gerekli
         const parcalarResult = await window.electronAPI.invoke.database.getParcalarByHammaddeId(hammaddeId);
         const parcalar = parcalarResult.success ? parcalarResult.parcalar : [];
@@ -1639,7 +1639,7 @@ async function deleteHammadde(id) {
             const islemTarihi = new Date(islem.islem_tarihi);
             return sonGirisTarihi && islemTarihi > sonGirisTarihi;
         });
-  
+
         // Her bir giriş kaydını göster
         sortedGirisGecmisi.forEach((giris, index) => {
             const row = girisGecmisiTable.insertRow();
@@ -1663,14 +1663,12 @@ async function deleteHammadde(id) {
             }
             cell2.textContent = miktarText;
             
-            // Para birimi belirleme - birim_fiyat_turu varsa kullan, yoksa tedarikçi alanından çıkar
-            let paraBirimi = 'TRY'; // Varsayılan
+            // Para birimi belirleme
+            let paraBirimi = 'TRY';
             
             if (giris.birim_fiyat_turu) {
-                // Veritabanında sütun varsa direkt kullan
                 paraBirimi = giris.birim_fiyat_turu;
             } else {
-                // Yoksa tedarikçi alanından çıkarmaya çalış
                 const tedarikciStr = giris.tedarikci || '';
                 const paraBirimiMatch = tedarikciStr.match(/\((.*?)\)/);
                 if (paraBirimiMatch && paraBirimiMatch[1]) {
@@ -1682,7 +1680,7 @@ async function deleteHammadde(id) {
             let paraBirimiSembolu;
             switch (paraBirimi) {
                 case 'USD':
-                    paraBirimiSembolu = '';
+                    paraBirimiSembolu = '$';
                     break;
                 case 'EUR':
                     paraBirimiSembolu = '€';
@@ -1705,14 +1703,13 @@ async function deleteHammadde(id) {
             const toplamTutar = Number(giris.miktar) * Number(giris.birim_fiyat);
             cell4.textContent = `${toplamTutar.toFixed(2)} ${paraBirimiSembolu}`;
             
-            // Tedarikçi - para birimi kısmını temizle
+            // Tedarikçi
             const cell5 = row.insertCell(4);
             let tedarikci = giris.tedarikci || 'Belirtilmemiş';
-            // Parantez içindeki para birimi bilgisini temizle
             tedarikci = tedarikci.replace(/\s*\(.*?\)\s*/, '');
             cell5.textContent = tedarikci;
             
-            // Ana Barkod - Bu bölümü ekledik
+            // Ana Barkod
             const cell6 = row.insertCell(5);
             cell6.textContent = giris.ana_barkod || '-';
             
@@ -1720,17 +1717,31 @@ async function deleteHammadde(id) {
             const cell7 = row.insertCell(6);
             cell7.textContent = `${giris.kullanici_ad || ''} ${giris.kullanici_soyad || ''}`;
             
-            // Güncellenebilirlik kontrolü
+            // İşlemler - GÜNCELLENMIŞ KISIM
             const güncelleCell = row.insertCell(7);
             const buGirisSonGiris = index === 0;
             
-            // Güncellenebilirlik kontrolü
+            // Plaka grubu girişi mi kontrol et
+            const isPlakaGrubuGirisi = giris.plaka_sayisi && giris.plaka_sayisi > 0;
+            
             if (buGirisSonGiris && !sonGiriştençokSonraIslemVar && giris.id) {
-                güncelleCell.innerHTML = `
-                    <button class="action-btn edit" title="Güncelle" onclick="openHammaddeGirisGuncelleModal(${giris.id}, ${hammaddeId}, ${giris.miktar})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                `;
+                if (isPlakaGrubuGirisi) {
+                    // Plaka grubu girişi için özel düzenleme butonu
+                    güncelleCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn edit" title="Plaka Grubu Düzenle" onclick="openPlakaGrubuDuzenleModal(${giris.id}, ${hammaddeId}, ${giris.miktar})" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                <i class="fas fa-layer-group"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    // Normal hammadde girişi için standart düzenleme
+                    güncelleCell.innerHTML = `
+                        <button class="action-btn edit" title="Güncelle" onclick="openHammaddeGirisGuncelleModal(${giris.id}, ${hammaddeId}, ${giris.miktar})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    `;
+                }
             } else {
                 güncelleCell.innerHTML = `
                     <button class="action-btn edit edited" title="İşlem yapıldığı için güncellenemez" disabled>
@@ -1748,7 +1759,94 @@ async function deleteHammadde(id) {
         const row = girisGecmisiTable.insertRow();
         row.innerHTML = '<td colspan="8" class="text-center">Giriş geçmişi yüklenirken hata oluştu</td>';
     }
-  }
+}
+
+// Modal kapatıldığında normal moda döndürme işlemi
+function handleModalClose() {
+    const modal = document.getElementById('yeniPlakaGrubuModal');
+    
+    if (modal) {
+        modal.addEventListener('hidden', function() {
+            if (isEditMode) {
+                resetModalToNormalMode();
+            }
+        });
+    }
+}
+
+// Sayfa yüklendiğinde modal kapatma olayını dinle
+document.addEventListener('DOMContentLoaded', function() {
+    handleModalClose();
+    
+    // Modal kapatma butonları için event listener
+    const closeButtons = document.querySelectorAll('#yeniPlakaGrubuModal .close');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            if (isEditMode) {
+                resetModalToNormalMode();
+            }
+        });
+    });
+});
+
+// CSS stilleri - plaka grubu düzenleme butonu için özel stil
+const plakaGrubuEditStyles = `
+.action-btn.edit[style*="linear-gradient"] {
+    position: relative;
+    overflow: hidden;
+}
+
+.action-btn.edit[style*="linear-gradient"]:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.action-btn.edit[style*="linear-gradient"]:before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.3s ease;
+}
+
+.action-btn.edit[style*="linear-gradient"]:hover:before {
+    width: 100%;
+    height: 100%;
+}
+
+/* Tooltip için özel stil */
+.action-btn[title]:hover:after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+}
+`;
+
+// Stilleri ekle
+if (!document.getElementById('plaka-grubu-edit-styles')) {
+    const styleElement = document.createElement('style');
+    styleElement.id = 'plaka-grubu-edit-styles';
+    styleElement.textContent = plakaGrubuEditStyles;
+    document.head.appendChild(styleElement);
+}
+
+
+
   
 // İşlem kaydetme
 
