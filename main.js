@@ -704,3 +704,50 @@ ipcMain.handle('database:addPlakaGrubu', async (event, grubuData) => {
     return 0;
   }
 });
+
+
+ipcMain.handle('database:addPlakaGrubuToIslemde', async (event, plakaGrubuId, adet, userId) => {
+  try {
+    return await DatabaseService.addPlakaGrubuToIslemde(plakaGrubuId, adet, userId);
+  } catch (error) {
+    console.error('Error in addPlakaGrubuToIslemde:', error);
+    return 0;
+  }
+});
+
+
+ipcMain.handle('database:getAllIslemdekiPlakaGruplari', async (event) => {
+  try {
+    return await DatabaseService.getAllIslemdekiPlakaGruplari();
+  } catch (error) {
+    console.error('Error in getAllIslemdekiPlakaGruplari:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('database:removePlakaGrubuFromIslemde', async (event, plakaGrubuId) => {
+  try {
+    return await DatabaseService.removePlakaGrubuFromIslemde(plakaGrubuId);
+  } catch (error) {
+    console.error('Error in removePlakaGrubuFromIslemde:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('database:removePlakaGruplarıFromIslemdeByHammadde', async (event, hammaddeId) => {
+  try {
+    return await DatabaseService.removePlakaGruplarıFromIslemdeByHammadde(hammaddeId);
+  } catch (error) {
+    console.error('Error in removePlakaGruplarıFromIslemdeByHammadde:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('database:isPlakaGrubuIslemde', async (event, plakaGrubuId) => {
+  try {
+    return await DatabaseService.isPlakaGrubuIslemde(plakaGrubuId);
+  } catch (error) {
+    console.error('Error in isPlakaGrubuIslemde:', error);
+    return false;
+  }
+});

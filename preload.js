@@ -143,7 +143,21 @@ getParcalarByPlakaGrubuId: (grubuId) => ipcRenderer.invoke('database:getParcalar
 getPlakaGrubuById: (grubuId) => ipcRenderer.invoke('database:getPlakaGrubuById', grubuId),
 getPlakaGruplariByHammaddeId: (hammaddeId) => ipcRenderer.invoke('database:getPlakaGruplariByHammaddeId', hammaddeId),
 addPlakaGrubu: (grubuData) => ipcRenderer.invoke('database:addPlakaGrubu', grubuData),
-getIslemlerByMultiplePlakaGrubuIds: (plakaGrubuIds) => ipcRenderer.invoke('database:getIslemlerByMultiplePlakaGrubuIds', plakaGrubuIds)
+getIslemlerByMultiplePlakaGrubuIds: (plakaGrubuIds) => ipcRenderer.invoke('database:getIslemlerByMultiplePlakaGrubuIds', plakaGrubuIds),
+ addPlakaGrubuToIslemde: (plakaGrubuId, adet, userId) => 
+    ipcRenderer.invoke('database:addPlakaGrubuToIslemde', plakaGrubuId, adet, userId),
+    
+  getAllIslemdekiPlakaGruplari: () => 
+    ipcRenderer.invoke('database:getAllIslemdekiPlakaGruplari'),
+    
+  removePlakaGrubuFromIslemde: (plakaGrubuId) => 
+    ipcRenderer.invoke('database:removePlakaGrubuFromIslemde', plakaGrubuId),
+    
+  removePlakaGruplarıFromIslemdeByHammadde: (hammaddeId) => 
+    ipcRenderer.invoke('database:removePlakaGruplarıFromIslemdeByHammadde', hammaddeId),
+    
+  isPlakaGrubuIslemde: (plakaGrubuId) => 
+    ipcRenderer.invoke('database:isPlakaGrubuIslemde', plakaGrubuId)
         }
     }
 });

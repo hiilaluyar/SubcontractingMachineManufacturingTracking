@@ -5888,6 +5888,153 @@ async function getIslemlerByMultiplePlakaGrubuIds(plakaGrubuIds) {
 }
 
 
+// Plaka grubu işleme alma fonksiyonları - paste-4.txt dosyasının sonuna eklenecek
+
+// Plaka grubunu işleme ekleme
+async function addPlakaGrubuToIslemde(plakaGrubuId, adet, userId) {
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Plaka grubu bilgilerini kontrol et
+    const [plakaGrubuRows] = await connection.execute(
+      'SELECT id, kalan_plaka_sayisi, hammadde_id FROM plaka_gruplari WHERE id = ?',
+      [plakaGrubuId]
+    );
+    
+    if (plakaGrubuRows.length === 0) {
+      throw new Error('Plaka grubu bulunamadı');
+    }
+    
+    const plakaGrubu = plakaGrubuRows[0];
+    
+    // Yeterli plaka var mı kontrol et
+    if (adet > plakaGrubu.kalan_plaka_sayisi) {
+      throw new Error(`İstenilen adet (${adet}) kalan plaka sayısından (${plakaGrubu.kalan_plaka_sayisi}) fazla`);
+    }
+    
+    // Zaten işlemde var mı kontrol et
+    const [existingRows] = await connection.execute(
+      'SELECT id FROM islemdeki_plaka_gruplari WHERE plaka_grubu_id = ?',
+      [plakaGrubuId]
+    );
+    
+    if (existingRows.length > 0) {
+      // Mevcut kaydı güncelle
+      await connection.execute(
+        `UPDATE islemdeki_plaka_gruplari 
+         SET isleme_alinan_adet = isleme_alinan_adet + ?
+         WHERE plaka_grubu_id = ?`,
+        [adet, plakaGrubuId]
+      );
+    } else {
+      // Yeni kayıt ekle
+      await connection.execute(
+        `INSERT INTO islemdeki_plaka_gruplari (plaka_grubu_id, hammadde_id, isleme_alinan_adet, ekleyen_id)
+         VALUES (?, ?, ?, ?)`,
+        [plakaGrubuId, plakaGrubu.hammadde_id, adet, userId]
+      );
+    }
+    
+    await connection.commit();
+    return { success: true };
+  } catch (error) {
+    await connection.rollback();
+    console.error('Plaka grubu işleme ekleme hatası:', error);
+    return { success: false, message: error.message };
+  } finally {
+    connection.release();
+  }
+}
+
+// İşlemdeki tüm plaka gruplarını getir
+async function getAllIslemdekiPlakaGruplari() {
+  try {
+    const [results] = await pool.execute(`
+      SELECT ipg.*, 
+             pg.id as plaka_grubu_id, pg.stok_kodu, pg.en, pg.boy, pg.kalinlik,
+             pg.toplam_plaka_sayisi, pg.kalan_plaka_sayisi, pg.toplam_kilo, pg.kalan_kilo,
+             h.id as hammadde_id, h.stok_kodu as hammadde_stok_kodu, 
+             h.malzeme_adi, h.hammadde_turu, h.kalinlik as hammadde_kalinlik,
+             h.cap, h.uzunluk, h.toplam_kilo as hammadde_toplam_kilo, 
+             h.kalan_kilo as hammadde_kalan_kilo, h.barkod, h.durum as hammadde_durum,
+             ipg.isleme_alinan_adet
+      FROM islemdeki_plaka_gruplari ipg
+      JOIN plaka_gruplari pg ON ipg.plaka_grubu_id = pg.id
+      JOIN hammaddeler h ON ipg.hammadde_id = h.id
+      ORDER BY ipg.ekleme_tarihi DESC
+    `);
+
+    return { success: true, data: results };
+  } catch (error) {
+    console.error('İşlemdeki plaka grupları getirilirken hata oluştu:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Plaka grubunu işlemden çıkarma
+async function removePlakaGrubuFromIslemde(plakaGrubuId) {
+  try {
+    console.log(`removePlakaGrubuFromIslemde çağrıldı, plakaGrubuId: ${plakaGrubuId}`);
+    
+    // Plaka grubu işlemde var mı kontrol et
+    const [exists] = await pool.execute(
+      'SELECT id FROM islemdeki_plaka_gruplari WHERE plaka_grubu_id = ?',
+      [plakaGrubuId]
+    );
+    
+    if (exists.length === 0) {
+      return { success: false, message: 'Plaka grubu işlemde bulunamadı' };
+    }
+    
+    // Plaka grubunu işlemden çıkar
+    const [result] = await pool.execute(
+      `DELETE FROM islemdeki_plaka_gruplari WHERE plaka_grubu_id = ?`,
+      [plakaGrubuId]
+    );
+
+    return { 
+      success: true, 
+      affectedRows: result.affectedRows,
+      message: `Plaka grubu #${plakaGrubuId} işlemden çıkarıldı`
+    };
+  } catch (error) {
+    console.error('Plaka grubunu işlemden çıkarma hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Hammaddeye ait tüm plaka gruplarını işlemden çıkarma
+async function removePlakaGruplarıFromIslemdeByHammadde(hammaddeId) {
+  try {
+    const [result] = await pool.execute(
+      `DELETE FROM islemdeki_plaka_gruplari WHERE hammadde_id = ?`,
+      [hammaddeId]
+    );
+
+    return { success: true, affectedRows: result.affectedRows };
+  } catch (error) {
+    console.error('Hammadde plaka gruplarını işlemden çıkarma hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Plaka grubu işlemde mi kontrol et
+async function isPlakaGrubuIslemde(plakaGrubuId) {
+  try {
+    const [result] = await pool.execute(
+      'SELECT COUNT(*) as count FROM islemdeki_plaka_gruplari WHERE plaka_grubu_id = ?',
+      [plakaGrubuId]
+    );
+    
+    return result[0].count > 0;
+  } catch (error) {
+    console.error('Plaka grubu işlemde kontrolü hatası:', error);
+    return false;
+  }
+}
+
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
   loginUser,
@@ -5982,6 +6129,11 @@ checkYariMamulExists,
 getParcalarByPlakaGrubuId,
 addPlakaGrubuIslem,
 getPlakaGrubuById,
-getIslemlerByMultiplePlakaGrubuIds
+getIslemlerByMultiplePlakaGrubuIds,
+addPlakaGrubuToIslemde,
+  getAllIslemdekiPlakaGruplari,
+  removePlakaGrubuFromIslemde,
+  removePlakaGruplarıFromIslemdeByHammadde,
+  isPlakaGrubuIslemde
 
 };
