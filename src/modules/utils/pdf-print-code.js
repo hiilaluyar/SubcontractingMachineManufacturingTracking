@@ -761,6 +761,8 @@ function initPrintButtons() {
 }
 
 // Excel oluşturma fonksiyonu - artık ana kodun içinde, string içinde değil
+// Excel oluşturma fonksiyonu - Excel formülleriyle dinamik hesaplama
+// Excel oluşturma fonksiyonu - Excel formülleriyle dinamik hesaplama
 function generateExcel() {
   try {
     console.log('ExcelJS ile Excel oluşturuluyor...');
@@ -836,33 +838,44 @@ function generateExcel() {
           headerText.includes('malzeme')) {
         column.width = 50; // Malzeme adı için daha geniş
       } else if (headerText.includes('stok kodu')) {
-        column.width = 25; // Stok kodu sütununu daha geniş yaptık (13'ten 25'e)
+        column.width = 25; // Stok kodu sütunu
       } else if (headerText.includes('barkod')) {
         column.width = 18; // Barkod için daha geniş
       } else if (headerText.includes('kod')) {
-        column.width = 16; // Diğer kod alanları (biraz daha geniş)
+        column.width = 16; // Diğer kod alanları
       } else if (headerText.includes('miktar') || 
                 headerText.includes('adet')) {
-        column.width = 14; // Miktar için biraz daha geniş
+        column.width = 14; // Miktar için
       } else if (headerText.includes('fiyat') || 
                 headerText.includes('tutar')) {
-        column.width = 16; // Fiyat/tutar için biraz daha geniş
+        column.width = 16; // Fiyat/tutar için
       } else if (headerText.includes('kalan')) {
-        column.width = 20; // Kalan sütunu için daha da geniş
+        column.width = 20; // Kalan sütunu için daha geniş
       } else if (headerText.includes('durum')) {
-        column.width = 14; // Durum sütunu için biraz daha geniş
+        column.width = 14; // Durum sütunu için
       } else if (headerText.includes('tarih')) {
-        column.width = 16; // Tarih alanları için biraz daha geniş
+        column.width = 16; // Tarih alanları için
       } else {
-        column.width = 16; // Diğer sütunlar için biraz daha geniş
+        column.width = 16; // Diğer sütunlar için
       }
     });
+    
+    // Hammadde listesi için Kalan sütunu indeksini bul
+    let kalanColumnIndex = -1;
+    if (isHammaddeList) {
+      headers.forEach((header, index) => {
+        const headerLower = header.toLowerCase();
+        if (headerLower.includes('kalan')) {
+          kalanColumnIndex = index;
+        }
+      });
+    }
     
     // --- 1. LOGO ve BORDO ŞERİT ---
     
     // Bordo şerit satırı ekle
-    const headerRow = worksheet.addRow(['']);  // Boş satır, daha sonra logo ekleyeceğiz
-    headerRow.height = 60; // Şerit yüksekliği daha fazla artırıldı (logo için)
+    const headerRow = worksheet.addRow(['']);
+    headerRow.height = 60;
     
     // Şeridi tüm sütunlar boyunca genişlet
     worksheet.mergeCells(1, 1, 1, headers.length);
@@ -883,7 +896,7 @@ function generateExcel() {
         // Logo elementini canvas'a çiz ve base64 formatına dönüştür
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        const logoWidth = 280; // Logo genişliği daha da artırıldı
+        const logoWidth = 280;
         const logoHeight = logoWidth * (logoImage.naturalHeight / logoImage.naturalWidth);
         
         canvas.width = logoWidth;
@@ -898,7 +911,7 @@ function generateExcel() {
           extension: 'png',
         });
         
-        // Logo'yu başlık hücresine ekle - sol tarafta olacak şekilde
+        // Logo'yu başlık hücresine ekle
         worksheet.addImage(logoId, {
           tl: { col: 0, row: 0 },
           ext: { width: 140, height: 75 },
@@ -908,13 +921,12 @@ function generateExcel() {
         console.log('Logo Excel dosyasına eklendi');
       } catch (logoError) {
         console.error('Logo ekleme hatası:', logoError);
-        // Logo eklenmezse, sadece şirketi adını kullan
         headerCell.value = 'KARATAŞ MAKİNE';
         headerCell.font = {
           name: 'Arial',
           size: 14,
           bold: true,
-          color: { argb: 'FFFFFFFF' } // Beyaz
+          color: { argb: 'FFFFFFFF' }
         };
         headerCell.alignment = {
           vertical: 'middle',
@@ -923,13 +935,12 @@ function generateExcel() {
         };
       }
     } else {
-      // Logo bulunamazsa sadece şirket adını kullan
       headerCell.value = 'KARATAŞ MAKİNE';
       headerCell.font = {
         name: 'Arial',
         size: 14,
         bold: true,
-        color: { argb: 'FFFFFFFF' } // Beyaz
+        color: { argb: 'FFFFFFFF' }
       };
       headerCell.alignment = {
         vertical: 'middle',
@@ -942,38 +953,33 @@ function generateExcel() {
       bottom: { style: 'thin', color: { argb: 'FF000000' } }
     };
     
-    // --- 2. LISTE ADI - SADE VE SOLA DAYALI ---
+    // --- 2. LISTE ADI ---
     
-    // Başlık satırı ekle - sade
     const titleRow = worksheet.addRow([pageTitle]);
     titleRow.height = 25;
     
-    // Başlığı tüm sütunlar boyunca genişlet
     worksheet.mergeCells(2, 1, 2, headers.length);
     
-    // Başlık hücresini formatla - SOLA DAYALI
     const titleCell = titleRow.getCell(1);
     titleCell.font = {
       name: 'Arial',
       size: 12,
       bold: true,
-      color: { argb: 'FF000000' } // Siyah
+      color: { argb: 'FF000000' }
     };
     
     titleCell.alignment = {
       vertical: 'middle',
-      horizontal: 'left', // SOLA DAYALI
-      indent: 2 // Biraz girinti
+      horizontal: 'left',
+      indent: 2
     };
     
-    // İnce alt çizgi
     titleCell.border = {
       bottom: { style: 'thin', color: { argb: 'FFAAAAAA' } }
     };
     
     // --- 3. TABLO BAŞLIKLARI ---
     
-    // Tablo başlıkları ekle
     const tableHeaderRow = worksheet.addRow(headers);
     tableHeaderRow.height = 22;
     
@@ -981,18 +987,17 @@ function generateExcel() {
     headers.forEach((header, idx) => {
       const cell = tableHeaderRow.getCell(idx + 1);
       
-      // Başlık hücresi stil ayarları - sade
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFF2F2F2' } // Açık gri
+        fgColor: { argb: 'FFF2F2F2' }
       };
       
       cell.font = {
         name: 'Arial',
         size: 10,
         bold: true,
-        color: { argb: 'FF000000' } // Siyah
+        color: { argb: 'FF000000' }
       };
       
       const headerText = header.toLowerCase();
@@ -1001,7 +1006,8 @@ function generateExcel() {
         horizontal: headerText.includes('miktar') || 
                    headerText.includes('fiyat') || 
                    headerText.includes('tutar') ||
-                   headerText.includes('kalan') ? 'right' : 'left',
+                   headerText.includes('kalan') ||
+                   headerText.includes('kg değeri') ? 'right' : 'left',
         wrapText: true
       };
       
@@ -1015,121 +1021,32 @@ function generateExcel() {
     
     // --- 4. TABLO VERİLERİ ---
     
-    // Hammadde listesi için istatistikleri tutacak değişkenler
-    let totalSacKg = 0;
-    let totalMilKg = 0;
-    let totalBoruKg = 0;
-    
-    // İndex numaralarını belirle (sadece hammadde listesi için)
+    // Hammadde listesi için sütun indekslerini bul
     let barkodIndex = -1;
     let kalanIndex = -1;
     
     if (isHammaddeList) {
-      // Barkod ve Kalan sütun indekslerini bul
       headers.forEach((header, index) => {
         const headerLower = header.toLowerCase();
         if (headerLower.includes('barkod')) {
           barkodIndex = index;
-          console.log('Barkod sütun indeksi bulundu:', barkodIndex);
         }
         if (headerLower.includes('kalan')) {
           kalanIndex = index;
-          console.log('Kalan sütun indeksi bulundu:', kalanIndex);
         }
       });
-      
-      console.log('Barkod indeksi:', barkodIndex, 'Kalan indeksi:', kalanIndex);
-      
-      // KG hesaplaması ve toplama işlemi
-      const kgValues = [];
-      
-      rows.forEach((rowData, rowIdx) => {
-        if (barkodIndex !== -1 && kalanIndex !== -1) {
-          const barkod = rowData[barkodIndex] || '';
-          const kalanText = rowData[kalanIndex] || '';
-          
-          console.log(`Satır ${rowIdx}: İşleniyor - Barkod: ${barkod}, Kalan: ${kalanText}`);
-          
-          // Kalan değerinden kg değerini çıkar
-          let kgValue = 0;
-          
-          try {
-            // Parantez içindeki kg değerini kontrol et
-            if (kalanText.includes('(') && kalanText.includes(')') && kalanText.toLowerCase().includes('kg')) {
-              const parantezIcindeki = kalanText.substring(
-                kalanText.indexOf('(') + 1, 
-                kalanText.indexOf(')')
-              );
-              console.log(`Parantez içindeki değer: "${parantezIcindeki}"`);
-              
-              // Sayıyı çıkar - örnek: 53.00 kg
-              const numMatch = parantezIcindeki.match(/(\d+[.,]\d+|\d+)/);
-              if (numMatch) {
-                kgValue = parseFloat(numMatch[0].replace(',', '.'));
-                console.log(`Parantez içinden çıkarılan kg değeri: ${kgValue}`);
-              }
-            } 
-            // Direkt kg değerini kontrol et
-            else if (kalanText.toLowerCase().includes('kg')) {
-              // Sayıyı çıkar - örnek: 150.35 kg
-              const numMatch = kalanText.match(/(\d+[.,]\d+|\d+)/);
-              if (numMatch) {
-                kgValue = parseFloat(numMatch[0].replace(',', '.'));
-                console.log(`Direkt çıkarılan kg değeri: ${kgValue}`);
-              }
-            }
-            
-            // Barkod'un ilk harfine göre toplam değerlere ekle
-            if (barkod && kgValue > 0) {
-              const firstChar = barkod.charAt(0).toUpperCase();
-              
-              if (firstChar === 'S') {
-                totalSacKg += kgValue;
-                console.log(`Sac ağırlığına eklendi: ${kgValue} kg, Yeni toplam: ${totalSacKg} kg`);
-              } else if (firstChar === 'M') {
-                totalMilKg += kgValue;
-                console.log(`Mil ağırlığına eklendi: ${kgValue} kg, Yeni toplam: ${totalMilKg} kg`);
-              } else if (firstChar === 'B') {
-                totalBoruKg += kgValue;
-                console.log(`Boru ağırlığına eklendi: ${kgValue} kg, Yeni toplam: ${totalBoruKg} kg`);
-              }
-              
-              // Değerleri doğrulama için diziye ekle
-              kgValues.push({
-                rowIdx, 
-                barkod, 
-                kalanText, 
-                kgValue, 
-                type: firstChar
-              });
-            }
-          } catch (err) {
-            console.error(`Satır ${rowIdx} işlenirken hata:`, err);
-          }
-        }
-      });
-      
-      // Toplanan değerleri detaylı olarak logla
-      console.log('======= KG DEĞERLERİ TOPLAM =======');
-      console.log('İşlenen değerler:', kgValues);
-      console.log('Toplam Sac KG:', totalSacKg.toFixed(2));
-      console.log('Toplam Mil KG:', totalMilKg.toFixed(2));
-      console.log('Toplam Boru KG:', totalBoruKg.toFixed(2));
-      console.log('Toplam Genel KG:', (totalSacKg + totalMilKg + totalBoruKg).toFixed(2));
     }
     
-    // Tablo verilerini ekle
     rows.forEach((rowData, rowIdx) => {
       const dataRow = worksheet.addRow(rowData);
       dataRow.height = 20;
       
-      // Zebra çizgisi - sade
-      const bgColor = rowIdx % 2 === 0 ? 'FFFFFFFF' : 'FFF9F9F9'; // Açık gri
+      // Zebra çizgisi
+      const bgColor = rowIdx % 2 === 0 ? 'FFFFFFFF' : 'FFF9F9F9';
       
       rowData.forEach((cellData, cellIdx) => {
         const cell = dataRow.getCell(cellIdx + 1);
         
-        // Arka plan rengi
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
@@ -1138,7 +1055,7 @@ function generateExcel() {
         
         const headerText = headers[cellIdx].toLowerCase();
         
-        // Özel durum kontrolleri - durum sütunu için
+        // Durum sütunu için renk kodlaması
         if (headerText.includes('durum')) {
           const statusText = cellData.toLowerCase();
           
@@ -1147,59 +1064,116 @@ function generateExcel() {
               name: 'Arial',
               size: 10,
               bold: true,
-              color: { argb: 'FF008000' } // Yeşil
+              color: { argb: 'FF008000' }
             };
           } else if (statusText.includes('az') || statusText.includes('kritik')) {
             cell.font = {
               name: 'Arial',
               size: 10,
               bold: true,
-              color: { argb: 'FFFF8C00' } // Turuncu
+              color: { argb: 'FFFF8C00' }
             };
           } else if (statusText.includes('yok') || statusText.includes('tükendi')) {
             cell.font = {
               name: 'Arial',
               size: 10,
               bold: true,
-              color: { argb: 'FFFF0000' } // Kırmızı
+              color: { argb: 'FFFF0000' }
             };
           } else {
             cell.font = {
               name: 'Arial',
               size: 10,
-              color: { argb: 'FF000000' } // Siyah
+              color: { argb: 'FF000000' }
             };
           }
         } else {
           cell.font = {
             name: 'Arial',
             size: 10,
-            color: { argb: 'FF000000' } // Siyah
+            color: { argb: 'FF000000' }
           };
         }
         
-        // Hücre hizalama
-        cell.alignment = {
-          vertical: 'middle',
-          horizontal: headerText.includes('miktar') || 
-                     headerText.includes('fiyat') || 
-                     headerText.includes('tutar') ||
-                     headerText.includes('kalan') ? 'right' : 'left',
-          wrapText: true
-        };
-        
-        // Sayısal değerleri formatlama
-        if ((headerText.includes('miktar') || headerText.includes('adet')) && 
-            !isNaN(parseFloat(cellData))) {
-          cell.numFmt = '#,##0.00';
-          cell.value = parseFloat(cellData);
-        } else if ((headerText.includes('fiyat') || headerText.includes('tutar')) && 
-                  !isNaN(parseFloat(cellData))) {
-          cell.numFmt = '#,##0.00 ₺';
-          cell.value = parseFloat(cellData);
+        // Hammadde listesi için Kalan sütununu özel işle
+        if (isHammaddeList && cellIdx === kalanIndex) {
+          // Kalan sütunundaki kg değerini çıkar ve sadece sayısal değer olarak kaydet
+          let kgValue = 0;
+          const kalanText = cellData || '';
+          
+          try {
+            // Parantez içindeki kg değerini kontrol et
+            if (kalanText.includes('(') && kalanText.includes(')') && kalanText.toLowerCase().includes('kg')) {
+              const parantezIcindeki = kalanText.substring(
+                kalanText.indexOf('(') + 1, 
+                kalanText.indexOf(')')
+              );
+              
+              const numMatch = parantezIcindeki.match(/(\d+[.,]\d+|\d+)/);
+              if (numMatch) {
+                kgValue = parseFloat(numMatch[0].replace(',', '.'));
+              }
+            } 
+            // Direkt kg değerini kontrol et
+            else if (kalanText.toLowerCase().includes('kg')) {
+              const numMatch = kalanText.match(/(\d+[.,]\d+|\d+)/);
+              if (numMatch) {
+                kgValue = parseFloat(numMatch[0].replace(',', '.'));
+              }
+            }
+          } catch (err) {
+            console.error(`Satır ${rowIdx} KG hesaplama hatası:`, err);
+          }
+          
+          // Sadece sayısal kg değerini hücreye yaz
+          cell.value = kgValue;
+          cell.numFmt = '#,##0.00 "kg"';
+          
+          // Kalan sütunu için normal arka plan (zebra çizgisi ile aynı)
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: bgColor } // Normal zebra çizgisi rengi
+          };
+          
+          cell.font = {
+            name: 'Arial',
+            size: 10,
+            bold: true,
+            color: { argb: 'FF000000' }
+          };
+          
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: 'right',
+            wrapText: true
+          };
+        }
+        // Diğer sütunlar için normal işleme
+        else {
+          // Hücre hizalama
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: headerText.includes('miktar') || 
+                       headerText.includes('fiyat') || 
+                       headerText.includes('tutar') ||
+                       headerText.includes('kalan') ? 'right' : 'left',
+            wrapText: true
+          };
+          
+          // Sayısal değerleri formatlama
+          if ((headerText.includes('miktar') || headerText.includes('adet')) && 
+              !isNaN(parseFloat(cellData))) {
+            cell.numFmt = '#,##0.00';
+            cell.value = parseFloat(cellData);
+          } else if ((headerText.includes('fiyat') || headerText.includes('tutar')) && 
+                    !isNaN(parseFloat(cellData))) {
+            cell.numFmt = '#,##0.00 ₺';
+            cell.value = parseFloat(cellData);
+          }
         }
         
-        // Kenarlıklar - sade
+        // Kenarlıklar
         cell.border = {
           top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
           left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
@@ -1209,48 +1183,18 @@ function generateExcel() {
       });
     });
     
-    // Son satır toplam ise - basit format
-    if (rows.length > 0) {
-      const lastRowData = rows[rows.length - 1];
-      const hasTotalRow = lastRowData.some(cellData => 
-        typeof cellData === 'string' && 
-        cellData.toLowerCase().includes('toplam')
-      );
-      
-      if (hasTotalRow) {
-        const lastRow = worksheet.lastRow;
-        lastRow.eachCell((cell) => {
-          cell.font = {
-            name: 'Arial',
-            size: 10,
-            bold: true,
-            color: { argb: 'FF000000' } // Siyah
-          };
-          
-          // Üst çizgi
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FF000000' } },
-            left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
-            bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
-            right: { style: 'thin', color: { argb: 'FFDDDDDD' } }
-          };
-        });
-      }
-    }
-    
-    // Hammadde listesi için malzeme türlerine göre toplam ağırlık bilgilerini alt kısma ekle
-    if (isHammaddeList) {
-      // Toplamların durumunu yazdır
-      console.log('Toplamlar hesaplaması tamamlandı:');
-      console.log('Toplam Sac KG:', totalSacKg.toFixed(2));
-      console.log('Toplam Mil KG:', totalMilKg.toFixed(2));
-      console.log('Toplam Boru KG:', totalBoruKg.toFixed(2));
+    // Hammadde listesi için EXCEL FORMÜLLER ile dinamik toplam hesaplama
+    if (isHammaddeList && kalanIndex !== -1 && barkodIndex !== -1) {
+      const dataStartRow = 4; // Tablo verileri 4. satırdan başlıyor
+      const lastDataRow = dataStartRow + rows.length - 1;
+      const kalanColumnLetter = String.fromCharCode(65 + kalanIndex); // A, B, C, ... formatında sütun harfi
+      const barkodColumnLetter = String.fromCharCode(65 + barkodIndex);
       
       // Boş satır
       worksheet.addRow([]);
       
       // Başlık satırı
-      const summaryHeaderRow = worksheet.addRow(['MALZEME TÜRÜNE GÖRE TOPLAM AĞIRLIK BİLGİLERİ']);
+      const summaryHeaderRow = worksheet.addRow(['MALZEME TÜRÜNE GÖRE TOPLAM AĞIRLIK BİLGİLERİ (DİNAMİK HESAPLAMA)']);
       worksheet.mergeCells(worksheet.rowCount, 1, worksheet.rowCount, headers.length);
       
       const summaryHeaderCell = summaryHeaderRow.getCell(1);
@@ -1258,7 +1202,7 @@ function generateExcel() {
         name: 'Arial',
         size: 11,
         bold: true,
-        color: { argb: 'FF6A0C0D' } // Karataş bordo rengi
+        color: { argb: 'FF6A0C0D' }
       };
       
       summaryHeaderCell.alignment = {
@@ -1270,63 +1214,33 @@ function generateExcel() {
         bottom: { style: 'thin', color: { argb: 'FFAAAAAA' } }
       };
       
-      // SAC toplam
-      const sacRow = worksheet.addRow(['SAC Toplam:', '', totalSacKg.toFixed(2) + ' kg']);
-      sacRow.font = {
-        name: 'Arial',
-        size: 10,
-        bold: true
-      };
+      // SAC toplam - EXCEL FORMÜLÜ
+      const sacRow = worksheet.addRow(['SAC Toplam:', '', { formula: `SUMIF(${barkodColumnLetter}${dataStartRow}:${barkodColumnLetter}${lastDataRow},"S*",${kalanColumnLetter}${dataStartRow}:${kalanColumnLetter}${lastDataRow})` }]);
+      sacRow.getCell(1).font = { name: 'Arial', size: 10, bold: true };
+      sacRow.getCell(3).font = { name: 'Arial', size: 10, bold: true };
+      sacRow.getCell(3).numFmt = '#,##0.00 "kg"';
+      sacRow.getCell(3).alignment = { vertical: 'middle', horizontal: 'right' };
       
-      // SAC toplam hücresini sağa hizala
-      sacRow.getCell(3).alignment = {
-        vertical: 'middle',
-        horizontal: 'right'
-      };
+      // MİL toplam - EXCEL FORMÜLÜ
+      const milRow = worksheet.addRow(['MİL Toplam:', '', { formula: `SUMIF(${barkodColumnLetter}${dataStartRow}:${barkodColumnLetter}${lastDataRow},"M*",${kalanColumnLetter}${dataStartRow}:${kalanColumnLetter}${lastDataRow})` }]);
+      milRow.getCell(1).font = { name: 'Arial', size: 10, bold: true };
+      milRow.getCell(3).font = { name: 'Arial', size: 10, bold: true };
+      milRow.getCell(3).numFmt = '#,##0.00 "kg"';
+      milRow.getCell(3).alignment = { vertical: 'middle', horizontal: 'right' };
       
-      // MİL toplam
-      const milRow = worksheet.addRow(['MİL Toplam:', '', totalMilKg.toFixed(2) + ' kg']);
-      milRow.font = {
-        name: 'Arial',
-        size: 10,
-        bold: true
-      };
+      // BORU toplam - EXCEL FORMÜLÜ
+      const boruRow = worksheet.addRow(['BORU Toplam:', '', { formula: `SUMIF(${barkodColumnLetter}${dataStartRow}:${barkodColumnLetter}${lastDataRow},"B*",${kalanColumnLetter}${dataStartRow}:${kalanColumnLetter}${lastDataRow})` }]);
+      boruRow.getCell(1).font = { name: 'Arial', size: 10, bold: true };
+      boruRow.getCell(3).font = { name: 'Arial', size: 10, bold: true };
+      boruRow.getCell(3).numFmt = '#,##0.00 "kg"';
+      boruRow.getCell(3).alignment = { vertical: 'middle', horizontal: 'right' };
       
-      // MİL toplam hücresini sağa hizala
-      milRow.getCell(3).alignment = {
-        vertical: 'middle',
-        horizontal: 'right'
-      };
-      
-      // BORU toplam
-      const boruRow = worksheet.addRow(['BORU Toplam:', '', totalBoruKg.toFixed(2) + ' kg']);
-      boruRow.font = {
-        name: 'Arial',
-        size: 10,
-        bold: true
-      };
-      
-      // BORU toplam hücresini sağa hizala
-      boruRow.getCell(3).alignment = {
-        vertical: 'middle',
-        horizontal: 'right'
-      };
-      
-      // GENEL TOPLAM
-      const totalKg = totalSacKg + totalMilKg + totalBoruKg;
-      const totalRow = worksheet.addRow(['GENEL TOPLAM:', '', totalKg.toFixed(2) + ' kg']);
-      totalRow.font = {
-        name: 'Arial',
-        size: 11,
-        bold: true,
-        color: { argb: 'FF6A0C0D' } // Karataş bordo rengi
-      };
-      
-      // GENEL TOPLAM hücresini sağa hizala
-      totalRow.getCell(3).alignment = {
-        vertical: 'middle',
-        horizontal: 'right'
-      };
+      // GENEL TOPLAM - EXCEL FORMÜLÜ (tüm KG değerlerinin toplamı)
+      const totalRow = worksheet.addRow(['GENEL TOPLAM:', '', { formula: `SUM(${kalanColumnLetter}${dataStartRow}:${kalanColumnLetter}${lastDataRow})` }]);
+      totalRow.getCell(1).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF6A0C0D' } };
+      totalRow.getCell(3).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF6A0C0D' } };
+      totalRow.getCell(3).numFmt = '#,##0.00 "kg"';
+      totalRow.getCell(3).alignment = { vertical: 'middle', horizontal: 'right' };
       
       totalRow.eachCell((cell) => {
         cell.border = {
@@ -1335,37 +1249,31 @@ function generateExcel() {
       });
     }
     
-    // Üst kısmı Excel'in üst kısmında dondur
+    // Üst kısmı dondur
     worksheet.views = [
       { state: 'frozen', xSplit: 0, ySplit: 3, topLeftCell: 'A4', activeCell: 'A4' }
     ];
     
     // --- EXCEL DOSYASINI OLUŞTUR VE İNDİR ---
     
-    // Dosya adını oluştur
     const fileName = pageTitle.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + 
                     new Date().toISOString().slice(0, 10) + '.xlsx';
     
-    // Excel'i indir
     workbook.xlsx.writeBuffer().then(function(buffer) {
-      // ArrayBuffer'ı Blob'a dönüştür
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       
-      // İndirme URL'si oluştur
       const url = window.URL.createObjectURL(blob);
       
-      // İndirme bağlantısı oluştur ve tıkla
       const a = document.createElement('a');
       a.href = url;
       a.download = fileName;
       a.click();
       
-      // URL'yi temizle
       setTimeout(function() {
         window.URL.revokeObjectURL(url);
       }, 100);
       
-      console.log('Excel dosyası başarıyla oluşturuldu:', fileName);
+      console.log('Dinamik Excel dosyası başarıyla oluşturuldu:', fileName);
     });
     
   } catch (error) {
@@ -1373,6 +1281,7 @@ function generateExcel() {
     alert('Excel oluşturulurken bir hata oluştu: ' + error.message);
   }
 }
+
 
 
   // Her tablo türü için gösterilecek sütunların indekslerini döndüren yardımcı fonksiyon
