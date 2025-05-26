@@ -761,11 +761,9 @@ function initPrintButtons() {
 }
 
 // Excel oluşturma fonksiyonu - artık ana kodun içinde, string içinde değil
-// Excel oluşturma fonksiyonu - Excel formülleriyle dinamik hesaplama
-// Excel oluşturma fonksiyonu - Excel formülleriyle dinamik hesaplama
 function generateExcel() {
   try {
-    console.log('ExcelJS ile Excel oluşturuluyor...');
+    console.log('PDF formatı için optimize edilmiş Excel oluşturuluyor...');
     
     // Tablo elementini al
     const table = document.querySelector('.pdf-table');
@@ -815,49 +813,66 @@ function generateExcel() {
     const worksheet = workbook.addWorksheet(sheetName || 'Rapor', {
       pageSetup: {
         paperSize: 9, // A4
-        orientation: 'landscape', // Yatay düzen
+        orientation: 'portrait', // DİKEY düzen (normal A4)
         fitToPage: true,
-        fitToWidth: 1,
-        fitToHeight: 0,
+        fitToWidth: 1, // Sayfa genişliğine sığdır
+        fitToHeight: 0, // Yükseklik sınırı yok
+        scale: 100, // %100 ölçek
         margins: {
-          left: 0.5, right: 0.5,
-          top: 0.7, bottom: 0.7,
-          header: 0.3, footer: 0.3
-        }
+          left: 0.15, // Çok dar sol kenar 
+          right: 0.15, // Çok dar sağ kenar   
+          top: 0.4, // Üst kenar 
+          bottom: 0.4, // Alt kenar 
+          header: 0.2, // Başlık kenarı
+          footer: 0.2 // Alt bilgi kenarı
+        },
+        horizontalCentered: true, // Yatay ortala
+        verticalCentered: false, // Dikey ortalama
+        // PDF için yazdırma ayarları
+        printArea: undefined, // Otomatik yazdırma alanı
+        printTitlesRow: '3:3', // Başlık satırını her sayfada tekrarla
+        blackAndWhite: false, // Renkli yazdırma
+        draft: false, // Taslak değil
+        cellComments: 'None', // Hücre yorumları gösterme
+        errors: 'displayed' // Hataları göster
       }
     });
     
-    // Sütun genişliklerini ayarla
+    // PDF dikey A4 için TAM SAYFA genişliği kullanacak sütun ayarları
     headers.forEach((header, idx) => {
       const column = worksheet.getColumn(idx + 1);
       const headerText = header.toLowerCase();
+      
+      let columnWidth;
       
       if (headerText.includes('açıklama') || 
           headerText.includes('tanım') || 
           headerText.includes('ad') || 
           headerText.includes('malzeme')) {
-        column.width = 50; // Malzeme adı için daha geniş
+        columnWidth = 45; // Çok daha geniş malzeme sütunu
       } else if (headerText.includes('stok kodu')) {
-        column.width = 25; // Stok kodu sütunu
+        columnWidth = 18; // Stok kodu daha geniş
       } else if (headerText.includes('barkod')) {
-        column.width = 18; // Barkod için daha geniş
+        columnWidth = 25; // Barkod çok daha geniş
+      } else if (headerText.includes('kalan')) {
+        columnWidth = 18; // Kalan sütunu daha geniş
       } else if (headerText.includes('kod')) {
-        column.width = 16; // Diğer kod alanları
+        columnWidth = 15; // Diğer kodlar
       } else if (headerText.includes('miktar') || 
                 headerText.includes('adet')) {
-        column.width = 14; // Miktar için
+        columnWidth = 12; // Miktar
       } else if (headerText.includes('fiyat') || 
                 headerText.includes('tutar')) {
-        column.width = 16; // Fiyat/tutar için
-      } else if (headerText.includes('kalan')) {
-        column.width = 20; // Kalan sütunu için daha geniş
+        columnWidth = 15; // Fiyat/tutar
       } else if (headerText.includes('durum')) {
-        column.width = 14; // Durum sütunu için
+        columnWidth = 15; // Durum sütunu
       } else if (headerText.includes('tarih')) {
-        column.width = 16; // Tarih alanları için
+        columnWidth = 15; // Tarih alanları
       } else {
-        column.width = 16; // Diğer sütunlar için
+        columnWidth = 12; // Diğer sütunlar
       }
+      
+      column.width = columnWidth;
     });
     
     // Hammadde listesi için Kalan sütunu indeksini bul
@@ -871,11 +886,11 @@ function generateExcel() {
       });
     }
     
-    // --- 1. LOGO ve BORDO ŞERİT ---
+    // --- 1. LOGO ve BORDO ŞERİT (TAM SAYFA) ---
     
-    // Bordo şerit satırı ekle
+    // Bordo şerit satırı ekle - daha yüksek
     const headerRow = worksheet.addRow(['']);
-    headerRow.height = 60;
+    headerRow.height = 55; // Biraz daha yüksek
     
     // Şeridi tüm sütunlar boyunca genişlet
     worksheet.mergeCells(1, 1, 1, headers.length);
@@ -896,7 +911,7 @@ function generateExcel() {
         // Logo elementini canvas'a çiz ve base64 formatına dönüştür
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        const logoWidth = 280;
+        const logoWidth = 200; // PDF için daha küçük logo
         const logoHeight = logoWidth * (logoImage.naturalHeight / logoImage.naturalWidth);
         
         canvas.width = logoWidth;
@@ -905,16 +920,16 @@ function generateExcel() {
         
         const logoBase64 = canvas.toDataURL('image/png').split(',')[1];
         
-        // Logo'yu Excel'e ekle
+        // Logo'yu Excel'e ekle - PDF için optimize edilmiş boyut
         const logoId = workbook.addImage({
           base64: logoBase64,
           extension: 'png',
         });
         
-        // Logo'yu başlık hücresine ekle
+        // Logo'yu başlık hücresine ekle - daha büyük
         worksheet.addImage(logoId, {
           tl: { col: 0, row: 0 },
-          ext: { width: 140, height: 75 },
+          ext: { width: 120, height: 65 }, // Biraz daha büyük logo
           editAs: 'oneCell'
         });
         
@@ -924,28 +939,28 @@ function generateExcel() {
         headerCell.value = 'KARATAŞ MAKİNE';
         headerCell.font = {
           name: 'Arial',
-          size: 14,
+          size: 14, // Daha büyük font
           bold: true,
           color: { argb: 'FFFFFFFF' }
         };
         headerCell.alignment = {
           vertical: 'middle',
           horizontal: 'left',
-          indent: 2
+          indent: 1 // Daha az girinti
         };
       }
     } else {
       headerCell.value = 'KARATAŞ MAKİNE';
       headerCell.font = {
         name: 'Arial',
-        size: 14,
+        size: 14, // Büyük font
         bold: true,
         color: { argb: 'FFFFFFFF' }
       };
       headerCell.alignment = {
         vertical: 'middle',
         horizontal: 'left',
-        indent: 2
+        indent: 1
       };
     }
     
@@ -953,17 +968,17 @@ function generateExcel() {
       bottom: { style: 'thin', color: { argb: 'FF000000' } }
     };
     
-    // --- 2. LISTE ADI ---
+    // --- 2. LISTE ADI (PDF için kompakt) ---
     
     const titleRow = worksheet.addRow([pageTitle]);
-    titleRow.height = 25;
+    titleRow.height = 25; // Normal yükseklik
     
     worksheet.mergeCells(2, 1, 2, headers.length);
     
     const titleCell = titleRow.getCell(1);
     titleCell.font = {
       name: 'Arial',
-      size: 12,
+      size: 12, // Normal font
       bold: true,
       color: { argb: 'FF000000' }
     };
@@ -971,17 +986,17 @@ function generateExcel() {
     titleCell.alignment = {
       vertical: 'middle',
       horizontal: 'left',
-      indent: 2
+      indent: 1
     };
     
     titleCell.border = {
       bottom: { style: 'thin', color: { argb: 'FFAAAAAA' } }
     };
     
-    // --- 3. TABLO BAŞLIKLARI ---
+    // --- 3. TABLO BAŞLIKLARI (PDF için optimize) ---
     
     const tableHeaderRow = worksheet.addRow(headers);
-    tableHeaderRow.height = 22;
+    tableHeaderRow.height = 22; // Normal başlık yüksekliği
     
     // Başlık satırını formatla
     headers.forEach((header, idx) => {
@@ -995,7 +1010,7 @@ function generateExcel() {
       
       cell.font = {
         name: 'Arial',
-        size: 10,
+        size: 10, // Normal font boyutu
         bold: true,
         color: { argb: 'FF000000' }
       };
@@ -1019,7 +1034,7 @@ function generateExcel() {
       };
     });
     
-    // --- 4. TABLO VERİLERİ ---
+    // --- 4. TABLO VERİLERİ (PDF için optimize) ---
     
     // Hammadde listesi için sütun indekslerini bul
     let barkodIndex = -1;
@@ -1039,7 +1054,7 @@ function generateExcel() {
     
     rows.forEach((rowData, rowIdx) => {
       const dataRow = worksheet.addRow(rowData);
-      dataRow.height = 20;
+      dataRow.height = 20; // Normal satır yüksekliği
       
       // Zebra çizgisi
       const bgColor = rowIdx % 2 === 0 ? 'FFFFFFFF' : 'FFF9F9F9';
@@ -1062,7 +1077,7 @@ function generateExcel() {
           if (statusText.includes('var') || statusText.includes('yeterli')) {
             cell.font = {
               name: 'Arial',
-              size: 10,
+              size: 10, // Normal font
               bold: true,
               color: { argb: 'FF008000' }
             };
@@ -1090,7 +1105,7 @@ function generateExcel() {
         } else {
           cell.font = {
             name: 'Arial',
-            size: 10,
+            size: 10, // Normal font
             color: { argb: 'FF000000' }
           };
         }
@@ -1173,12 +1188,12 @@ function generateExcel() {
           }
         }
         
-        // Kenarlıklar
+        // PDF için ince kenarlıklar
         cell.border = {
-          top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
-          left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
-          bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
-          right: { style: 'thin', color: { argb: 'FFDDDDDD' } }
+          top: { style: 'hair', color: { argb: 'FFDDDDDD' } },
+          left: { style: 'hair', color: { argb: 'FFDDDDDD' } },
+          bottom: { style: 'hair', color: { argb: 'FFDDDDDD' } },
+          right: { style: 'hair', color: { argb: 'FFDDDDDD' } }
         };
       });
     });
@@ -1193,14 +1208,14 @@ function generateExcel() {
       // Boş satır
       worksheet.addRow([]);
       
-      // Başlık satırı
+      // Başlık satırı - normal font boyutu
       const summaryHeaderRow = worksheet.addRow(['MALZEME TÜRÜNE GÖRE TOPLAM AĞIRLIK BİLGİLERİ (DİNAMİK HESAPLAMA)']);
       worksheet.mergeCells(worksheet.rowCount, 1, worksheet.rowCount, headers.length);
       
       const summaryHeaderCell = summaryHeaderRow.getCell(1);
       summaryHeaderCell.font = {
         name: 'Arial',
-        size: 11,
+        size: 12, // Normal font boyutu
         bold: true,
         color: { argb: 'FF6A0C0D' }
       };
@@ -1216,6 +1231,7 @@ function generateExcel() {
       
       // SAC toplam - EXCEL FORMÜLÜ
       const sacRow = worksheet.addRow(['SAC Toplam:', '', { formula: `SUMIF(${barkodColumnLetter}${dataStartRow}:${barkodColumnLetter}${lastDataRow},"S*",${kalanColumnLetter}${dataStartRow}:${kalanColumnLetter}${lastDataRow})` }]);
+      sacRow.height = 20; // Normal yükseklik
       sacRow.getCell(1).font = { name: 'Arial', size: 10, bold: true };
       sacRow.getCell(3).font = { name: 'Arial', size: 10, bold: true };
       sacRow.getCell(3).numFmt = '#,##0.00 "kg"';
@@ -1223,6 +1239,7 @@ function generateExcel() {
       
       // MİL toplam - EXCEL FORMÜLÜ
       const milRow = worksheet.addRow(['MİL Toplam:', '', { formula: `SUMIF(${barkodColumnLetter}${dataStartRow}:${barkodColumnLetter}${lastDataRow},"M*",${kalanColumnLetter}${dataStartRow}:${kalanColumnLetter}${lastDataRow})` }]);
+      milRow.height = 20;
       milRow.getCell(1).font = { name: 'Arial', size: 10, bold: true };
       milRow.getCell(3).font = { name: 'Arial', size: 10, bold: true };
       milRow.getCell(3).numFmt = '#,##0.00 "kg"';
@@ -1230,6 +1247,7 @@ function generateExcel() {
       
       // BORU toplam - EXCEL FORMÜLÜ
       const boruRow = worksheet.addRow(['BORU Toplam:', '', { formula: `SUMIF(${barkodColumnLetter}${dataStartRow}:${barkodColumnLetter}${lastDataRow},"B*",${kalanColumnLetter}${dataStartRow}:${kalanColumnLetter}${lastDataRow})` }]);
+      boruRow.height = 20;
       boruRow.getCell(1).font = { name: 'Arial', size: 10, bold: true };
       boruRow.getCell(3).font = { name: 'Arial', size: 10, bold: true };
       boruRow.getCell(3).numFmt = '#,##0.00 "kg"';
@@ -1237,6 +1255,7 @@ function generateExcel() {
       
       // GENEL TOPLAM - EXCEL FORMÜLÜ (tüm KG değerlerinin toplamı)
       const totalRow = worksheet.addRow(['GENEL TOPLAM:', '', { formula: `SUM(${kalanColumnLetter}${dataStartRow}:${kalanColumnLetter}${lastDataRow})` }]);
+      totalRow.height = 22;
       totalRow.getCell(1).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF6A0C0D' } };
       totalRow.getCell(3).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF6A0C0D' } };
       totalRow.getCell(3).numFmt = '#,##0.00 "kg"';
@@ -1249,14 +1268,32 @@ function generateExcel() {
       });
     }
     
-    // Üst kısmı dondur
+    // PDF için optimize edilmiş görünüm ayarları
     worksheet.views = [
-      { state: 'frozen', xSplit: 0, ySplit: 3, topLeftCell: 'A4', activeCell: 'A4' }
+      { 
+        state: 'frozen', 
+        xSplit: 0, 
+        ySplit: 3, 
+        topLeftCell: 'A4', 
+        activeCell: 'A4',
+        showGridLines: true, // PDF'de grid çizgileri göster
+        showRowColHeaders: false, // Satır/sütun başlıklarını gizle
+        zoomScale: 100, // %100 zoom
+        zoomScaleNormal: 100,
+        zoomScalePageLayoutView: 100
+      }
     ];
+    
+    // PDF için yazdırma alanını otomatik ayarla
+    const lastRow = worksheet.rowCount;
+    const lastCol = headers.length;
+    const lastColLetter = String.fromCharCode(64 + lastCol); // A=65, B=66, vs.
+    
+    worksheet.pageSetup.printArea = `A1:${lastColLetter}${lastRow}`;
     
     // --- EXCEL DOSYASINI OLUŞTUR VE İNDİR ---
     
-    const fileName = pageTitle.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + 
+    const fileName = 'hammadde_listesi_' + 
                     new Date().toISOString().slice(0, 10) + '.xlsx';
     
     workbook.xlsx.writeBuffer().then(function(buffer) {
@@ -1273,7 +1310,8 @@ function generateExcel() {
         window.URL.revokeObjectURL(url);
       }, 100);
       
-      console.log('Dinamik Excel dosyası başarıyla oluşturuldu:', fileName);
+      console.log('Excel dosyası başarıyla oluşturuldu:', fileName);
+      console.log('Özet bölümü normal font boyutlarıyla düzenlendi!');
     });
     
   } catch (error) {
@@ -1281,7 +1319,6 @@ function generateExcel() {
     alert('Excel oluşturulurken bir hata oluştu: ' + error.message);
   }
 }
-
 
 
   // Her tablo türü için gösterilecek sütunların indekslerini döndüren yardımcı fonksiyon
