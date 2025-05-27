@@ -631,7 +631,7 @@ async function saveParcaIslem() {
                 {
                     titleColor: '#6A0D0C',
                     messageColor: '#333333',
-                    buttonOkBackgroundColor: '#6A0D0C',
+                    buttonOkBackgroundColor: '#61993b !important',
                     buttonCancelBackgroundColor: '#666666',
                     cssAnimationStyle: 'zoom',
                     width: '500px',

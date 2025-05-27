@@ -1542,10 +1542,10 @@ async function savePlakaGrubuIslem() {
           resolve(false);
         },
         {
-          titleColor: '#6A0D0C',
+          titleColor: '#61993b',
           messageColor: '#333333',
-          buttonOkBackgroundColor: '#6A0D0C',
-          buttonCancelBackgroundColor: '#666666',
+          buttonOkBackgroundColor: '#61993b !important',
+          buttonCancelBackgroundColor: '#S666666',
           cssAnimationStyle: 'zoom',
           width: '450px',
           borderRadius: '8px',

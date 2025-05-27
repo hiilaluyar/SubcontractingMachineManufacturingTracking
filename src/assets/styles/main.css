@@ -1840,7 +1840,7 @@ div[id^="NotiflixConfirmWrap"] {
 /* Onay butonu (Evet, ekle!) */
 [class*="confirm-buttons"] [class*="confirm-button-ok"],
 [id*="NotiflixConfirmButtons"] [id*="NotiflixConfirmButtonOk"] {
-    background-color: #6A0D0C !important;
+    background-color: #61993b;
     color: white !important;
     border: none !important;
     box-shadow: none !important;
@@ -1871,7 +1871,7 @@ div[id^="NotiflixConfirmWrap"] {
 
 /* Kesin olarak çalışması için daha spesifik seçiciler */
 div[id^="NotiflixConfirmWrap"] div[class*="confirm-buttons"] div[id^="NotiflixConfirmButtonOk"] {
-    background-color: #6A0D0C !important;
+    background-color: #61993b;
     color: white !important;
 }
 
