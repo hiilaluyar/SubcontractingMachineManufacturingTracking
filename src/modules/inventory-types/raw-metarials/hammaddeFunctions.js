@@ -1598,6 +1598,7 @@ async function deleteHammadde(id) {
   }
 
 
+
 async function loadHammaddeGirisGecmisi(hammaddeId) {
     try {
         console.log('📋 Giriş geçmişi yükleniyor - Hammadde ID:', hammaddeId);
@@ -1620,34 +1621,10 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
 
         console.log('📊 Giriş geçmişi sayısı:', result.girisGecmisi.length);
 
-        // İşlem durumunu kontrol etmek için işlemleri al
-        let islemler = [];
-        try {
-            const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByHammaddeId(hammaddeId);
-            islemler = islemlerResult.success ? islemlerResult.islemler : [];
-            console.log('🔧 Toplam işlem sayısı:', islemler.length);
-        } catch (islemError) {
-            console.warn('⚠️ İşlemler alınırken hata:', islemError);
-            islemler = [];
-        }
-        
         // Giriş geçmişini tarihe göre sırala (en yeni en üstte)
         const sortedGirisGecmisi = result.girisGecmisi
             .sort((a, b) => new Date(b.giris_tarihi) - new Date(a.giris_tarihi));
         
-        // Son giriş tarihini al
-        const sonGirisTarihi = sortedGirisGecmisi.length > 0 ? 
-            new Date(sortedGirisGecmisi[0].giris_tarihi) : null;
-        
-        // Son girişten sonra işlem yapılmış mı kontrol et
-        const sonGirisSonrasiIslemVar = islemler.some(islem => {
-            const islemTarihi = new Date(islem.islem_tarihi);
-            return sonGirisTarihi && islemTarihi > sonGirisTarihi;
-        });
-
-        console.log('🕐 Son giriş tarihi:', sonGirisTarihi?.toLocaleString('tr-TR'));
-        console.log('🔍 Son girişten sonra işlem var mı:', sonGirisSonrasiIslemVar);
-
         // Her giriş kaydını tabloya ekle
         sortedGirisGecmisi.forEach((giris, index) => {
             const row = girisGecmisiTable.insertRow();
@@ -1706,35 +1683,27 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
             const kullaniciCell = row.insertCell(6);
             kullaniciCell.textContent = `${giris.kullanici_ad || ''} ${giris.kullanici_soyad || ''}`.trim() || 'Bilinmiyor';
             
-            // İşlemler sütunu - EN ÖNEMLİ KISIM
+            // İşlemler sütunu - TÜM GİRİŞLER DÜZENLENEBİLİR
             const islemlerCell = row.insertCell(7);
-            const buGirisSonGiris = index === 0; // İlk sıradaki en son giriş
             
             // Plaka grubu girişi mi kontrol et
             const isPlakaGrubuGirisi = giris.plaka_sayisi && giris.plaka_sayisi > 0;
             
             // Düzenleme durumunu belirle
-            let canEdit = false;
+            let canEdit = true; // Artık hepsini düzenlenebilir yapıyoruz
             let editReason = '';
             
-            if (!buGirisSonGiris) {
-                // Son giriş değilse düzenlenemez
-                editReason = 'Sadece son giriş düzenlenebilir';
-            } else if (sonGirisSonrasiIslemVar) {
-                // Son girişten sonra işlem varsa düzenlenemez
-                editReason = 'Son girişten sonra işlem yapıldığı için güncellenemez';
-            } else if (!giris.id) {
+            if (!giris.id) {
                 // ID yoksa düzenlenemez
+                canEdit = false;
                 editReason = 'Giriş ID\'si bulunamadı';
-            } else {
-                canEdit = true;
             }
             
             console.log(`📝 Giriş ${index + 1} düzenleme durumu:`, {
                 id: giris.id,
                 isPlakaGrubu: isPlakaGrubuGirisi,
                 canEdit,
-                reason: editReason
+                reason: editReason || 'Düzenlenebilir'
             });
             
             if (canEdit) {
@@ -1780,7 +1749,7 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
             }
         });
         
-        console.log('✅ Giriş geçmişi başarıyla yüklendi');
+        console.log('✅ Giriş geçmişi başarıyla yüklendi - Tüm girişler düzenlenebilir');
         
     } catch (error) {
         console.error('❌ Giriş geçmişi yükleme hatası:', error);
@@ -1793,6 +1762,8 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
         }
     }
 }
+
+
 
 // Modal kapatıldığında normal moda döndürme işlemi
 function handleModalClose() {

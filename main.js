@@ -758,6 +758,14 @@ ipcMain.handle('database:canUpdatePlakaGrubu', async (event, plakaGrubuId, yeniP
   }
 });
 
+ipcMain.handle('database:findPlakaGrubuByGiris', async (event, giridId) => {
+  try {
+    return await DatabaseService.findPlakaGrubuByGiris(giridId);
+  } catch (error) {
+    console.error('Error in findPlakaGrubuByGiris:', error);
+    return false;
+  }
+});
 
 
 

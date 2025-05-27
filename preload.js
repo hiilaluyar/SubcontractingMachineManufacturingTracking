@@ -155,6 +155,9 @@ getIslemlerByMultiplePlakaGrubuIds: (plakaGrubuIds) => ipcRenderer.invoke('datab
   getPlakaGrubuByGirisId: (girisId) => 
   ipcRenderer.invoke('database:getPlakaGrubuByGirisId', girisId),
 
+   findPlakaGrubuByGiris: (girisId) => 
+  ipcRenderer.invoke('database:findPlakaGrubuByGiris', girisId),
+
 checkPlakaGrubuIslemDurumu: (plakaGrubuId) => 
   ipcRenderer.invoke('database:checkPlakaGrubuIslemDurumu', plakaGrubuId),
 

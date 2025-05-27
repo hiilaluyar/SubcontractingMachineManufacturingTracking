@@ -1,51 +1,42 @@
-// editSheetPlates.js - DÜZELTİLMİŞ VERSİYON
+// editSheetPlates.js - GELİŞTİRİLMİŞ VERSİYON
 
 // Global değişkenler
 let editingPlakaGrubuId = null;
 let editingPlakaGrubu = null;
+let editingGirisId = null; // Hangi giriş düzenleniyor
 let isEditMode = false;
-let isProcessingSave = false; // Çift kaydetmeyi engellemek için
+let isProcessingSave = false;
 
 // Modal state'ini tamamen temizle
 function resetModalState() {
   console.log('🔄 Modal state sıfırlanıyor...');
   
-  // İşlem durumunu sıfırla
   isProcessingSave = false;
-  
-  // Global değişkenleri sıfırla
   editingPlakaGrubuId = null;
   editingPlakaGrubu = null;
+  editingGirisId = null;
   isEditMode = false;
   
-  // Modal başlığını sıfırla
   const modalTitle = document.querySelector('#yeniPlakaGrubuModal h2');
   if (modalTitle) {
     modalTitle.textContent = 'Yeni Plaka Grubu Ekle';
   }
   
-  // Durum panelini kaldır
   const durumPaneli = document.getElementById('plakaGrubuDurumPaneli');
   if (durumPaneli) {
     durumPaneli.remove();
   }
   
-  // Hesaplama butonunu göster
   const hesaplaBtn = document.getElementById('hesaplaPlakaGrubuBtn');
   if (hesaplaBtn) {
     hesaplaBtn.style.display = 'inline-block';
   }
   
-  // Kaydet butonunu normal moda çevir
   resetSaveButton();
-  
-  // Formu sıfırla
   resetPlakaGrubuModal();
   
-  // Hesaplama detaylarını temizle
   window.plakaGrubuHesaplamaDetaylari = null;
   
-  // Hesaplama sonucu alanını temizle
   const hesapSonucu = document.getElementById('plakaGrubuHesapSonucu');
   if (hesapSonucu) {
     hesapSonucu.style.display = 'none';
@@ -60,20 +51,16 @@ function resetSaveButton() {
   const kaydetBtn = document.getElementById('plakaGrubuKaydetBtn');
   if (!kaydetBtn) return;
   
-  // Butonu tamamen klonla (tüm event listener'ları temizlemek için)
   const yeniBtn = kaydetBtn.cloneNode(true);
   kaydetBtn.parentNode.replaceChild(yeniBtn, kaydetBtn);
   
-  // Buton metnini ve durumunu sıfırla
   yeniBtn.innerHTML = '<i class="fas fa-save"></i> Plaka Grubunu Kaydet';
   yeniBtn.disabled = true;
   
-  // TEK event listener ekle
   yeniBtn.addEventListener('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
     
-    // Çift tıklamayı engelle
     if (isProcessingSave) {
       console.log('⚠️ İşlem zaten devam ediyor...');
       return;
@@ -87,7 +74,6 @@ function resetSaveButton() {
       savePlakaGrubu();
     }
   });
-
 }
 
 // Normal ekleme modalı
@@ -99,26 +85,25 @@ async function openYeniPlakaGrubuModal() {
   
   console.log('🆕 Yeni plaka grubu modalı açılıyor...');
   
-  // Modal durumunu tamamen sıfırla
   resetModalState();
-  
-  // Tedarikçileri yükle
   await loadTedarikciListesiForPlakaGrubu();
   
-  // Modalı aç
   openModal('yeniPlakaGrubuModal');
   closeModal('detayModal');
   
   console.log('✅ Yeni plaka grubu modalı açıldı');
 }
 
-// Düzenleme modalı
+// Düzenleme modalı - GELİŞTİRİLMİŞ VERSİYON
 async function openPlakaGrubuDuzenleModal(girisId, hammaddeId, toplamKilo) {
   try {
-    console.log('✏️ Düzenleme modalı açılıyor...');
+    console.log('✏️ Düzenleme modalı açılıyor... Giriş ID:', girisId);
     
     // ÖNCE modal durumunu sıfırla
     resetModalState();
+    
+    // Giriş ID'sini kaydet
+    editingGirisId = girisId;
     
     // Giriş bilgilerini al
     const girisResult = await window.electronAPI.invoke.database.getHammaddeGirisById(girisId);
@@ -127,8 +112,8 @@ async function openPlakaGrubuDuzenleModal(girisId, hammaddeId, toplamKilo) {
       return;
     }
     
-    // Plaka grubunu al
-    const plakaGrubuResult = await window.electronAPI.invoke.database.getPlakaGrubuByGirisId(girisId);
+    // Yeni fonksiyon kullanarak plaka grubunu bul
+    const plakaGrubuResult = await window.electronAPI.invoke.database.findPlakaGrubuByGiris(girisId);
     if (!plakaGrubuResult.success) {
       showToast('Plaka grubu bulunamadı: ' + plakaGrubuResult.message, 'error');
       return;
@@ -147,10 +132,11 @@ async function openPlakaGrubuDuzenleModal(girisId, hammaddeId, toplamKilo) {
     editingPlakaGrubu = plakaGrubuResult.plakaGrubu;
     currentHammaddeId = hammaddeId;
     
-    console.log('🔄 Düzenleme modu aktif - ID:', editingPlakaGrubuId);
+    console.log('🔄 Düzenleme modu aktif - Plaka Grubu ID:', editingPlakaGrubuId, 'Giriş ID:', editingGirisId);
     
     // Modal başlığını değiştir
-    document.querySelector('#yeniPlakaGrubuModal h2').textContent = 'Plaka Grubu Düzenle';
+    const modalTitle = document.querySelector('#yeniPlakaGrubuModal h2');
+    modalTitle.textContent = `Plaka Grubu Düzenle (#${plakaGrubuResult.plakaGrubu.stok_kodu})`;
     
     // Durum panelini göster
     showPlakaGrubuDurumPaneli(plakaGrubuResult.plakaGrubu, islemResult);
@@ -181,7 +167,7 @@ async function openPlakaGrubuDuzenleModal(girisId, hammaddeId, toplamKilo) {
   }
 }
 
-// Durum panelini göster
+// Durum panelini göster - GELİŞTİRİLMİŞ VERSİYON
 function showPlakaGrubuDurumPaneli(plakaGrubu, islemDurumu) {
   let durumPaneli = document.getElementById('plakaGrubuDurumPaneli');
   
@@ -229,13 +215,14 @@ function showPlakaGrubuDurumPaneli(plakaGrubu, islemDurumu) {
       <div class="uyari-mesaji warning">
         <i class="fas fa-exclamation-triangle"></i>
         <strong>Dikkat:</strong> Bu plaka grubundan ${islemDurumu.kullanilanPlakaSayisi} plaka kullanılmış.
+        İşlem geçmişi korunacaktır.
       </div>
     `;
   } else {
     panelHTML += `
       <div class="bilgi-mesaji info">
         <i class="fas fa-info-circle"></i>
-        Bu plaka grubundan henüz işlem yapılmamış. Tüm değerler güncellenebilir.
+        Bu plaka grubundan henüz işlem yapılmamış. Tüm değerler güvenle güncellenebilir.
       </div>
     `;
   }
@@ -444,7 +431,6 @@ function showCalculationError(message) {
 
 // Normal kaydetme - DEĞİŞİKLİK YOK
 async function savePlakaGrubu() {
-  // Çift kaydetmeyi engelle
   if (isProcessingSave) {
     console.log('⚠️ savePlakaGrubu: İşlem zaten devam ediyor');
     return;
@@ -466,7 +452,6 @@ async function savePlakaGrubu() {
       return;
     }
     
-    // Form değerleri
     const plakaGrubuData = {
       hammadde_id: currentHammaddeId,
       en: parseFloat(document.getElementById('plakaGrubuEn').value),
@@ -480,7 +465,6 @@ async function savePlakaGrubu() {
       ekleyen_id: currentUser.id
     };
     
-    // Validasyon
     if (!plakaGrubuData.tedarikci || !plakaGrubuData.birim_fiyat || plakaGrubuData.birim_fiyat <= 0) {
       showModalError('yeniPlakaGrubuModal', 'Lütfen tüm zorunlu alanları doldurun.');
       return;
@@ -496,7 +480,6 @@ async function savePlakaGrubu() {
       closeModal('yeniPlakaGrubuModal');
       resetModalState();
       
-      // Güncellemeler
       updateDashboard();
       await loadHammaddeListesi();
       
@@ -515,9 +498,8 @@ async function savePlakaGrubu() {
   }
 }
 
-// Düzenleme kaydetme - GÜÇLENDIRILMIŞ
+// Düzenleme kaydetme - GELİŞTİRİLMİŞ VERSİYON
 async function savePlakaGrubuEdit() {
-  // Çift kaydetmeyi engelle
   if (isProcessingSave) {
     console.log('⚠️ savePlakaGrubuEdit: İşlem zaten devam ediyor');
     return;
@@ -533,6 +515,8 @@ async function savePlakaGrubuEdit() {
   
   try {
     console.log('✏️ Plaka grubu düzenlemesi kaydediliyor...');
+    console.log('📋 Düzenlenen giriş ID:', editingGirisId);
+    console.log('📋 Düzenlenen plaka grubu ID:', editingPlakaGrubuId);
     
     if (!window.plakaGrubuHesaplamaDetaylari) {
       showModalError('yeniPlakaGrubuModal', 'Lütfen hesaplama yapın.');
@@ -542,6 +526,7 @@ async function savePlakaGrubuEdit() {
     // Update verisi
     const updateData = {
       plakaGrubuId: editingPlakaGrubuId,
+      girisId: editingGirisId, // Hangi giriş güncelleniyor
       en: parseFloat(document.getElementById('plakaGrubuEn').value),
       boy: parseFloat(document.getElementById('plakaGrubuBoy').value),
       toplamKilo: parseFloat(document.getElementById('plakaGrubuToplamKilo').value),
@@ -596,19 +581,16 @@ async function savePlakaGrubuEdit() {
   }
 }
 
-// Event listener kurulumu - TEKİL OLARAK
+// Event listener kurulumu
 function setupEditEventListeners() {
   console.log('🔧 Event listener\'lar kuruluyor...');
   
-  // Form alanları için otomatik hesaplama (sadece edit modunda)
   ['plakaGrubuEn', 'plakaGrubuBoy', 'plakaGrubuToplamKilo'].forEach(fieldId => {
     const field = document.getElementById(fieldId);
     if (field) {
-      // Eski listener'ları temizle
       const newField = field.cloneNode(true);
       field.parentNode.replaceChild(newField, field);
       
-      // Yeni listener ekle
       newField.addEventListener('input', function() {
         if (isEditMode) {
           calculatePlakaGrubuForEdit();
@@ -617,10 +599,8 @@ function setupEditEventListeners() {
     }
   });
   
-  // Modal kapatma olayları
   const modal = document.getElementById('yeniPlakaGrubuModal');
   if (modal) {
-    // X butonu
     const closeBtn = modal.querySelector('.close');
     if (closeBtn) {
       const newCloseBtn = closeBtn.cloneNode(true);
@@ -640,13 +620,9 @@ function setupEditEventListeners() {
 document.addEventListener('DOMContentLoaded', function() {
   console.log('🚀 editSheetPlates.js DOM yüklendi');
   
-  // Event listener'ları kur
   setupEditEventListeners();
-  
-  // Kaydet butonunu sıfırla
   resetSaveButton();
   
-  // Yeni Plaka Grubu Ekle butonu
   const yeniPlakaGrubuEkleBtn = document.getElementById('yeniPlakaGrubuEkleBtn');
   if (yeniPlakaGrubuEkleBtn) {
     const newBtn = yeniPlakaGrubuEkleBtn.cloneNode(true);
@@ -654,7 +630,6 @@ document.addEventListener('DOMContentLoaded', function() {
     newBtn.addEventListener('click', openYeniPlakaGrubuModal);
   }
   
-  // Hesaplama butonu
   const hesaplaBtn = document.getElementById('hesaplaPlakaGrubuBtn');
   if (hesaplaBtn) {
     const newHesaplaBtn = hesaplaBtn.cloneNode(true);
@@ -665,7 +640,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Plaka Grubu modalını sıfırla
 function resetPlakaGrubuModal() {
-  // Form alanlarını temizle
   document.getElementById('plakaGrubuEn').value = '';
   document.getElementById('plakaGrubuBoy').value = '';
   document.getElementById('plakaGrubuPlakaSayisi').value = '';
@@ -674,7 +648,6 @@ function resetPlakaGrubuModal() {
   document.getElementById('plakaGrubuBirimFiyat').value = '';
   document.getElementById('plakaGrubuAnaBarkod').value = '';
   
-  // Plaka sayısını normal moda döndür
   const plakaSayisiInput = document.getElementById('plakaGrubuPlakaSayisi');
   if (plakaSayisiInput) {
     plakaSayisiInput.readOnly = false;
@@ -682,7 +655,6 @@ function resetPlakaGrubuModal() {
     plakaSayisiInput.style.color = '';
   }
   
-  // Hesaplama sonucunu gizle
   const hesapSonucu = document.getElementById('plakaGrubuHesapSonucu');
   if (hesapSonucu) {
     hesapSonucu.style.display = 'none';
@@ -710,27 +682,18 @@ function calculatePlakaGrubu() {
       return;
     }
     
-    // Tek plaka ağırlığı hesapla
     const hacim = (en / 1000) * (boy / 1000) * (kalinlik / 1000);
     const teorikPlakaAgirligi = hacim * yogunluk;
     
-    // Plaka sayısını otomatik hesapla
     let plakaSayisi = Math.round(toplamKilo / teorikPlakaAgirligi);
     if (plakaSayisi < 1) plakaSayisi = 1;
     
-    // Hesaplanan plaka sayısını form alanına yaz
     document.getElementById('plakaGrubuPlakaSayisi').value = plakaSayisi;
     
-    // Toplam teorik ağırlık
     const teorikToplamAgirlik = teorikPlakaAgirligi * plakaSayisi;
-    
-    // Gerçek plaka ağırlığı
     const gercekPlakaAgirligi = toplamKilo / plakaSayisi;
-    
-    // Fark hesapla
     const farkYuzde = ((toplamKilo - teorikToplamAgirlik) / teorikToplamAgirlik) * 100;
     
-    // Hata kontrolü
     let hesaplamaDurumu = '';
     let kaydetButonuAktif = true;
     
@@ -743,7 +706,6 @@ function calculatePlakaGrubu() {
       hesaplamaDurumu = '<div class="success">✅ Hesaplama başarılı! Değerler uygun.</div>';
     }
     
-    // Sonuçları göster
     const sonucHTML = `
       ${hesaplamaDurumu}
       <div class="calculation-details">
@@ -781,10 +743,8 @@ function calculatePlakaGrubu() {
     document.getElementById('plakaGrubuHesapSonucu').innerHTML = sonucHTML;
     document.getElementById('plakaGrubuHesapSonucu').style.display = 'block';
     
-    // Kaydet butonu durumu
     document.getElementById('plakaGrubuKaydetBtn').disabled = !kaydetButonuAktif;
     
-    // Hesaplama detaylarını sakla
     window.plakaGrubuHesaplamaDetaylari = {
       en, boy, kalinlik,
       plakaSayisi,
@@ -939,8 +899,6 @@ window.openPlakaGrubuDuzenleModal = openPlakaGrubuDuzenleModal;
 window.openYeniPlakaGrubuModal = openYeniPlakaGrubuModal;
 window.resetModalState = resetModalState;
 window.savePlakaGrubuEdit = savePlakaGrubuEdit;
-
-// Orijinal savePlakaGrubu fonksiyonunu sakla
 window.originalSavePlakaGrubu = savePlakaGrubu;
 
-console.log('✅ editSheetPlates.js yüklendi');
+console.log('✅ editSheetPlates.js yüklendi - Tüm girişler düzenlenebilir');

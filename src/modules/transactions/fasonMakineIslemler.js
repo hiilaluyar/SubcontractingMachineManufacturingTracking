@@ -1,4 +1,6 @@
 
+//fasonMakineIslemler.js
+
 async function loadIskartaUrunler() {
   try {
     console.log('Iskarta ürünler yükleniyor...');
@@ -2012,6 +2014,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initIskartaUrunlerSearch();
   }
 });
+
 
 
 

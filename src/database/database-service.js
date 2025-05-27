@@ -6031,6 +6031,7 @@ async function checkPlakaGrubuIslemDurumu(plakaGrubuId) {
   }
 }
 
+
 async function updatePlakaGrubu(updateData) {
   const connection = await pool.getConnection();
   
@@ -6133,33 +6134,50 @@ async function updatePlakaGrubu(updateData) {
       console.log('ℹ️ Kilo farkı minimal, hammadde tablosu güncellenmedi');
     }
     
-    // 7. GİRİŞ GEÇMİŞİNİ GÜNCELLE
-    // Bu plaka grubuna ait en yakın giriş kaydını bul ve güncelle
-    const [girisUpdateResult] = await connection.execute(
-      `UPDATE hammadde_giris_gecmisi 
-       SET miktar = ?, 
-           birim_fiyat = ?, 
-           birim_fiyat_turu = ?, 
-           tedarikci = ?, 
-           plaka_sayisi = ?
+    // 7. GİRİŞ GEÇMİŞİNİ GÜNCELLE - GELİŞTİRİLMİŞ VERSİYON
+    // Bu plaka grubuna ait giriş kaydını bul ve güncelle
+    // Plaka grubu ID'sine göre daha doğru eşleştirme yapacağız
+    
+    // Önce bu plaka grubunun giriş tarihine en yakın kaydı bulalım
+    const [girisKaydi] = await connection.execute(
+      `SELECT id, giris_tarihi 
+       FROM hammadde_giris_gecmisi 
        WHERE hammadde_id = ? 
-       AND plaka_sayisi IS NOT NULL
-       AND ABS(TIMESTAMPDIFF(MINUTE, giris_tarihi, ?)) <= 10
+       AND plaka_sayisi = ?
+       AND ABS(miktar - ?) < 1
        ORDER BY ABS(TIMESTAMPDIFF(SECOND, giris_tarihi, ?)) ASC
        LIMIT 1`,
       [
-        yeniToplamKilo, 
-        updateData.birimFiyat, 
-        updateData.birimFiyatTuru,
-        updateData.tedarikci, 
-        updateData.plakaSayisi,
-        eskiPlakaGrubu.hammadde_id, 
-        eskiPlakaGrubu.ekleme_tarihi, 
+        eskiPlakaGrubu.hammadde_id,
+        eskiPlakaGrubu.toplam_plaka_sayisi,
+        eskiToplamKilo,
         eskiPlakaGrubu.ekleme_tarihi
       ]
     );
     
-    console.log('✅ Giriş geçmişi güncellendi, etkilenen satır:', girisUpdateResult.affectedRows);
+    if (girisKaydi.length > 0) {
+      const [girisUpdateResult] = await connection.execute(
+        `UPDATE hammadde_giris_gecmisi 
+         SET miktar = ?, 
+             birim_fiyat = ?, 
+             birim_fiyat_turu = ?, 
+             tedarikci = ?, 
+             plaka_sayisi = ?
+         WHERE id = ?`,
+        [
+          yeniToplamKilo, 
+          updateData.birimFiyat, 
+          updateData.birimFiyatTuru,
+          updateData.tedarikci, 
+          updateData.plakaSayisi,
+          girisKaydi[0].id
+        ]
+      );
+      
+      console.log('✅ Giriş geçmişi güncellendi, etkilenen satır:', girisUpdateResult.affectedRows);
+    } else {
+      console.log('⚠️ İlgili giriş kaydı bulunamadı');
+    }
     
     // 8. TRANSAKSİYONU ONAYLA
     await connection.commit();
@@ -6201,10 +6219,91 @@ async function updatePlakaGrubu(updateData) {
 }
 
 
+async function findPlakaGrubuByGiris(girisId) {
+  try {
+    console.log('🔍 Giriş ID\'sine göre plaka grubu bulunuyor:', girisId);
+    
+    // Giriş bilgilerini al
+    const [girisRows] = await pool.execute(
+      `SELECT * FROM hammadde_giris_gecmisi WHERE id = ?`,
+      [girisId]
+    );
+    
+    if (girisRows.length === 0) {
+      return { success: false, message: 'Giriş kaydı bulunamadı' };
+    }
+    
+    const giris = girisRows[0];
+    
+    // Eğer plaka sayısı yoksa bu normal hammadde girişi
+    if (!giris.plaka_sayisi || giris.plaka_sayisi <= 0) {
+      return { success: false, message: 'Bu giriş plaka grubu girişi değil' };
+    }
+    
+    // Bu girişe ait plaka grubunu bul
+    // Birden fazla yöntemle arama yapalım
+    let plakaGrubu = null;
+    
+    // 1. Yöntem: Tarih ve miktar eşleştirmesi
+    const [plakaGrubuRows1] = await pool.execute(
+      `SELECT pg.*, h.yogunluk, h.malzeme_adi, h.kalinlik
+       FROM plaka_gruplari pg
+       JOIN hammaddeler h ON pg.hammadde_id = h.id
+       WHERE pg.hammadde_id = ? 
+       AND pg.toplam_plaka_sayisi = ?
+       AND ABS(pg.toplam_kilo - ?) < 1
+       AND ABS(TIMESTAMPDIFF(MINUTE, pg.ekleme_tarihi, ?)) <= 30
+       ORDER BY ABS(TIMESTAMPDIFF(SECOND, pg.ekleme_tarihi, ?)) ASC
+       LIMIT 1`,
+      [
+        giris.hammadde_id, 
+        giris.plaka_sayisi,
+        giris.miktar,
+        giris.giris_tarihi, 
+        giris.giris_tarihi
+      ]
+    );
+    
+    if (plakaGrubuRows1.length > 0) {
+      plakaGrubu = plakaGrubuRows1[0];
+      console.log('✅ Plaka grubu bulundu (1. yöntem)');
+    } else {
+      // 2. Yöntem: Sadece plaka sayısı ve hammadde eşleştirmesi
+      const [plakaGrubuRows2] = await pool.execute(
+        `SELECT pg.*, h.yogunluk, h.malzeme_adi, h.kalinlik
+         FROM plaka_gruplari pg
+         JOIN hammaddeler h ON pg.hammadde_id = h.id
+         WHERE pg.hammadde_id = ? 
+         AND pg.toplam_plaka_sayisi = ?
+         AND DATE(pg.ekleme_tarihi) = DATE(?)
+         ORDER BY ABS(TIMESTAMPDIFF(SECOND, pg.ekleme_tarihi, ?)) ASC
+         LIMIT 1`,
+        [
+          giris.hammadde_id, 
+          giris.plaka_sayisi,
+          giris.giris_tarihi,
+          giris.giris_tarihi
+        ]
+      );
+      
+      if (plakaGrubuRows2.length > 0) {
+        plakaGrubu = plakaGrubuRows2[0];
+        console.log('✅ Plaka grubu bulundu (2. yöntem)');
+      }
+    }
+    
+    if (!plakaGrubu) {
+      return { success: false, message: 'Bu girişe ait plaka grubu bulunamadı' };
+    }
+    
+    return { success: true, plakaGrubu, giris };
+    
+  } catch (error) {
+    console.error('❌ Plaka grubu arama hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
 
-
-
-// Güncelleme yapılabilir mi kontrol et
 async function canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi) {
   try {
     console.log('🔍 Güncelleme kontrolü yapılıyor:', { plakaGrubuId, yeniPlakaSayisi });
@@ -6255,7 +6354,6 @@ async function canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi) {
     };
   }
 }
-
 
 
 
@@ -6361,6 +6459,7 @@ addPlakaGrubuToIslemde,
   checkPlakaGrubuIslemDurumu,
   updatePlakaGrubu,
 
-  canUpdatePlakaGrubu
+  canUpdatePlakaGrubu,
+  findPlakaGrubuByGiris
 
 };
