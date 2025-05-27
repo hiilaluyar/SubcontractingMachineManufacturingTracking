@@ -399,6 +399,7 @@ async function loadFasonIslemler() {
   }
 }
 
+
 async function loadMakineIslemler() {
   try {
     console.log('Makine işlemleri yükleniyor...');
@@ -416,22 +417,14 @@ async function loadMakineIslemler() {
     const makineTable = document.getElementById('makineTable').getElementsByTagName('tbody')[0];
     makineTable.innerHTML = '<tr><td colspan="9" class="text-center"><div class="spinner-border text-primary" role="status"></div><div>İşlemler yükleniyor...</div></td></tr>';
     
-    // Tüm işlem türlerini paralel yükle
-    const [
-      hammaddeResult,
-      yariMamulIslemler,
-      plakaGrubuIslemler
-    ] = await Promise.all([
-      window.electronAPI.invoke.database.getMakineIslemlerHepsiBirlikte(),
-      loadYariMamulMakineIslemler(),
-      loadPlakaGrubuMakineIslemler()
-    ]);
+    // SADECE TEK SORGU ÇALIŞTIR - gereksiz paralel işlemleri kaldır
+    const hammaddeResult = await window.electronAPI.invoke.database.getMakineIslemlerHepsiBirlikte();
     
     // Tüm işlemleri birleştir
     const tumIslemler = [];
     const yuklenenIslemIDs = new Set();
 
-    // Önce mevcut işlemleri ekle
+    // Backend'den gelen tüm işlemleri ekle (hammadde, sarf malzeme, yarı mamul, plaka grubu hepsi dahil)
     if (hammaddeResult.success) {
       hammaddeResult.islemler.forEach(islem => {
         const islemKey = `${islem.islem_turu}_${islem.islem_id}`;
@@ -439,24 +432,6 @@ async function loadMakineIslemler() {
         tumIslemler.push(islem);
       });
     }
-
-    // Yarı mamul işlemlerini ekle
-    yariMamulIslemler.forEach(islem => {
-      const islemKey = `${islem.islem_turu}_${islem.islem_id}`;
-      if (!yuklenenIslemIDs.has(islemKey)) {
-        yuklenenIslemIDs.add(islemKey);
-        tumIslemler.push(islem);
-      }
-    });
-    
-    // Plaka grubu işlemlerini ekle
-    plakaGrubuIslemler.forEach(islem => {
-      const islemKey = `${islem.islem_turu}_${islem.islem_id}`;
-      if (!yuklenenIslemIDs.has(islemKey)) {
-        yuklenenIslemIDs.add(islemKey);
-        tumIslemler.push(islem);
-      }
-    });
     
     // İşlenmiş öğeleri localStorage'dan al
     const editedItems = JSON.parse(localStorage.getItem('editedItems') || '{}');
