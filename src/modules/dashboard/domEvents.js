@@ -69,6 +69,12 @@ document.addEventListener('DOMContentLoaded', function() {
   if (parcaIslemKaydetBtn) {
       parcaIslemKaydetBtn.addEventListener('click', saveParcaIslem);
   }
+
+
+    const plakaGrubuIslemKaydetBtn = document.getElementById('plakaGrubuIslemKaydetBtn');
+  if (plakaGrubuIslemKaydetBtn) {
+      plakaGrubuIslemKaydetBtn.addEventListener('click', savePlakaGrubuIslem);
+  }
   
   // Event listener for new project button
   const parcaYeniProjeEkleBtn = document.getElementById('parcaYeniProjeEkleBtn');
