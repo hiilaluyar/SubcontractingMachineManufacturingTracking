@@ -1598,11 +1598,12 @@ async function deleteHammadde(id) {
   }
 
 
-
 async function loadHammaddeGirisGecmisi(hammaddeId) {
     try {
+        console.log('📋 Giriş geçmişi yükleniyor - Hammadde ID:', hammaddeId);
+        
         if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
-            console.error('Database invoke metodu bulunamadı');
+            console.error('❌ Database invoke metodu bulunamadı');
             return;
         }
 
@@ -1617,37 +1618,44 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
             return;
         }
 
-        // Parçaları al - İşlem kontrolü için gerekli
-        const parcalarResult = await window.electronAPI.invoke.database.getParcalarByHammaddeId(hammaddeId);
-        const parcalar = parcalarResult.success ? parcalarResult.parcalar : [];
-        
-        // İşlemleri al
+        console.log('📊 Giriş geçmişi sayısı:', result.girisGecmisi.length);
+
+        // İşlem durumunu kontrol etmek için işlemleri al
         let islemler = [];
-        if (parcalar.length > 0) {
-            const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByParcaId(parcalar[0].id);
+        try {
+            const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByHammaddeId(hammaddeId);
             islemler = islemlerResult.success ? islemlerResult.islemler : [];
+            console.log('🔧 Toplam işlem sayısı:', islemler.length);
+        } catch (islemError) {
+            console.warn('⚠️ İşlemler alınırken hata:', islemError);
+            islemler = [];
         }
         
-        // Son girişi ve sonrasındaki işlemleri kontrol et - güncellenebilirlik için
+        // Giriş geçmişini tarihe göre sırala (en yeni en üstte)
         const sortedGirisGecmisi = result.girisGecmisi
             .sort((a, b) => new Date(b.giris_tarihi) - new Date(a.giris_tarihi));
         
+        // Son giriş tarihini al
         const sonGirisTarihi = sortedGirisGecmisi.length > 0 ? 
             new Date(sortedGirisGecmisi[0].giris_tarihi) : null;
         
-        const sonGiriştençokSonraIslemVar = islemler.some(islem => {
+        // Son girişten sonra işlem yapılmış mı kontrol et
+        const sonGirisSonrasiIslemVar = islemler.some(islem => {
             const islemTarihi = new Date(islem.islem_tarihi);
             return sonGirisTarihi && islemTarihi > sonGirisTarihi;
         });
 
-        // Her bir giriş kaydını göster
+        console.log('🕐 Son giriş tarihi:', sonGirisTarihi?.toLocaleString('tr-TR'));
+        console.log('🔍 Son girişten sonra işlem var mı:', sonGirisSonrasiIslemVar);
+
+        // Her giriş kaydını tabloya ekle
         sortedGirisGecmisi.forEach((giris, index) => {
             const row = girisGecmisiTable.insertRow();
             
             // Tarih
-            const cell1 = row.insertCell(0);
+            const tariihCell = row.insertCell(0);
             const date = new Date(giris.giris_tarihi);
-            cell1.textContent = date.toLocaleString('tr-TR', {
+            tariihCell.textContent = date.toLocaleString('tr-TR', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -1655,109 +1663,134 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
                 minute: '2-digit'
             });
             
-            // Miktar - Plaka sayısını da göster
-            const cell2 = row.insertCell(1);
+            // Miktar ve plaka sayısı
+            const miktarCell = row.insertCell(1);
             let miktarText = `${Number(giris.miktar).toFixed(2)} kg`;
             if (giris.plaka_sayisi && giris.plaka_sayisi > 0) {
-                miktarText += ` (${giris.plaka_sayisi} plaka)`;
+                miktarText += ` <span class="plaka-badge">(${giris.plaka_sayisi} plaka)</span>`;
             }
-            cell2.textContent = miktarText;
+            miktarCell.innerHTML = miktarText;
             
             // Para birimi belirleme
-            let paraBirimi = 'TRY';
-            
-            if (giris.birim_fiyat_turu) {
-                paraBirimi = giris.birim_fiyat_turu;
-            } else {
-                const tedarikciStr = giris.tedarikci || '';
-                const paraBirimiMatch = tedarikciStr.match(/\((.*?)\)/);
+            let paraBirimi = giris.birim_fiyat_turu || 'TRY';
+            if (!giris.birim_fiyat_turu && giris.tedarikci) {
+                const paraBirimiMatch = giris.tedarikci.match(/\((.*?)\)/);
                 if (paraBirimiMatch && paraBirimiMatch[1]) {
                     paraBirimi = paraBirimiMatch[1];
                 }
             }
             
             // Para birimi sembolü
-            let paraBirimiSembolu;
-            switch (paraBirimi) {
-                case 'USD':
-                    paraBirimiSembolu = '$';
-                    break;
-                case 'EUR':
-                    paraBirimiSembolu = '€';
-                    break;
-                case 'GBP':
-                    paraBirimiSembolu = '£';
-                    break;
-                case 'TRY':
-                default:
-                    paraBirimiSembolu = '₺';
-                    break;
-            }
+            const paraBirimiSembolu = getParaBirimiSembolu(paraBirimi);
             
             // Birim Fiyat
-            const cell3 = row.insertCell(2);
-            cell3.textContent = `${Number(giris.birim_fiyat).toFixed(2)} ${paraBirimiSembolu}`;
+            const birimFiyatCell = row.insertCell(2);
+            birimFiyatCell.textContent = `${Number(giris.birim_fiyat || 0).toFixed(2)} ${paraBirimiSembolu}`;
             
             // Toplam Tutar
-            const cell4 = row.insertCell(3);
-            const toplamTutar = Number(giris.miktar) * Number(giris.birim_fiyat);
-            cell4.textContent = `${toplamTutar.toFixed(2)} ${paraBirimiSembolu}`;
+            const toplamTutarCell = row.insertCell(3);
+            const toplamTutar = Number(giris.miktar || 0) * Number(giris.birim_fiyat || 0);
+            toplamTutarCell.textContent = `${toplamTutar.toFixed(2)} ${paraBirimiSembolu}`;
             
-            // Tedarikçi
-            const cell5 = row.insertCell(4);
+            // Tedarikçi (parantez içindeki para birimini çıkar)
+            const tedarikciCell = row.insertCell(4);
             let tedarikci = giris.tedarikci || 'Belirtilmemiş';
-            tedarikci = tedarikci.replace(/\s*\(.*?\)\s*/, '');
-            cell5.textContent = tedarikci;
+            tedarikci = tedarikci.replace(/\s*\(.*?\)\s*/, '').trim();
+            tedarikciCell.textContent = tedarikci;
             
             // Ana Barkod
-            const cell6 = row.insertCell(5);
-            cell6.textContent = giris.ana_barkod || '-';
+            const barkodCell = row.insertCell(5);
+            barkodCell.textContent = giris.ana_barkod || '-';
             
-            // Ekleyen
-            const cell7 = row.insertCell(6);
-            cell7.textContent = `${giris.kullanici_ad || ''} ${giris.kullanici_soyad || ''}`;
+            // Ekleyen kullanıcı
+            const kullaniciCell = row.insertCell(6);
+            kullaniciCell.textContent = `${giris.kullanici_ad || ''} ${giris.kullanici_soyad || ''}`.trim() || 'Bilinmiyor';
             
-            // İşlemler - GÜNCELLENMIŞ KISIM
-            const güncelleCell = row.insertCell(7);
-            const buGirisSonGiris = index === 0;
+            // İşlemler sütunu - EN ÖNEMLİ KISIM
+            const islemlerCell = row.insertCell(7);
+            const buGirisSonGiris = index === 0; // İlk sıradaki en son giriş
             
             // Plaka grubu girişi mi kontrol et
             const isPlakaGrubuGirisi = giris.plaka_sayisi && giris.plaka_sayisi > 0;
             
-            if (buGirisSonGiris && !sonGiriştençokSonraIslemVar && giris.id) {
+            // Düzenleme durumunu belirle
+            let canEdit = false;
+            let editReason = '';
+            
+            if (!buGirisSonGiris) {
+                // Son giriş değilse düzenlenemez
+                editReason = 'Sadece son giriş düzenlenebilir';
+            } else if (sonGirisSonrasiIslemVar) {
+                // Son girişten sonra işlem varsa düzenlenemez
+                editReason = 'Son girişten sonra işlem yapıldığı için güncellenemez';
+            } else if (!giris.id) {
+                // ID yoksa düzenlenemez
+                editReason = 'Giriş ID\'si bulunamadı';
+            } else {
+                canEdit = true;
+            }
+            
+            console.log(`📝 Giriş ${index + 1} düzenleme durumu:`, {
+                id: giris.id,
+                isPlakaGrubu: isPlakaGrubuGirisi,
+                canEdit,
+                reason: editReason
+            });
+            
+            if (canEdit) {
                 if (isPlakaGrubuGirisi) {
                     // Plaka grubu girişi için özel düzenleme butonu
-                    güncelleCell.innerHTML = `
+                    islemlerCell.innerHTML = `
                         <div class="action-buttons">
-                            <button class="action-btn edit" title="Plaka Grubu Düzenle" onclick="openPlakaGrubuDuzenleModal(${giris.id}, ${hammaddeId}, ${giris.miktar})" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <button class="action-btn edit plaka-grubu-edit" 
+                                    title="Plaka Grubu Düzenle" 
+                                    onclick="openPlakaGrubuDuzenleModal(${giris.id}, ${hammaddeId}, ${giris.miktar})"
+                                    data-giris-id="${giris.id}">
                                 <i class="fas fa-layer-group"></i>
+                                <span class="btn-text">Plaka Grubu</span>
                             </button>
                         </div>
                     `;
                 } else {
                     // Normal hammadde girişi için standart düzenleme
-                    güncelleCell.innerHTML = `
-                        <button class="action-btn edit" title="Güncelle" onclick="openHammaddeGirisGuncelleModal(${giris.id}, ${hammaddeId}, ${giris.miktar})">
-                            <i class="fas fa-edit"></i>
-                        </button>
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn edit normal-edit" 
+                                    title="Hammadde Girişi Düzenle" 
+                                    onclick="openHammaddeGirisGuncelleModal(${giris.id}, ${hammaddeId}, ${giris.miktar})"
+                                    data-giris-id="${giris.id}">
+                                <i class="fas fa-edit"></i>
+                                <span class="btn-text">Düzenle</span>
+                            </button>
+                        </div>
                     `;
                 }
             } else {
-                güncelleCell.innerHTML = `
-                    <button class="action-btn edit edited" title="İşlem yapıldığı için güncellenemez" disabled>
-                        <i class="fas fa-ban"></i>
-                    </button>
+                // Düzenlenemez durumda
+                islemlerCell.innerHTML = `
+                    <div class="action-buttons">
+                        <button class="action-btn edit disabled" 
+                                title="${editReason}" 
+                                disabled>
+                            <i class="fas fa-ban"></i>
+                            <span class="btn-text">Kilitli</span>
+                        </button>
+                    </div>
                 `;
             }
         });
+        
+        console.log('✅ Giriş geçmişi başarıyla yüklendi');
+        
     } catch (error) {
-        console.error('Hammadde giriş geçmişi yükleme hatası:', error);
+        console.error('❌ Giriş geçmişi yükleme hatası:', error);
         
-        const girisGecmisiTable = document.getElementById('girisGecmisiTable').getElementsByTagName('tbody')[0];
-        girisGecmisiTable.innerHTML = '';
-        
-        const row = girisGecmisiTable.insertRow();
-        row.innerHTML = '<td colspan="8" class="text-center">Giriş geçmişi yüklenirken hata oluştu</td>';
+        const girisGecmisiTable = document.getElementById('girisGecmisiTable')?.getElementsByTagName('tbody')[0];
+        if (girisGecmisiTable) {
+            girisGecmisiTable.innerHTML = '';
+            const row = girisGecmisiTable.insertRow();
+            row.innerHTML = '<td colspan="8" class="text-center error-text">Giriş geçmişi yüklenirken hata oluştu</td>';
+        }
     }
 }
 

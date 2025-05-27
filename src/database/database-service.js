@@ -5977,52 +5977,69 @@ async function getPlakaGrubuByGirisId(girisId) {
 // Plaka grubu işlem durumunu kontrol et
 async function checkPlakaGrubuIslemDurumu(plakaGrubuId) {
   try {
+    console.log('🔍 Plaka grubu işlem durumu kontrol ediliyor:', plakaGrubuId);
+    
     // Plaka grubundan yapılan işlemleri kontrol et
     const [islemRows] = await pool.execute(
       `SELECT 
         COUNT(*) as islem_sayisi,
-        SUM(plaka_sayisi) as toplam_kullanilan_plaka,
-        SUM(kullanilan_miktar + hurda_miktar) as toplam_kullanilan_kilo
+        COALESCE(SUM(plaka_sayisi), 0) as toplam_kullanilan_plaka,
+        COALESCE(SUM(kullanilan_miktar + hurda_miktar), 0) as toplam_kullanilan_kilo
        FROM plaka_islemler 
        WHERE plaka_grubu_id = ?`,
       [plakaGrubuId]
     );
     
-    const islemSayisi = islemRows[0].islem_sayisi || 0;
-    const kullanilanPlakaSayisi = islemRows[0].toplam_kullanilan_plaka || 0;
-    const kullanilanKilo = islemRows[0].toplam_kullanilan_kilo || 0;
+    const islemSayisi = parseInt(islemRows[0].islem_sayisi) || 0;
+    const kullanilanPlakaSayisi = parseInt(islemRows[0].toplam_kullanilan_plaka) || 0;
+    const kullanilanKilo = parseFloat(islemRows[0].toplam_kullanilan_kilo) || 0;
     
     // Oluşturulan parça sayısını kontrol et
     const [parcaRows] = await pool.execute(
-      `SELECT COUNT(*) as parca_sayisi FROM plaka_parcalari WHERE plaka_grubu_id = ?`,
+      `SELECT COALESCE(COUNT(*), 0) as parca_sayisi 
+       FROM plaka_parcalari 
+       WHERE plaka_grubu_id = ?`,
       [plakaGrubuId]
     );
     
-    const parcaSayisi = parcaRows[0].parca_sayisi || 0;
+    const parcaSayisi = parseInt(parcaRows[0].parca_sayisi) || 0;
     
-    return {
+    const sonuc = {
       success: true,
       islemYapildi: islemSayisi > 0 || parcaSayisi > 0,
       islemSayisi,
       kullanilanPlakaSayisi,
-      kullanilanKilo: Number(kullanilanKilo),
+      kullanilanKilo,
       parcaSayisi
     };
+    
+    console.log('📊 İşlem durumu sonucu:', sonuc);
+    
+    return sonuc;
+    
   } catch (error) {
-    console.error('Plaka grubu işlem durumu kontrol hatası:', error);
-    return { success: false, message: error.message };
+    console.error('❌ İşlem durumu kontrol hatası:', error);
+    return { 
+      success: false, 
+      message: error.message,
+      islemYapildi: false,
+      islemSayisi: 0,
+      kullanilanPlakaSayisi: 0,
+      kullanilanKilo: 0,
+      parcaSayisi: 0
+    };
   }
 }
 
-// Plaka grubunu güncelle
-// BACKEND - Basit updatePlakaGrubu fonksiyonu
 async function updatePlakaGrubu(updateData) {
   const connection = await pool.getConnection();
   
   try {
+    console.log('📝 Plaka grubu güncelleniyor - ID:', updateData.plakaGrubuId);
+    
     await connection.beginTransaction();
     
-    // Mevcut plaka grubu bilgilerini al
+    // 1. Mevcut plaka grubu bilgilerini al
     const [plakaGrubuRows] = await connection.execute(
       `SELECT * FROM plaka_gruplari WHERE id = ?`,
       [updateData.plakaGrubuId]
@@ -6033,83 +6050,184 @@ async function updatePlakaGrubu(updateData) {
     }
     
     const eskiPlakaGrubu = plakaGrubuRows[0];
+    console.log('📋 Eski plaka grubu:', {
+      id: eskiPlakaGrubu.id,
+      toplam_kilo: eskiPlakaGrubu.toplam_kilo,
+      toplam_plaka_sayisi: eskiPlakaGrubu.toplam_plaka_sayisi
+    });
     
-    // İşlem durumunu kontrol et
+    // 2. İşlem durumunu kontrol et
     const islemDurumu = await checkPlakaGrubuIslemDurumu(updateData.plakaGrubuId);
     const kullanilanPlakaSayisi = islemDurumu.kullanilanPlakaSayisi || 0;
+    const kullanilanKilo = islemDurumu.kullanilanKilo || 0;
     
-    // Yeni plaka sayısı kullanılan sayıdan az olamaz
+    console.log('🔍 İşlem durumu:', {
+      kullanilanPlakaSayisi,
+      kullanilanKilo: kullanilanKilo.toFixed(2)
+    });
+    
+    // 3. Yeni plaka sayısı kontrolü
     if (updateData.plakaSayisi < kullanilanPlakaSayisi) {
       throw new Error(`Yeni plaka sayısı (${updateData.plakaSayisi}) kullanılan plaka sayısından (${kullanilanPlakaSayisi}) az olamaz`);
     }
     
-    // Değerler
+    // 4. Hesaplamalar
     const eskiToplamKilo = Number(eskiPlakaGrubu.toplam_kilo);
     const yeniToplamKilo = Number(updateData.toplamKilo);
     const kiloFarki = yeniToplamKilo - eskiToplamKilo;
     
     const yeniPlakaAgirligi = yeniToplamKilo / updateData.plakaSayisi;
     const yeniKalanPlakaSayisi = updateData.plakaSayisi - kullanilanPlakaSayisi;
-    const yeniKalanKilo = yeniToplamKilo - (islemDurumu.kullanilanKilo || 0);
+    const yeniKalanKilo = yeniToplamKilo - kullanilanKilo;
     
-    // 1. PLAKA GRUBUNU GÜNCELLE
-    await connection.execute(
+    console.log('🧮 Hesaplamalar:', {
+      eskiToplamKilo: eskiToplamKilo.toFixed(2),
+      yeniToplamKilo: yeniToplamKilo.toFixed(2),
+      kiloFarki: kiloFarki.toFixed(2),
+      yeniKalanPlakaSayisi,
+      yeniKalanKilo: yeniKalanKilo.toFixed(2)
+    });
+    
+    // 5. Güncelleme zamanını al
+    const simdi = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    
+    // 6. PLAKA GRUBUNU GÜNCELLE
+    const [updateResult] = await connection.execute(
       `UPDATE plaka_gruplari 
-       SET en = ?, boy = ?, toplam_plaka_sayisi = ?, kalan_plaka_sayisi = ?,
+       SET en = ?, boy = ?, 
+           toplam_plaka_sayisi = ?, kalan_plaka_sayisi = ?,
            toplam_kilo = ?, kalan_kilo = ?, plaka_agirlik = ?,
            tedarikci = ?, birim_fiyat = ?, birim_fiyat_turu = ?
        WHERE id = ?`,
       [
-        updateData.en, updateData.boy, updateData.plakaSayisi, yeniKalanPlakaSayisi,
-        yeniToplamKilo, yeniKalanKilo, yeniPlakaAgirligi,
-        updateData.tedarikci, updateData.birimFiyat, updateData.birimFiyatTuru,
+        updateData.en, 
+        updateData.boy, 
+        updateData.plakaSayisi, 
+        yeniKalanPlakaSayisi,
+        yeniToplamKilo, 
+        yeniKalanKilo, 
+        yeniPlakaAgirligi,
+        updateData.tedarikci, 
+        updateData.birimFiyat, 
+        updateData.birimFiyatTuru,
         updateData.plakaGrubuId
       ]
     );
     
-    // 2. HAMMADDE TABLOSUNU GÜNCELLE (fark kadar)
-    await connection.execute(
-      `UPDATE hammaddeler 
-       SET toplam_kilo = toplam_kilo + ?, 
-           kalan_kilo = kalan_kilo + ?
-       WHERE id = ?`,
-      [kiloFarki, kiloFarki, eskiPlakaGrubu.hammadde_id]
-    );
+    console.log('✅ Plaka grubu güncellendi, etkilenen satır:', updateResult.affectedRows);
     
-    // 3. GİRİŞ GEÇMİŞİNİ GÜNCELLE
-    // Bu plaka grubuna ait giriş kaydını bul ve güncelle
-    await connection.execute(
+    // 7. HAMMADDE TABLOSUNU GÜNCELLE (sadece fark kadar)
+    if (Math.abs(kiloFarki) > 0.01) { // Hassasiyet için 0.01 kg tolerans
+      const [hammaddeUpdateResult] = await connection.execute(
+        `UPDATE hammaddeler 
+         SET toplam_kilo = toplam_kilo + ?, 
+             kalan_kilo = kalan_kilo + ?,
+             durum = CASE
+                     WHEN (kalan_kilo + ?) <= 0 THEN 'STOKTA_YOK'
+                     WHEN (kalan_kilo + ?) <= kritik_seviye THEN 'AZ_KALDI'
+                     ELSE 'STOKTA_VAR'
+                 END
+         WHERE id = ?`,
+        [kiloFarki, kiloFarki, kiloFarki, kiloFarki, eskiPlakaGrubu.hammadde_id]
+      );
+      
+      console.log('✅ Hammadde tablosu güncellendi, etkilenen satır:', hammaddeUpdateResult.affectedRows);
+    } else {
+      console.log('ℹ️ Kilo farkı minimal, hammadde tablosu güncellenmedi');
+    }
+    
+    // 8. GİRİŞ GEÇMİŞİNİ GÜNCELLE
+    // Bu plaka grubuna ait en yakın giriş kaydını bul ve güncelle
+    const [girisUpdateResult] = await connection.execute(
       `UPDATE hammadde_giris_gecmisi 
-       SET miktar = ?, birim_fiyat = ?, birim_fiyat_turu = ?, 
-           tedarikci = ?, plaka_sayisi = ?
+       SET miktar = ?, 
+           birim_fiyat = ?, 
+           birim_fiyat_turu = ?, 
+           tedarikci = ?, 
+           plaka_sayisi = ?
        WHERE hammadde_id = ? 
        AND plaka_sayisi IS NOT NULL
-       AND ABS(TIMESTAMPDIFF(MINUTE, giris_tarihi, ?)) <= 5
+       AND ABS(TIMESTAMPDIFF(MINUTE, giris_tarihi, ?)) <= 10
        ORDER BY ABS(TIMESTAMPDIFF(SECOND, giris_tarihi, ?)) ASC
        LIMIT 1`,
       [
-        yeniToplamKilo, updateData.birimFiyat, updateData.birimFiyatTuru,
-        updateData.tedarikci, updateData.plakaSayisi,
-        eskiPlakaGrubu.hammadde_id, eskiPlakaGrubu.ekleme_tarihi, eskiPlakaGrubu.ekleme_tarihi
+        yeniToplamKilo, 
+        updateData.birimFiyat, 
+        updateData.birimFiyatTuru,
+        updateData.tedarikci, 
+        updateData.plakaSayisi,
+        eskiPlakaGrubu.hammadde_id, 
+        eskiPlakaGrubu.ekleme_tarihi, 
+        eskiPlakaGrubu.ekleme_tarihi
       ]
     );
     
+    console.log('✅ Giriş geçmişi güncellendi, etkilenen satır:', girisUpdateResult.affectedRows);
+    
+    // 9. GÜNCELLEME GEÇMİŞİNE KAYDET (opsiyonel)
+    try {
+      await connection.execute(
+        `INSERT INTO plaka_grubu_guncelleme_gecmisi (
+          plaka_grubu_id, guncelleyen_id, guncelleme_tarihi,
+          eski_plaka_sayisi, yeni_plaka_sayisi,
+          eski_toplam_kilo, yeni_toplam_kilo,
+          guncelleme_aciklamasi
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          updateData.plakaGrubuId,
+          updateData.kullaniciId,
+          simdi,
+          eskiPlakaGrubu.toplam_plaka_sayisi,
+          updateData.plakaSayisi,
+          eskiToplamKilo,
+          yeniToplamKilo,
+          `Plaka sayısı: ${eskiPlakaGrubu.toplam_plaka_sayisi} → ${updateData.plakaSayisi}, Kilo: ${eskiToplamKilo.toFixed(2)} → ${yeniToplamKilo.toFixed(2)}`
+        ]
+      );
+      console.log('✅ Güncelleme geçmişi kaydedildi');
+    } catch (historyError) {
+      console.warn('⚠️ Güncelleme geçmişi kaydedilemedi:', historyError.message);
+      // Bu hata ana işlemi etkilemesin
+    }
+    
+    // 10. TRANSAKSİYONU ONAYLA
     await connection.commit();
+    
+    console.log('🎉 Plaka grubu güncelleme işlemi başarıyla tamamlandı');
     
     return { 
       success: true, 
-      message: 'Plaka grubu başarıyla güncellendi'
+      message: 'Plaka grubu başarıyla güncellendi',
+      updatedData: {
+        plakaGrubuId: updateData.plakaGrubuId,
+        yeniToplamKilo,
+        yeniPlakaSayisi: updateData.plakaSayisi,
+        yeniKalanPlakaSayisi,
+        yeniKalanKilo,
+        kiloFarki
+      }
     };
     
   } catch (error) {
-    await connection.rollback();
-    console.error('Plaka grubu güncelleme hatası:', error);
-    return { success: false, message: error.message };
+    // Hata durumunda rollback
+    try {
+      await connection.rollback();
+      console.log('🔄 Transaction rollback yapıldı');
+    } catch (rollbackError) {
+      console.error('❌ Rollback hatası:', rollbackError);
+    }
+    
+    console.error('❌ Plaka grubu güncelleme hatası:', error);
+    return { 
+      success: false, 
+      message: error.message || 'Güncelleme sırasında bilinmeyen hata oluştu'
+    };
   } finally {
+    // Bağlantıyı serbest bırak
     connection.release();
+    console.log('🔌 Database bağlantısı serbest bırakıldı');
   }
 }
-
 
 
 // Plaka grubu güncelleme geçmişini getir
@@ -6134,12 +6252,16 @@ async function getPlakaGrubuGuncellemeGecmisi(plakaGrubuId) {
 // Güncelleme yapılabilir mi kontrol et
 async function canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi) {
   try {
+    console.log('🔍 Güncelleme kontrolü yapılıyor:', { plakaGrubuId, yeniPlakaSayisi });
+    
     // İşlem durumunu kontrol et
     const islemDurumu = await checkPlakaGrubuIslemDurumu(plakaGrubuId);
     
     if (!islemDurumu.success) {
       return { success: false, message: 'İşlem durumu kontrol edilemedi' };
     }
+    
+    console.log('📊 İşlem durumu:', islemDurumu);
     
     // Eğer işlem yapılmışsa kontrol et
     if (islemDurumu.islemYapildi) {
@@ -6158,19 +6280,24 @@ async function canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi) {
         success: true,
         canUpdate: true,
         warning: `Bu plaka grubundan ${kullanilanPlakaSayisi} plaka kullanılmış. Güncelleme yapılabilir ancak işlem geçmişi korunacaktır.`,
-        kullanilanPlakaSayisi
+        kullanilanPlakaSayisi,
+        islemYapildi: true
       };
     }
     
     return {
       success: true,
       canUpdate: true,
-      message: 'Bu plaka grubundan henüz işlem yapılmamış. Güncelleme serbest.'
+      message: 'Bu plaka grubundan henüz işlem yapılmamış. Güncelleme serbest.',
+      islemYapildi: false
     };
     
   } catch (error) {
-    console.error('Plaka grubu güncellenebilirlik kontrolü hatası:', error);
-    return { success: false, message: error.message };
+    console.error('❌ Güncelleme kontrolü hatası:', error);
+    return { 
+      success: false, 
+      message: `Güncelleme kontrolü hatası: ${error.message}` 
+    };
   }
 }
 
