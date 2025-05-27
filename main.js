@@ -747,14 +747,6 @@ ipcMain.handle('database:updatePlakaGrubu', async (event, updateData) => {
 });
 
 
-ipcMain.handle('database:getPlakaGrubuGuncellemeGecmisi', async (event, plakaGrubuId) => {
-  try {
-    return await DatabaseService.getPlakaGrubuGuncellemeGecmisi(plakaGrubuId);
-  } catch (error) {
-    console.error('Error in getPlakaGrubuGuncellemeGecmisi:', error);
-    return false;
-  }
-});
 
 
 ipcMain.handle('database:canUpdatePlakaGrubu', async (event, plakaGrubuId, yeniPlakaSayisi) => {
@@ -765,19 +757,6 @@ ipcMain.handle('database:canUpdatePlakaGrubu', async (event, plakaGrubuId, yeniP
     return false;
   }
 });
-
-
-ipcMain.handle('database:createPlakaGrubuGuncellemeTablosu', async () => {
-  try {
-    return await DatabaseService.createPlakaGrubuGuncellemeTablosu(); // DatabaseService kullanın
-  } catch (error) {
-    console.error('createPlakaGrubuGuncellemeTablosu error:', error);
-    return { success: false, message: error.message };
-  }
-});
-
-
-
 
 
 

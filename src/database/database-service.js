@@ -6088,10 +6088,7 @@ async function updatePlakaGrubu(updateData) {
       yeniKalanKilo: yeniKalanKilo.toFixed(2)
     });
     
-    // 5. Güncelleme zamanını al
-    const simdi = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    
-    // 6. PLAKA GRUBUNU GÜNCELLE
+    // 5. PLAKA GRUBUNU GÜNCELLE
     const [updateResult] = await connection.execute(
       `UPDATE plaka_gruplari 
        SET en = ?, boy = ?, 
@@ -6116,7 +6113,7 @@ async function updatePlakaGrubu(updateData) {
     
     console.log('✅ Plaka grubu güncellendi, etkilenen satır:', updateResult.affectedRows);
     
-    // 7. HAMMADDE TABLOSUNU GÜNCELLE (sadece fark kadar)
+    // 6. HAMMADDE TABLOSUNU GÜNCELLE (sadece fark kadar)
     if (Math.abs(kiloFarki) > 0.01) { // Hassasiyet için 0.01 kg tolerans
       const [hammaddeUpdateResult] = await connection.execute(
         `UPDATE hammaddeler 
@@ -6136,7 +6133,7 @@ async function updatePlakaGrubu(updateData) {
       console.log('ℹ️ Kilo farkı minimal, hammadde tablosu güncellenmedi');
     }
     
-    // 8. GİRİŞ GEÇMİŞİNİ GÜNCELLE
+    // 7. GİRİŞ GEÇMİŞİNİ GÜNCELLE
     // Bu plaka grubuna ait en yakın giriş kaydını bul ve güncelle
     const [girisUpdateResult] = await connection.execute(
       `UPDATE hammadde_giris_gecmisi 
@@ -6164,33 +6161,7 @@ async function updatePlakaGrubu(updateData) {
     
     console.log('✅ Giriş geçmişi güncellendi, etkilenen satır:', girisUpdateResult.affectedRows);
     
-    // 9. GÜNCELLEME GEÇMİŞİNE KAYDET (opsiyonel)
-    try {
-      await connection.execute(
-        `INSERT INTO plaka_grubu_guncelleme_gecmisi (
-          plaka_grubu_id, guncelleyen_id, guncelleme_tarihi,
-          eski_plaka_sayisi, yeni_plaka_sayisi,
-          eski_toplam_kilo, yeni_toplam_kilo,
-          guncelleme_aciklamasi
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          updateData.plakaGrubuId,
-          updateData.kullaniciId,
-          simdi,
-          eskiPlakaGrubu.toplam_plaka_sayisi,
-          updateData.plakaSayisi,
-          eskiToplamKilo,
-          yeniToplamKilo,
-          `Plaka sayısı: ${eskiPlakaGrubu.toplam_plaka_sayisi} → ${updateData.plakaSayisi}, Kilo: ${eskiToplamKilo.toFixed(2)} → ${yeniToplamKilo.toFixed(2)}`
-        ]
-      );
-      console.log('✅ Güncelleme geçmişi kaydedildi');
-    } catch (historyError) {
-      console.warn('⚠️ Güncelleme geçmişi kaydedilemedi:', historyError.message);
-      // Bu hata ana işlemi etkilemesin
-    }
-    
-    // 10. TRANSAKSİYONU ONAYLA
+    // 8. TRANSAKSİYONU ONAYLA
     await connection.commit();
     
     console.log('🎉 Plaka grubu güncelleme işlemi başarıyla tamamlandı');
@@ -6230,24 +6201,8 @@ async function updatePlakaGrubu(updateData) {
 }
 
 
-// Plaka grubu güncelleme geçmişini getir
-async function getPlakaGrubuGuncellemeGecmisi(plakaGrubuId) {
-  try {
-    const [rows] = await pool.execute(
-      `SELECT pgg.*, u.ad as kullanici_ad, u.soyad as kullanici_soyad
-       FROM plaka_grubu_guncelleme_gecmisi pgg
-       LEFT JOIN kullanicilar u ON pgg.guncelleyen_id = u.id
-       WHERE pgg.plaka_grubu_id = ?
-       ORDER BY pgg.guncelleme_tarihi DESC`,
-      [plakaGrubuId]
-    );
-    
-    return { success: true, gecmis: rows };
-  } catch (error) {
-    console.error('Plaka grubu güncelleme geçmişi getirme hatası:', error);
-    return { success: false, message: error.message, gecmis: [] };
-  }
-}
+
+
 
 // Güncelleme yapılabilir mi kontrol et
 async function canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi) {
@@ -6301,34 +6256,6 @@ async function canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi) {
   }
 }
 
-// Veritabanına tablo oluşturma scripti (sadece bir kez çalıştırılacak)
-async function createPlakaGrubuGuncellemeTablosu() {
-  try {
-    await pool.execute(`
-      CREATE TABLE IF NOT EXISTS plaka_grubu_guncelleme_gecmisi (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        plaka_grubu_id INT NOT NULL,
-        guncelleyen_id INT NOT NULL,
-        guncelleme_tarihi DATETIME NOT NULL,
-        eski_plaka_sayisi INT,
-        yeni_plaka_sayisi INT,
-        eski_toplam_kilo DECIMAL(10,2),
-        yeni_toplam_kilo DECIMAL(10,2),
-        guncelleme_aciklamasi TEXT,
-        INDEX idx_plaka_grubu (plaka_grubu_id),
-        INDEX idx_guncelleme_tarihi (guncelleme_tarihi),
-        FOREIGN KEY (plaka_grubu_id) REFERENCES plaka_gruplari(id) ON DELETE CASCADE,
-        FOREIGN KEY (guncelleyen_id) REFERENCES kullanicilar(id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `);
-    
-    console.log('Plaka grubu güncelleme geçmişi tablosu oluşturuldu/kontrol edildi');
-    return { success: true };
-  } catch (error) {
-    console.error('Plaka grubu güncelleme tablosu oluşturma hatası:', error);
-    return { success: false, message: error.message };
-  }
-}
 
 
 
@@ -6433,8 +6360,7 @@ addPlakaGrubuToIslemde,
     getPlakaGrubuByGirisId,
   checkPlakaGrubuIslemDurumu,
   updatePlakaGrubu,
-  getPlakaGrubuGuncellemeGecmisi,
-  canUpdatePlakaGrubu,
-  createPlakaGrubuGuncellemeTablosu
+
+  canUpdatePlakaGrubu
 
 };

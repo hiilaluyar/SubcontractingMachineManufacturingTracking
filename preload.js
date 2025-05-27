@@ -161,14 +161,11 @@ checkPlakaGrubuIslemDurumu: (plakaGrubuId) =>
 updatePlakaGrubu: (updateData) => 
   ipcRenderer.invoke('database:updatePlakaGrubu', updateData),
 
-getPlakaGrubuGuncellemeGecmisi: (plakaGrubuId) => 
-  ipcRenderer.invoke('database:getPlakaGrubuGuncellemeGecmisi', plakaGrubuId),
 
 canUpdatePlakaGrubu: (plakaGrubuId, yeniPlakaSayisi) => 
-  ipcRenderer.invoke('database:canUpdatePlakaGrubu', plakaGrubuId, yeniPlakaSayisi),
+  ipcRenderer.invoke('database:canUpdatePlakaGrubu', plakaGrubuId, yeniPlakaSayisi)
 
-createPlakaGrubuGuncellemeTablosu: () => 
-  ipcRenderer.invoke('database:createPlakaGrubuGuncellemeTablosu')
+
 
 
   
