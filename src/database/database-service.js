@@ -19,7 +19,7 @@ const dbConfig = {
   database: 'KaratasDene'
 };
 // Veritabanı bağlantı havuzu
-let pool;
+let pool;s
 // Bağlantı havuzunu oluştur
 async function createPool() {
   try {
@@ -39,6 +39,8 @@ async function createPool() {
 }
 // Havuzu oluştur
 createPool();
+
+
 
 // Kullanıcı işlemleri
 // database-service.js - loginUser fonksiyonu
