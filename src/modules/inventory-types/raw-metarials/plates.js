@@ -1371,7 +1371,6 @@ if (originalRemovePlakaGrubuKalanParca) {
 }
 
 
-
 async function savePlakaGrubuIslem() {
   try {
     // Form değerlerini al
@@ -1498,6 +1497,70 @@ async function savePlakaGrubuIslem() {
       }
     }
     
+    // *** ONAY SİSTEMİ - İŞLEM DETAYLARINI HAZIRLA ***
+    let onayMesaji = `📊 İşlem Detayları:\n\n`;
+    onayMesaji += `• Kullanılan Miktar: ${kullanilanMiktar.toFixed(2)} kg\n`;
+    
+    if (hurdaMiktar > 0) {
+      onayMesaji += `• Hurda Miktarı: ${hurdaMiktar.toFixed(2)} kg\n`;
+    }
+    
+    onayMesaji += `• Toplam İşlenen: ${toplamKullanilacak.toFixed(2)} kg\n`;
+    onayMesaji += `• Plaka Sayısı: ${plakaSayisi} adet\n\n`;
+    
+    // Kalan parçalar varsa
+    if (kalanParcaDataList.length > 0) {
+      onayMesaji += `🔧 Oluşacak Kalan Parçalar:\n`;
+      kalanParcaDataList.forEach((parca, index) => {
+        onayMesaji += `   ${index + 1}. ${parca.en}x${parca.boy}x${parca.kalinlik}mm (${parca.hesaplanan_agirlik.toFixed(2)} kg)\n`;
+      });
+      onayMesaji += `\n`;
+    }
+    
+    // Yarı mamuller varsa
+    if (yariMamulDataList.length > 0) {
+      onayMesaji += `🏭 Oluşacak Yarı Mamuller:\n`;
+      yariMamulDataList.forEach((mamul, index) => {
+        onayMesaji += `   ${index + 1}. ${mamul.adi}: ${mamul.miktar} ${mamul.birim} (${mamul.toplamAgirlik.toFixed(2)} kg)\n`;
+      });
+      onayMesaji += `\n`;
+    }
+    
+    onayMesaji += `Bu işlemi onaylıyor musunuz?`;
+    
+    // Notiflix onay penceresi
+    const onayVerildi = await new Promise((resolve) => {
+      Notiflix.Confirm.show(
+        '🔄 İşlem Onayı',
+        onayMesaji,
+        'Evet, İşlemi Kaydet!',
+        'İptal',
+        function() {
+          resolve(true);
+        },
+        function() {
+          resolve(false);
+        },
+        {
+          titleColor: '#6A0D0C',
+          messageColor: '#333333',
+          buttonOkBackgroundColor: '#6A0D0C',
+          buttonCancelBackgroundColor: '#666666',
+          cssAnimationStyle: 'zoom',
+          width: '450px',
+          borderRadius: '8px',
+          messageMaxLength: 1000
+        }
+      );
+    });
+    
+    // Onay verilmediyse işlemi sonlandır
+    if (!onayVerildi) {
+      return;
+    }
+    
+    // *** İŞLEM KAYDETME - ONAY VERILDIKTEN SONRA ***
+    
     // İşlem verisi - DÜZELTME: Sadece kullanılan plaka sayısı ve ağırlığı gönder
     const islemData = {
       plaka_grubu_id: currentPlakaGrubuId,
@@ -1516,22 +1579,37 @@ async function savePlakaGrubuIslem() {
       calisan_id: parseInt(calisanId)
     };
     
-    // İşlem kaydediliyor mesajını göster
-    showModalSuccess('plakaGrubuIslemModal', 'İşlem kaydediliyor...');
+    // İşlem kaydediliyor loading göster
+    Notiflix.Loading.circle('İşlem kaydediliyor...', {
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      svgColor: '#6A0D0C',
+    });
     
     // İşlemi kaydet
     const result = await window.electronAPI.invoke.database.addPlakaGrubuIslem(islemData);
     
+    // Loading'i kapat
+    Notiflix.Loading.remove();
+    
     if (result.success) {
-      let successMessage = 'Plaka grubu işlemi başarıyla kaydedildi.';
+      let successMessage = '✅ Plaka grubu işlemi başarıyla kaydedildi!';
       
       if (kullanimAlani === 'MakineImalat' && yariMamulDataList.length > 0) {
         const toplamYariMamul = yariMamulDataList.reduce((toplam, ym) => toplam + ym.miktar, 0);
         const birimText = yariMamulDataList.length > 0 ? yariMamulDataList[0].birim : 'adet';
-        successMessage += ` Toplam ${toplamYariMamul} ${birimText} yarı mamul oluşturuldu.`;
+        successMessage += `\n\n🏭 Toplam ${toplamYariMamul} ${birimText} yarı mamul oluşturuldu.`;
       }
       
-      showToast(successMessage, 'success');
+      if (kalanParcaDataList.length > 0) {
+        successMessage += `\n\n🔧 ${kalanParcaDataList.length} adet kalan parça oluşturuldu.`;
+      }
+      
+      // Başarı mesajı
+      Notiflix.Notify.success(successMessage, {
+        timeout: 4000,
+        position: 'right-top',
+        cssAnimationStyle: 'zoom'
+      });
       
       // Modalı kapat
       closeModal('plakaGrubuIslemModal');
@@ -1555,11 +1633,23 @@ async function savePlakaGrubuIslem() {
         await viewHammaddeDetail(currentHammaddeId);
       }
     } else {
-      showModalError('plakaGrubuIslemModal', 'Hata: ' + result.message);
+      // Hata mesajı
+      Notiflix.Notify.failure('❌ Hata: ' + result.message, {
+        timeout: 5000,
+        position: 'right-top'
+      });
     }
   } catch (error) {
     console.error('Plaka grubu işlemi kaydetme hatası:', error);
-    showModalError('plakaGrubuIslemModal', 'İşlem kaydedilirken bir hata oluştu: ' + error.message);
+    
+    // Loading varsa kapat
+    Notiflix.Loading.remove();s
+    
+    // Hata mesajı
+    Notiflix.Notify.failure('❌ İşlem kaydedilirken bir hata oluştu: ' + error.message, {
+      timeout: 5000,
+      position: 'right-top'
+    });
   }
 }
 

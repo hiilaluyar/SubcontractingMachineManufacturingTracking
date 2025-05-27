@@ -572,6 +572,82 @@ async function saveParcaIslem() {
             }));
         }
         
+        // *** ONAY SİSTEMİ - İŞLEM DETAYLARINI HAZIRLA ***
+        let onayMesaji = `📊 Parça İşlem Detayları:\n\n`;
+        onayMesaji += `• Kullanılan Miktar: ${kullanilanMiktar.toFixed(2)} kg\n`;
+        
+        if (hurdaMiktar > 0) {
+            onayMesaji += `• Hurda Miktarı: ${hurdaMiktar.toFixed(2)} kg\n`;
+        }
+        
+        onayMesaji += `• Toplam İşlenen: ${(kullanilanMiktar + hurdaMiktar).toFixed(2)} kg\n`;
+        onayMesaji += `• Parça Kalan: ${parcaKalanKilo.toFixed(2)} kg\n\n`;
+        
+        // Kalan parçalar varsa
+        if (kalanParcaDataList.length > 0) {
+            onayMesaji += `🔧 Oluşacak Kalan Parçalar:\n`;
+            kalanParcaDataList.forEach((parca, index) => {
+                onayMesaji += `   ${index + 1}. ${parca.en}x${parca.boy}x${parca.kalinlik}mm (${parca.hesaplanan_agirlik.toFixed(2)} kg)\n`;
+            });
+            
+            const toplamKalanAgirlik = kalanParcaDataList.reduce((toplam, parca) => toplam + parca.hesaplanan_agirlik, 0);
+            onayMesaji += `   📦 Toplam Kalan Parça: ${toplamKalanAgirlik.toFixed(2)} kg\n\n`;
+        }
+        
+        // Yarı mamuller varsa
+        if (yariMamulDataList.length > 0) {
+            onayMesaji += `🏭 Oluşacak Yarı Mamuller:\n`;
+            yariMamulDataList.forEach((mamul, index) => {
+                onayMesaji += `   ${index + 1}. ${mamul.adi}: ${mamul.miktar} ${mamul.birim} (${mamul.toplamAgirlik.toFixed(2)} kg)\n`;
+            });
+            
+            const toplamMamulAgirlik = yariMamulDataList.reduce((toplam, mamul) => toplam + mamul.toplamAgirlik, 0);
+            onayMesaji += `   🏭 Toplam Yarı Mamul: ${toplamMamulAgirlik.toFixed(2)} kg\n\n`;
+        }
+        
+        // İşlem sonrası kalan miktar hesabı
+        const islemSonrasiKalan = parcaKalanKilo - toplamKullanilacak;
+        if (islemSonrasiKalan > 0.01) {
+            onayMesaji += `📈 İşlem Sonrası Parçada Kalacak: ${islemSonrasiKalan.toFixed(2)} kg\n\n`;
+        } else {
+            onayMesaji += `✅ Parça tamamen işlenecek\n\n`;
+        }
+        
+        onayMesaji += `Bu işlemi onaylıyor musunuz?`;
+        
+        // Notiflix onay penceresi
+        const onayVerildi = await new Promise((resolve) => {
+            Notiflix.Confirm.show(
+                '🔧 Parça İşlem Onayı',
+                onayMesaji,
+                'Evet, İşlemi Kaydet!',
+                'İptal',
+                function() {
+                    resolve(true);
+                },
+                function() {
+                    resolve(false);
+                },
+                {
+                    titleColor: '#6A0D0C',
+                    messageColor: '#333333',
+                    buttonOkBackgroundColor: '#6A0D0C',
+                    buttonCancelBackgroundColor: '#666666',
+                    cssAnimationStyle: 'zoom',
+                    width: '500px',
+                    borderRadius: '8px',
+                    messageMaxLength: 1500
+                }
+            );
+        });
+        
+        // Onay verilmediyse işlemi sonlandır
+        if (!onayVerildi) {
+            return;
+        }
+        
+        // *** İŞLEM KAYDETME - ONAY VERILDIKTEN SONRA ***
+        
         // İşlem verisi
         const islemData = {
             parca_id: currentParcaId,
@@ -589,23 +665,45 @@ async function saveParcaIslem() {
             calisan_id: parseInt(calisanId)
         };
         
-        // İşlem kaydediliyor mesajını göster
-        showModalSuccess('parcaIslemModal', 'İşlem kaydediliyor...');
+        // İşlem kaydediliyor loading göster
+        Notiflix.Loading.circle('Parça işlemi kaydediliyor...', {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            svgColor: '#6A0D0C',
+        });
         
         // İşlemi kaydet
         const result = await window.electronAPI.invoke.database.addParcaIslem(islemData);
         
+        // Loading'i kapat
+        Notiflix.Loading.remove();
+        
         if (result.success) {
-            let successMessage = 'Parça işlemi başarıyla kaydedildi.';
+            let successMessage = '✅ Parça işlemi başarıyla kaydedildi!';
             
             // Yarı mamul oluşturulmuşsa ek bilgi göster
             if (kullanimAlani === 'MakineImalat' && yariMamulDataList.length > 0) {
                 const toplamYariMamul = yariMamulDataList.reduce((toplam, ym) => toplam + ym.miktar, 0);
                 const birimText = yariMamulDataList.length > 0 ? yariMamulDataList[0].birim : 'adet';
-                successMessage += ` Toplam ${toplamYariMamul} ${birimText} yarı mamul oluşturuldu.`;
+                successMessage += `\n\n🏭 Toplam ${toplamYariMamul} ${birimText} yarı mamul oluşturuldu.`;
             }
             
-            showToast(successMessage, 'success');
+            // Kalan parça oluşturulmuşsa ek bilgi göster
+            if (kalanParcaDataList.length > 0) {
+                successMessage += `\n\n🔧 ${kalanParcaDataList.length} adet kalan parça oluşturuldu.`;
+            }
+            
+            // İşlem sonrası durum
+            const islemSonrasiKalan = parcaKalanKilo - toplamKullanilacak;
+            if (islemSonrasiKalan <= 0.01) {
+                successMessage += `\n\n✅ Parça tamamen işlendi.`;
+            }
+            
+            // Başarı mesajı
+            Notiflix.Notify.success(successMessage, {
+                timeout: 4000,
+                position: 'right-top',
+                cssAnimationStyle: 'zoom'
+            });
             
             // Modalı kapat
             closeModal('parcaIslemModal');
@@ -630,14 +728,25 @@ async function saveParcaIslem() {
                 await viewHammaddeDetail(currentHammaddeId);
             }
         } else {
-            showModalError('parcaIslemModal', 'Hata: ' + result.message);
+            // Hata mesajı
+            Notiflix.Notify.failure('❌ Hata: ' + result.message, {
+                timeout: 5000,
+                position: 'right-top'
+            });
         }
     } catch (error) {
         console.error('Parça işlemi kaydetme hatası:', error);
-        showModalError('parcaIslemModal', 'İşlem kaydedilirken bir hata oluştu: ' + error.message);
+        
+        // Loading varsa kapat
+        Notiflix.Loading.remove();
+        
+        // Hata mesajı
+        Notiflix.Notify.failure('❌ İşlem kaydedilirken bir hata oluştu: ' + error.message, {
+            timeout: 5000,
+            position: 'right-top'
+        });
     }
 }
-
 
 
 // Plaka için Kalan Parça Hesaplama

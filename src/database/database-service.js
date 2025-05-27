@@ -6649,7 +6649,8 @@ async function canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi) {
   }
 }
 
-async function deletePlakaGrubuIslem(islemId) {
+
+async function deletePlakaGrubuIslem(deleteData) {
   const connection = await pool.getConnection();
   let transaction = false;
   
@@ -6657,11 +6658,13 @@ async function deletePlakaGrubuIslem(islemId) {
     await connection.beginTransaction();
     transaction = true;
     
+    const islemId = deleteData.islemId || deleteData; // Geriye uyumluluk için
+    
     // İşlem bilgilerini al
     const [islemRows] = await connection.execute(
-      `SELECT pi.*, pg.hammadde_id, pg.toplam_kilo, pg.kalan_kilo, pg.toplam_plaka_sayisi, pg.kalan_plaka_sayisi
-       FROM plaka_islemler pi
-       JOIN plaka_gruplari pg ON pi.plaka_grubu_id = pg.id
+      `SELECT pi.*, pg.hammadde_id, pg.toplam_kilo, pg.kalan_kilo, pg.toplam_plaka_sayisi, pg.kalan_plaka_sayisi 
+       FROM plaka_islemler pi 
+       JOIN plaka_gruplari pg ON pi.plaka_grubu_id = pg.id 
        WHERE pi.id = ?`,
       [islemId]
     );
@@ -6690,10 +6693,17 @@ async function deletePlakaGrubuIslem(islemId) {
     const toplamKullanilanMiktar = kullanilanMiktar + hurdaMiktar;
     const plakaSayisi = parseInt(islem.plaka_sayisi || 1);
     
+    // Silinecek parça sayısını önceden kontrol et
+    const [parcaRows] = await connection.execute(
+      `SELECT COUNT(*) as parca_sayisi FROM plaka_parcalari WHERE islem_id = ?`,
+      [islemId]
+    );
+    const silinecekParcaSayisi = parcaRows[0].parca_sayisi;
+    
     // Plaka grubuna kiloyu ve plaka sayısını geri ekle
     await connection.execute(
       `UPDATE plaka_gruplari 
-       SET kalan_kilo = ROUND(kalan_kilo + ?, 2),
+        SET kalan_kilo = ROUND(kalan_kilo + ?, 2),
            kalan_plaka_sayisi = kalan_plaka_sayisi + ?
        WHERE id = ?`,
       [toplamKullanilanMiktar, plakaSayisi, islem.plaka_grubu_id]
@@ -6712,7 +6722,7 @@ async function deletePlakaGrubuIslem(islemId) {
     
     await connection.execute(
       `UPDATE hammaddeler 
-       SET kalan_kilo = ROUND(?, 2),
+        SET kalan_kilo = ROUND(?, 2),
            durum = ?
        WHERE id = ?`,
       [yeniHammaddeKalanKilo, hammaddeDurum, islem.hammadde_id]
@@ -6733,9 +6743,64 @@ async function deletePlakaGrubuIslem(islemId) {
     // Transaction'ı onayla
     await connection.commit();
     
+    // İşlemi yapan kullanıcının bilgilerini getirelim
+    let kullaniciBilgisi = { ad: 'Bilinmeyen', soyad: 'Kullanıcı', kullanici_adi: 'bilinmeyen' };
+    
+    try {
+      // İşlemi kimin yaptığını öğrenmek için kullanıcı ID'sini kullanalım
+      if (deleteData.kullanici && deleteData.kullanici.id) {
+        // Eğer deleteData.kullanici objesi varsa ve id içeriyorsa, doğrudan kullan
+        kullaniciBilgisi = deleteData.kullanici;
+      } else if (islem.kullanici_id) {
+        // Yoksa işlemin kullanıcı ID'sini kullan
+        const [kullaniciRows] = await connection.execute(
+          'SELECT ad, soyad, kullanici_adi FROM kullanicilar WHERE id = ?',
+          [islem.kullanici_id]
+        );
+        
+        if (kullaniciRows && kullaniciRows.length > 0) {
+          kullaniciBilgisi = kullaniciRows[0];
+        }
+      }
+
+      // E-posta gönder
+      if (typeof emailService !== 'undefined' && emailService) {
+        const silmeNedeni = deleteData.silmeNedeni || 'Kullanıcı tarafından silindi';
+        
+        // Ek bilgi metni oluştur
+        let additionalInfo = `Bu işlem sonucunda ${toplamKullanilanMiktar} kg hammadde stoğa geri eklendi.`;
+        
+        if (silinecekParcaSayisi > 0) {
+          additionalInfo += ` Ayrıca bu işlemle oluşturulan ${silinecekParcaSayisi} adet parça da silindi.`;
+        }
+        
+        if (plakaSayisi > 0) {
+          additionalInfo += ` ${plakaSayisi} adet plaka kullanımı iptal edildi.`;
+        }
+        
+        const deleteInfo = {
+          itemType: 'Plaka Grubu İşlemi',
+          itemName: `İşlem #${islemId}`,
+          itemId: islemId,
+          reason: silmeNedeni,
+          additionalInfo: additionalInfo,
+          user: `${kullaniciBilgisi.ad} ${kullaniciBilgisi.soyad}${kullaniciBilgisi.kullanici_adi ? ' ('+kullaniciBilgisi.kullanici_adi+')' : ''}`,
+          timestamp: new Date().toLocaleString('tr-TR')
+        };
+        
+        await emailService.sendDeleteNotification(deleteInfo);
+        console.log('Plaka grubu işlemi silme bildirimi gönderildi:', deleteInfo);
+      }
+    } catch (emailError) {
+      console.error('E-posta gönderilirken hata:', emailError);
+      // Bu hata işlemi durdurmaz, sadece bildirim için
+    }
+    
     return {
       success: true,
-      message: 'Plaka grubu işlemi başarıyla silindi ve stok miktarları geri yüklendi'
+      message: 'Plaka grubu işlemi başarıyla silindi ve stok miktarları geri yüklendi',
+      restoredAmount: toplamKullanilanMiktar,
+      deletedParts: silinecekParcaSayisi
     };
     
   } catch (error) {

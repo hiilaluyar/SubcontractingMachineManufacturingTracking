@@ -2254,7 +2254,97 @@ async function loadPlakaGrubuIskartaIslemler() {
 }
 
 
-async function deletePlakaGrubuIslem(islemId) {
+async function deletePlakaGrubuIslem(islemId, islemData = null) {
+  try {
+    // Kullanıcı bilgilerini al
+    const userData = window.currentUser || { rol: 'kullanici' };
+    
+    // İşlem adını belirle
+    let itemName = `Plaka Grubu İşlemi #${islemId}`;
+    if (islemData && islemData.makine_adi) {
+      itemName = `${islemData.makine_adi} - İşlem #${islemId}`;
+    }
+    
+    // Modal ayarlarını hazırla
+    const modalOptions = {
+      title: 'Plaka Grubu İşlemi Silme Onayı',
+      itemName: itemName,
+      itemType: 'Plaka Grubu İşlemi',
+      itemId: islemId,
+      userData: userData,
+      onConfirm: async (silmeNedeni) => {
+        try {
+          // Silme verileri hazırla
+          const deleteData = {
+            islemId: islemId,
+            silmeNedeni: silmeNedeni,
+            kullanici: userData
+          };
+          
+          // Backend'e silme isteği gönder
+          const result = await window.electronAPI.invoke.database.deletePlakaGrubuIslem(deleteData);
+          
+          if (result.success) {
+            let successMessage = 'Plaka grubu işlemi başarıyla silindi.';
+            
+            if (result.restoredAmount) {
+              successMessage += ` ${result.restoredAmount} kg hammadde stoğa geri eklendi.`;
+            }
+            
+            if (result.deletedParts && result.deletedParts > 0) {
+              successMessage += ` ${result.deletedParts} adet parça da silindi.`;
+            }
+            
+            showToast(successMessage, 'success');
+            
+            // Sayfaları yenile
+            if (typeof loadFasonIslemler === 'function') {
+              await loadFasonIslemler();
+            }
+            if (typeof loadMakineIslemler === 'function') {
+              await loadMakineIslemler();
+            }
+            if (typeof loadIskartaUrunler === 'function') {
+              await loadIskartaUrunler();
+            }
+            
+            // Dashboard'ı güncelle
+            if (typeof updateDashboard === 'function') {
+              updateDashboard();
+            }
+            
+            // Tablo varsa güncelle
+            if (typeof refreshCurrentTable === 'function') {
+              refreshCurrentTable();
+            }
+            
+          } else {
+            throw new Error(result.message || 'Silme işlemi başarısız');
+          }
+          
+        } catch (error) {
+          console.error('Plaka grubu işlemi silme hatası:', error);
+          throw new Error(`İşlem silinirken hata oluştu: ${error.message}`);
+        }
+      }
+    };
+    
+    // Modal'ı göster
+    const modalShown = showDeleteConfirmationModal(modalOptions);
+    
+    if (!modalShown) {
+      showToast('Bu işlem için yönetici yetkisi gereklidir.', 'error');
+      return;
+    }
+    
+  } catch (error) {
+    console.error('Plaka grubu işlemi silme hatası:', error);
+    showToast('İşlem silinirken hata oluştu: ' + error.message, 'error');
+  }
+}
+
+// Alternatif basit silme fonksiyonu (eski sistemle uyumluluk için)
+async function deletePlakaGrubuIslemBasic(islemId) {
   if (!confirm('Bu plaka grubu işlemini silmek istediğinizden emin misiniz?')) {
     return;
   }
@@ -2263,7 +2353,17 @@ async function deletePlakaGrubuIslem(islemId) {
     const result = await window.electronAPI.invoke.database.deletePlakaGrubuIslem(islemId);
     
     if (result.success) {
-      showToast('Plaka grubu işlemi başarıyla silindi.', 'success');
+      let successMessage = 'Plaka grubu işlemi başarıyla silindi.';
+      
+      if (result.restoredAmount) {
+        successMessage += ` ${result.restoredAmount} kg hammadde stoğa geri eklendi.`;
+      }
+      
+      if (result.deletedParts && result.deletedParts > 0) {
+        successMessage += ` ${result.deletedParts} adet parça da silindi.`;
+      }
+      
+      showToast(successMessage, 'success');
       
       // Sayfaları yenile
       await loadFasonIslemler();
