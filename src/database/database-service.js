@@ -4819,11 +4819,9 @@ async function loadHammaddeMakineIslemlerById(parcaId) {
 }
 
 
-
-
 async function getFasonIslemlerHepsiBirlikte() {
   try {
-    // Hammadde işlemleri için sorgu
+    // Hammadde işlemleri - doğru sütun adları
     const [hammaddeRows] = await pool.execute(`
       SELECT 
         i.id AS islem_id, 
@@ -4832,6 +4830,8 @@ async function getFasonIslemlerHepsiBirlikte() {
         h.stok_kodu, 
         h.malzeme_adi, 
         h.kalinlik, 
+        h.cap AS en, 
+        h.uzunluk AS boy,
         p.barkod_kodu,
         i.kullanilanMiktar, 
         i.hurdaMiktar, 
@@ -4853,7 +4853,7 @@ async function getFasonIslemlerHepsiBirlikte() {
         i.kullanim_alani = 'FasonImalat'
     `);
 
-    // Sarf malzeme işlemleri için sorgu - Bu kısım değişmedi
+    // Sarf malzeme işlemleri
     const [sarfMalzemeRows] = await pool.execute(`
       SELECT 
         si.id AS islem_id, 
@@ -4880,7 +4880,7 @@ async function getFasonIslemlerHepsiBirlikte() {
         si.kullanim_alani = 'FasonImalat'
     `);
 
-    // Yarı mamul işlemleri için sorgu - Bu kısım değişmedi
+    // Yarı mamul işlemleri
     const [yariMamulRows] = await pool.execute(`
       SELECT 
         ymi.id AS islem_id, 
@@ -4892,29 +4892,60 @@ async function getFasonIslemlerHepsiBirlikte() {
         ymi.miktar,
         pr.proje_adi,
         ymi.islem_turu AS sarf_islem_turu,
-        null AS calisan_ad, 
-        null AS calisan_soyad,
-        null AS makine,
+        c.ad AS calisan_ad, 
+        c.soyad AS calisan_soyad,
+        ymi.makine,
         u.ad AS kullanici_ad, 
         u.soyad AS kullanici_soyad
       FROM 
         yari_mamul_islemleri ymi
         JOIN yari_mamuller ym ON ymi.yari_mamul_id = ym.id
         LEFT JOIN projeler pr ON ymi.proje_id = pr.id
+        LEFT JOIN calisanlar c ON ymi.alan_calisan_id = c.id
         LEFT JOIN kullanicilar u ON ymi.kullanici_id = u.id
       WHERE 
         ymi.kullanim_alani = 'FasonImalat'
     `);
 
-    // İkincil stok işlemleri için sorgu - Bu kısım değişmedi
-  
+    // Plaka grubu işlemleri
+    const [plakaGrubuRows] = await pool.execute(`
+      SELECT 
+        pi.id AS islem_id, 
+        pi.islem_tarihi, 
+        'plaka_grubu' AS islem_turu,
+        pg.stok_kodu, 
+        CONCAT(h.malzeme_adi, ' ', pg.kalinlik, 'x', pg.en, 'x', pg.boy, ' mm') AS malzeme_adi,
+        pg.kalinlik,
+        pg.en, 
+        pg.boy,
+        '' AS barkod_kodu,
+        pi.kullanilan_miktar AS kullanilanMiktar, 
+        pi.hurda_miktar AS hurdaMiktar, 
+        pr.proje_adi,
+        pi.islem_turu AS hammadde_islem_turu,
+        c.ad AS calisan_ad, 
+        c.soyad AS calisan_soyad,
+        pi.makine,
+        u.ad AS kullanici_ad, 
+        u.soyad AS kullanici_soyad
+      FROM 
+        plaka_islemler pi
+        JOIN plaka_gruplari pg ON pi.plaka_grubu_id = pg.id
+        JOIN hammaddeler h ON pg.hammadde_id = h.id
+        LEFT JOIN projeler pr ON pi.proje_id = pr.id
+        LEFT JOIN calisanlar c ON pi.calisan_id = c.id
+        LEFT JOIN kullanicilar u ON pi.kullanici_id = u.id
+      WHERE 
+        pi.kullanim_alani = 'FasonImalat'
+    `);
 
     return {
       success: true,
       islemler: [
         ...hammaddeRows,
         ...sarfMalzemeRows,
-        ...yariMamulRows
+        ...yariMamulRows,
+        ...plakaGrubuRows
       ]
     };
   } catch (error) {
@@ -4923,10 +4954,9 @@ async function getFasonIslemlerHepsiBirlikte() {
   }
 }
 
-// getMakineIslemlerHepsiBirlikte fonksiyonunu şu şekilde güncelleyin
 async function getMakineIslemlerHepsiBirlikte() {
   try {
-    // Hammadde işlemleri için sorgu - değişmiyor
+    // Hammadde işlemleri - doğru sütun adları
     const [hammaddeRows] = await pool.execute(`
       SELECT 
         i.id AS islem_id, 
@@ -4935,6 +4965,8 @@ async function getMakineIslemlerHepsiBirlikte() {
         h.stok_kodu, 
         h.malzeme_adi, 
         h.kalinlik, 
+        h.cap AS en, 
+        h.uzunluk AS boy,
         p.barkod_kodu,
         i.kullanilanMiktar, 
         i.hurdaMiktar, 
@@ -4956,7 +4988,7 @@ async function getMakineIslemlerHepsiBirlikte() {
         i.kullanim_alani = 'MakineImalat'
     `);
 
-    // Sarf malzeme işlemleri için sorgu - değişmiyor
+    // Sarf malzeme işlemleri
     const [sarfMalzemeRows] = await pool.execute(`
       SELECT 
         si.id AS islem_id, 
@@ -4983,7 +5015,7 @@ async function getMakineIslemlerHepsiBirlikte() {
         si.kullanim_alani = 'MakineImalat'
     `);
 
-    // Yarı mamul işlemleri için sorgu - BU KISIM DEĞİŞTİ
+    // Yarı mamul işlemleri
     const [yariMamulRows] = await pool.execute(`
       SELECT 
         ymi.id AS islem_id, 
@@ -5010,12 +5042,45 @@ async function getMakineIslemlerHepsiBirlikte() {
         ymi.kullanim_alani = 'MakineImalat'
     `);
 
+    // Plaka grubu işlemleri
+    const [plakaGrubuRows] = await pool.execute(`
+      SELECT 
+        pi.id AS islem_id, 
+        pi.islem_tarihi, 
+        'plaka_grubu' AS islem_turu,
+        pg.stok_kodu, 
+        CONCAT(h.malzeme_adi, ' ', pg.kalinlik, 'x', pg.en, 'x', pg.boy, ' mm') AS malzeme_adi,
+        pg.kalinlik,
+        pg.en, 
+        pg.boy,
+        '' AS barkod_kodu,
+        pi.kullanilan_miktar AS kullanilanMiktar, 
+        pi.hurda_miktar AS hurdaMiktar, 
+        pr.proje_adi,
+        pi.islem_turu AS hammadde_islem_turu,
+        c.ad AS calisan_ad, 
+        c.soyad AS calisan_soyad,
+        pi.makine,
+        u.ad AS kullanici_ad, 
+        u.soyad AS kullanici_soyad
+      FROM 
+        plaka_islemler pi
+        JOIN plaka_gruplari pg ON pi.plaka_grubu_id = pg.id
+        JOIN hammaddeler h ON pg.hammadde_id = h.id
+        LEFT JOIN projeler pr ON pi.proje_id = pr.id
+        LEFT JOIN calisanlar c ON pi.calisan_id = c.id
+        LEFT JOIN kullanicilar u ON pi.kullanici_id = u.id
+      WHERE 
+        pi.kullanim_alani = 'MakineImalat'
+    `);
+
     return {
       success: true,
       islemler: [
         ...hammaddeRows,
         ...sarfMalzemeRows,
-        ...yariMamulRows
+        ...yariMamulRows,
+        ...plakaGrubuRows
       ]
     };
   } catch (error) {
@@ -5023,6 +5088,201 @@ async function getMakineIslemlerHepsiBirlikte() {
     return { success: false, message: error.message };
   }
 }
+
+// Ek: Iskarta işlemleri için de
+async function getIskartaUrunlerHepsiBirlikte() {
+  try {
+    // Hammadde ıskarta işlemleri
+    const [hammaddeRows] = await pool.execute(`
+      SELECT 
+        i.id AS islem_id, 
+        i.islem_tarihi, 
+        'hammadde' AS islem_turu,
+        h.stok_kodu, 
+        h.malzeme_adi, 
+        h.kalinlik, 
+        h.cap AS en, 
+        h.uzunluk AS boy,
+        p.barkod_kodu,
+        i.kullanilanMiktar, 
+        i.hurdaMiktar, 
+        pr.proje_adi,
+        i.islem_turu AS hammadde_islem_turu,
+        c.ad AS calisan_ad, 
+        c.soyad AS calisan_soyad,
+        u.ad AS kullanici_ad, 
+        u.soyad AS kullanici_soyad
+      FROM 
+        islemler i
+        JOIN parcalar p ON i.parca_id = p.id
+        JOIN hammaddeler h ON p.hammadde_id = h.id
+        LEFT JOIN projeler pr ON i.proje_id = pr.id
+        LEFT JOIN calisanlar c ON i.calisan_id = c.id
+        LEFT JOIN kullanicilar u ON i.kullanici_id = u.id
+      WHERE 
+        i.iskarta_urun = 1
+    `);
+
+    // Sarf malzeme ıskarta işlemleri
+    const [sarfMalzemeRows] = await pool.execute(`
+      SELECT 
+        si.id AS islem_id, 
+        si.islem_tarihi, 
+        'sarf_malzeme' AS islem_turu,
+        sm.stok_kodu, 
+        sm.malzeme_adi, 
+        sm.birim, 
+        si.miktar,
+        pr.proje_adi,
+        si.islem_turu AS sarf_islem_turu,
+        c.ad AS calisan_ad, 
+        c.soyad AS calisan_soyad,
+        u.ad AS kullanici_ad, 
+        u.soyad AS kullanici_soyad
+      FROM 
+        sarf_malzeme_islemleri si
+        JOIN sarf_malzemeler sm ON si.sarf_malzeme_id = sm.id
+        LEFT JOIN projeler pr ON si.proje_id = pr.id
+        LEFT JOIN calisanlar c ON si.calisan_id = c.id
+        LEFT JOIN kullanicilar u ON si.kullanici_id = u.id
+      WHERE 
+        si.iskarta_urun = 1
+    `);
+
+    // Yarı mamul ıskarta işlemleri
+    const [yariMamulRows] = await pool.execute(`
+      SELECT 
+        ymi.id AS islem_id, 
+        ymi.islem_tarihi, 
+        'yari_mamul' AS islem_turu,
+        ym.stok_kodu, 
+        ym.malzeme_adi, 
+        ym.birim, 
+        ymi.miktar,
+        pr.proje_adi,
+        ymi.islem_turu AS sarf_islem_turu,
+        c.ad AS calisan_ad, 
+        c.soyad AS calisan_soyad,
+        u.ad AS kullanici_ad, 
+        u.soyad AS kullanici_soyad
+      FROM 
+        yari_mamul_islemleri ymi
+        JOIN yari_mamuller ym ON ymi.yari_mamul_id = ym.id
+        LEFT JOIN projeler pr ON ymi.proje_id = pr.id
+        LEFT JOIN calisanlar c ON ymi.alan_calisan_id = c.id
+        LEFT JOIN kullanicilar u ON ymi.kullanici_id = u.id
+      WHERE 
+        ymi.iskarta_urun = 1
+    `);
+
+    // Plaka grubu ıskarta işlemleri
+    const [plakaGrubuRows] = await pool.execute(`
+      SELECT 
+        pi.id AS islem_id, 
+        pi.islem_tarihi, 
+        'plaka_grubu' AS islem_turu,
+        pg.stok_kodu, 
+        CONCAT(h.malzeme_adi, ' ', pg.kalinlik, 'x', pg.en, 'x', pg.boy, ' mm') AS malzeme_adi,
+        pg.kalinlik,
+        pg.en, 
+        pg.boy,
+        '' AS barkod_kodu,
+        pi.kullanilan_miktar AS kullanilanMiktar, 
+        pi.hurda_miktar AS hurdaMiktar, 
+        pr.proje_adi,
+        pi.islem_turu AS hammadde_islem_turu,
+        c.ad AS calisan_ad, 
+        c.soyad AS calisan_soyad,
+        u.ad AS kullanici_ad, 
+        u.soyad AS kullanici_soyad
+      FROM 
+        plaka_islemler pi
+        JOIN plaka_gruplari pg ON pi.plaka_grubu_id = pg.id
+        JOIN hammaddeler h ON pg.hammadde_id = h.id
+        LEFT JOIN projeler pr ON pi.proje_id = pr.id
+        LEFT JOIN calisanlar c ON pi.calisan_id = c.id
+        LEFT JOIN kullanicilar u ON pi.kullanici_id = u.id
+      WHERE 
+        pi.iskarta_urun = 1
+    `);
+
+    return {
+      success: true,
+      islemler: [
+        ...hammaddeRows,
+        ...sarfMalzemeRows,
+        ...yariMamulRows,
+        ...plakaGrubuRows
+      ]
+    };
+  } catch (error) {
+    console.error('Toplu ıskarta işlemleri getirme hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// getPlakaGruplariByHammaddeId fonksiyonunu da düzeltmek gerekebilir
+// Bu fonksiyon muhtemelen şöyle olmalı:
+async function getPlakaGruplariByHammaddeId(hammaddeId = null) {
+  try {
+    let query = `
+      SELECT 
+        pg.id,
+        pg.hammadde_id,
+        pg.stok_kodu,
+        pg.en,
+        pg.boy,
+        pg.kalinlik,
+        pg.toplam_plaka_sayisi,
+        pg.kalan_plaka_sayisi,
+        pg.toplam_kilo,
+        pg.kalan_kilo,
+        pg.plaka_agirlik,
+        h.malzeme_adi,
+        h.hammadde_turu
+      FROM plaka_gruplari pg
+      JOIN hammaddeler h ON pg.hammadde_id = h.id
+    `;
+    
+    let params = [];
+    
+    if (hammaddeId !== null && hammaddeId !== undefined) {
+      query += ' WHERE pg.hammadde_id = ?';
+      params.push(hammaddeId);
+    }
+    
+    query += ' ORDER BY pg.stok_kodu';
+    
+    const [rows] = await pool.execute(query, params);
+    
+    if (hammaddeId !== null && hammaddeId !== undefined) {
+      return {
+        success: true,
+        gruplar: rows
+      };
+    } else {
+      // Tüm plaka gruplarını hammadde ID'sine göre grupla
+      const result = {};
+      rows.forEach(row => {
+        if (!result[row.hammadde_id]) {
+          result[row.hammadde_id] = {
+            success: true,
+            gruplar: []
+          };
+        }
+        result[row.hammadde_id].gruplar.push(row);
+      });
+      return result;
+    }
+  } catch (error) {
+    console.error('Plaka grupları getirme hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+
+
+
 
 async function getIskartaUrunlerHepsiBirlikte() {
   try {
@@ -5378,26 +5638,60 @@ async function addPlakaGrubu(grubuData) {
 }
 
 // Plaka gruplarını getirme
-async function getPlakaGruplariByHammaddeId(hammaddeId) {
+async function getPlakaGruplariByHammaddeId(hammaddeId = null) {
   try {
-    const [gruplar] = await pool.execute(
-      `SELECT pg.id, pg.stok_kodu, pg.en, pg.boy, pg.kalinlik, 
-              pg.toplam_plaka_sayisi, pg.kalan_plaka_sayisi,
-              pg.toplam_kilo, pg.kalan_kilo, pg.plaka_agirlik,
-              pg.tedarikci, pg.birim_fiyat, pg.birim_fiyat_turu,
-              pg.ekleme_tarihi, u.ad as kullanici_ad, u.soyad as kullanici_soyad,
-              (SELECT COUNT(*) FROM plaka_parcalari WHERE plaka_grubu_id = pg.id) as parca_sayisi
-       FROM plaka_gruplari pg
-       LEFT JOIN kullanicilar u ON pg.ekleyen_id = u.id
-       WHERE pg.hammadde_id = ?
-       ORDER BY pg.ekleme_tarihi DESC`,
-      [hammaddeId]
-    );
+    let query = `
+      SELECT 
+        pg.id,
+        pg.hammadde_id,
+        pg.stok_kodu,
+        pg.en,
+        pg.boy,
+        pg.kalinlik,
+        pg.toplam_plaka_sayisi,
+        pg.kalan_plaka_sayisi,
+        pg.toplam_kilo,
+        pg.kalan_kilo,
+        pg.plaka_agirlik,
+        h.malzeme_adi,
+        h.hammadde_turu
+      FROM plaka_gruplari pg
+      JOIN hammaddeler h ON pg.hammadde_id = h.id
+    `;
     
-    return { success: true, gruplar: gruplar };
+    let params = [];
+    
+    if (hammaddeId !== null && hammaddeId !== undefined) {
+      query += ' WHERE pg.hammadde_id = ?';
+      params.push(hammaddeId);
+    }
+    
+    query += ' ORDER BY pg.stok_kodu';
+    
+    const [rows] = await pool.execute(query, params);
+    
+    if (hammaddeId !== null && hammaddeId !== undefined) {
+      return {
+        success: true,
+        gruplar: rows
+      };
+    } else {
+      // Tüm plaka gruplarını hammadde ID'sine göre grupla
+      const result = {};
+      rows.forEach(row => {
+        if (!result[row.hammadde_id]) {
+          result[row.hammadde_id] = {
+            success: true,
+            gruplar: []
+          };
+        }
+        result[row.hammadde_id].gruplar.push(row);
+      });
+      return result;
+    }
   } catch (error) {
     console.error('Plaka grupları getirme hatası:', error);
-    return { success: false, message: error.message, gruplar: [] };
+    return { success: false, message: error.message };
   }
 }
 
@@ -6355,7 +6649,115 @@ async function canUpdatePlakaGrubu(plakaGrubuId, yeniPlakaSayisi) {
   }
 }
 
-
+async function deletePlakaGrubuIslem(islemId) {
+  const connection = await pool.getConnection();
+  let transaction = false;
+  
+  try {
+    await connection.beginTransaction();
+    transaction = true;
+    
+    // İşlem bilgilerini al
+    const [islemRows] = await connection.execute(
+      `SELECT pi.*, pg.hammadde_id, pg.toplam_kilo, pg.kalan_kilo, pg.toplam_plaka_sayisi, pg.kalan_plaka_sayisi
+       FROM plaka_islemler pi
+       JOIN plaka_gruplari pg ON pi.plaka_grubu_id = pg.id
+       WHERE pi.id = ?`,
+      [islemId]
+    );
+    
+    if (islemRows.length === 0) {
+      throw new Error('Plaka grubu işlemi bulunamadı');
+    }
+    
+    const islem = islemRows[0];
+    
+    // Hammadde bilgilerini al
+    const [hammaddeRows] = await connection.execute(
+      `SELECT kalan_kilo, kritik_seviye FROM hammaddeler WHERE id = ?`,
+      [islem.hammadde_id]
+    );
+    
+    if (hammaddeRows.length === 0) {
+      throw new Error('Hammadde bulunamadı');
+    }
+    
+    const hammadde = hammaddeRows[0];
+    
+    // Kullanılan miktar ve plaka sayısını geri ver
+    const kullanilanMiktar = parseFloat(islem.kullanilan_miktar || 0);
+    const hurdaMiktar = parseFloat(islem.hurda_miktar || 0);
+    const toplamKullanilanMiktar = kullanilanMiktar + hurdaMiktar;
+    const plakaSayisi = parseInt(islem.plaka_sayisi || 1);
+    
+    // Plaka grubuna kiloyu ve plaka sayısını geri ekle
+    await connection.execute(
+      `UPDATE plaka_gruplari 
+       SET kalan_kilo = ROUND(kalan_kilo + ?, 2),
+           kalan_plaka_sayisi = kalan_plaka_sayisi + ?
+       WHERE id = ?`,
+      [toplamKullanilanMiktar, plakaSayisi, islem.plaka_grubu_id]
+    );
+    
+    // Hammaddeye kiloyu geri ekle
+    const yeniHammaddeKalanKilo = parseFloat(hammadde.kalan_kilo) + toplamKullanilanMiktar;
+    
+    // Hammadde durumunu güncelle
+    let hammaddeDurum = 'STOKTA_VAR';
+    if (yeniHammaddeKalanKilo <= 0.01) {
+      hammaddeDurum = 'STOKTA_YOK';
+    } else if (yeniHammaddeKalanKilo <= parseFloat(hammadde.kritik_seviye)) {
+      hammaddeDurum = 'AZ_KALDI';
+    }
+    
+    await connection.execute(
+      `UPDATE hammaddeler 
+       SET kalan_kilo = ROUND(?, 2),
+           durum = ?
+       WHERE id = ?`,
+      [yeniHammaddeKalanKilo, hammaddeDurum, islem.hammadde_id]
+    );
+    
+    // Eğer bu işlemle oluşturulan kalan parçalar varsa onları da sil
+    await connection.execute(
+      `DELETE FROM plaka_parcalari WHERE islem_id = ?`,
+      [islemId]
+    );
+    
+    // İşlemi sil
+    await connection.execute(
+      `DELETE FROM plaka_islemler WHERE id = ?`,
+      [islemId]
+    );
+    
+    // Transaction'ı onayla
+    await connection.commit();
+    
+    return {
+      success: true,
+      message: 'Plaka grubu işlemi başarıyla silindi ve stok miktarları geri yüklendi'
+    };
+    
+  } catch (error) {
+    // Hata durumunda transaction'ı geri al
+    if (transaction) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error('Rollback hatası:', rollbackError);
+      }
+    }
+    
+    console.error('Plaka grubu işlemi silme hatası:', error);
+    return {
+      success: false,
+      message: error.message || 'Plaka grubu işlemi silinirken bir hata oluştu'
+    };
+  } finally {
+    // Bağlantıyı serbest bırak
+    connection.release();
+  }
+}
 
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
@@ -6460,6 +6862,7 @@ addPlakaGrubuToIslemde,
   updatePlakaGrubu,
 
   canUpdatePlakaGrubu,
-  findPlakaGrubuByGiris
+  findPlakaGrubuByGiris,
+  deletePlakaGrubuIslem
 
 };

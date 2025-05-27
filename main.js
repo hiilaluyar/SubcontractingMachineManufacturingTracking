@@ -768,4 +768,12 @@ ipcMain.handle('database:findPlakaGrubuByGiris', async (event, giridId) => {
 });
 
 
+ipcMain.handle('database:deletePlakaGrubuIslem', async (event, islemId) => {
+  try {
+    return await DatabaseService.deletePlakaGrubuIslem(islemId);
+  } catch (error) {
+    console.error('deletePlakaGrubuIslem error:', error);
+    return { success: false, message: error.message };
+  }
+});
 

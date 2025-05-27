@@ -153,9 +153,6 @@ async function loadIskartaUrunler() {
   }
 }
 
-
-
-
 async function loadFasonIslemler() {
   try {
     console.log('Fason işlemleri yükleniyor...');
@@ -173,14 +170,25 @@ async function loadFasonIslemler() {
     const fasonTable = document.getElementById('fasonTable').getElementsByTagName('tbody')[0];
     fasonTable.innerHTML = '<tr><td colspan="10" class="text-center"><div class="spinner-border text-primary" role="status"></div><div>İşlemler yükleniyor...</div></td></tr>';
     
-    // Tek sorguda tüm işlemleri yükle
-    const result = await window.electronAPI.invoke.database.getFasonIslemlerHepsiBirlikte();
+    // Tüm işlem türlerini paralel yükle
+    const [
+      hammaddeResult,
+      plakaGrubuIslemler
+    ] = await Promise.all([
+      window.electronAPI.invoke.database.getFasonIslemlerHepsiBirlikte(),
+      loadPlakaGrubuFasonIslemler()
+    ]);
     
-    if (!result.success) {
-      throw new Error(result.message || 'İşlemler yüklenemedi');
+    // Tüm işlemleri birleştir
+    const tumIslemler = [];
+    
+    // Mevcut hammadde/sarf/yarımamul işlemler
+    if (hammaddeResult.success) {
+      tumIslemler.push(...hammaddeResult.islemler);
     }
     
-    const tumIslemler = result.islemler;
+    // Plaka grubu işlemlerini ekle
+    tumIslemler.push(...plakaGrubuIslemler);
     
     // İşlenmiş öğeleri localStorage'dan al
     const editedItems = JSON.parse(localStorage.getItem('editedItems') || '{}');
@@ -204,11 +212,11 @@ async function loadFasonIslemler() {
       row.setAttribute('data-islem-id', islem.islem_id);
       row.setAttribute('data-islem-type', islem.islem_turu);
       
-      // Stok Kodu - Sadece stok kodunu göster
+      // Stok Kodu
       const cell1 = row.insertCell(0);
       cell1.innerHTML = `<strong>${islem.stok_kodu}</strong>`;
       
-      // Malzeme (malzeme adı, ölçüler ve barkod)
+      // Malzeme
       const cell2 = row.insertCell(1);
       
       // İşlem türüne göre malzeme bilgisini yapılandır
@@ -218,26 +226,23 @@ async function loadFasonIslemler() {
           <div class="small-text">${islem.barkod_kodu || ''}</div>
         `;
       } else if (islem.islem_turu === 'sarf_malzeme') {
-        // Sarf malzeme için farklı bir gösterim
         cell2.innerHTML = `
           <div>${islem.malzeme_adi} (Sarf Malzeme)</div>
           <div class="small-text">${islem.birim || ''}</div>
         `;
       } else if (islem.islem_turu === 'yari_mamul') {
-        // Yarı mamul için farklı bir gösterim
         cell2.innerHTML = `
           <div>${islem.malzeme_adi} (Yarı Mamul)</div>
           <div class="small-text">${islem.birim || ''}</div>
         `;
-      } else if (islem.islem_turu === 'ikincil_stok') {
-        // İkincil stok için özel görünüm
+      } else if (islem.islem_turu === 'plaka_grubu') {
         cell2.innerHTML = `
-          <div>${islem.malzeme_adi} (İkincil Stok)</div>
-          <div class="small-text">${islem.birim || ''}</div>
+          <div>${islem.malzeme_adi}</div>
+          <div class="small-text">Plaka Grubu</div>
         `;
       }
       
-      // Proje - Proje adından gelen değeri göster
+      // Proje
       const cell3 = row.insertCell(2);
       cell3.textContent = islem.proje_adi || 'Belirtilmemiş';
       
@@ -246,7 +251,6 @@ async function loadFasonIslemler() {
       let islemText = '';
       
       if (islem.islem_turu === 'hammadde') {
-        // Hammadde işlem türleri
         switch (islem.hammadde_islem_turu) {
           case 'LazerKesim':
             islemText = 'Lazer Kesim';
@@ -260,11 +264,21 @@ async function loadFasonIslemler() {
           default:
             islemText = islem.hammadde_islem_turu;
         }
-      } else if (islem.islem_turu === 'sarf_malzeme' || islem.islem_turu === 'yari_mamul') {
-        // Sarf malzeme ya da yarı mamul işlem türleri
-        islemText = islem.sarf_islem_turu || 'Standart';
-      } else if (islem.islem_turu === 'ikincil_stok') {
-        // İkincil stok işlem türleri (Kullanım veya İade)
+      } else if (islem.islem_turu === 'plaka_grubu') {
+        switch (islem.hammadde_islem_turu) {
+          case 'LazerKesim':
+            islemText = 'Lazer Kesim';
+            break;
+          case 'KaynakliImalat':
+            islemText = 'Kaynaklı İmalat';
+            break;
+          case 'TalasliImalat':
+            islemText = 'Talaşlı İmalat';
+            break;
+          default:
+            islemText = islem.hammadde_islem_turu;
+        }
+      } else {
         islemText = islem.sarf_islem_turu || 'Standart';
       }
       
@@ -278,22 +292,21 @@ async function loadFasonIslemler() {
         cell5.textContent = '-';
       }
       
-      // Miktar (Kullanılan + Hurda)
+      // Miktar
       const cell6 = row.insertCell(5);
       
-      if (islem.islem_turu === 'hammadde') {
+      if (islem.islem_turu === 'hammadde' || islem.islem_turu === 'plaka_grubu') {
         cell6.innerHTML = `
           <div>Kullanılan: ${parseFloat(islem.kullanilanMiktar).toFixed(2)} kg</div>
           <div>Hurda: ${parseFloat(islem.hurdaMiktar).toFixed(2)} kg</div>
         `;
       } else {
-        // Sarf malzeme, yarı mamul veya ikincil stok için sadece miktar göster
         cell6.innerHTML = `
           <div>Miktar: ${parseFloat(islem.miktar).toFixed(2)} ${islem.birim || ''}</div>
         `;
       }
       
-      // Makine sütunu
+      // Makine
       const cell7 = row.insertCell(6);
       cell7.textContent = islem.makine || '-';
       
@@ -314,24 +327,13 @@ async function loadFasonIslemler() {
       let itemType = islem.islem_turu;
       
       // İşlem daha önce işlenmiş mi kontrol et
-      let isProcessed = false;
-if (itemType === 'sarf_malzeme') {
-  // Sarf malzemeler için ek kontrol - sadece gerçekten işlenmişse işaretleniyor
-  isProcessed = editedItems[itemType] && 
-                editedItems[itemType][itemId] && 
-                (editedItems[itemType][itemId].edited === true);
-} else {
-  // Diğer türler için normal kontrol devam ediyor
-  isProcessed = editedItems[itemType] && editedItems[itemType][itemId];
-}
+      let isProcessed = editedItems[itemType] && editedItems[itemType][itemId];
       
       // Düzenleme butonu oluştur
       let editButtonHtml = '';
       
       if (isProcessed) {
-        // İşlem türüne göre farklı mesaj ama aynı ikon
         const operationType = editedItems[itemType][itemId].operationType || 'Normal';
-        
         let tooltipText = 'Bu işlem tamamlandı';
         
         if (operationType === 'IkincilStok') {
@@ -340,7 +342,6 @@ if (itemType === 'sarf_malzeme') {
           tooltipText = 'Bu ürün ıskarta listesine gönderildi';
         }
         
-        // Her işlem türü için aynı tik ikonu kullan
         editButtonHtml = `
           <button class="action-btn processed-item" title="${tooltipText}" disabled
             data-item-id="${itemId}" data-item-type="${itemType}">
@@ -348,7 +349,7 @@ if (itemType === 'sarf_malzeme') {
           </button>
         `;
       } else {
-        // İşlem türüne göre normal düzenleme butonu
+        // İşlem türüne göre düzenleme butonu
         if (itemType === 'hammadde') {
           editButtonHtml = `
             <button class="action-btn edit" title="İşlemi Düzenle" onclick="editIslem(${itemId}, 'hammadde')"
@@ -370,11 +371,12 @@ if (itemType === 'sarf_malzeme') {
               <i class="fas fa-edit"></i>
             </button>
           `;
-        } else if (itemType === 'ikincil_stok') {
+        } else if (itemType === 'plaka_grubu') {
+          // Plaka grubu için sadece silme işlemi
           editButtonHtml = `
-            <button class="action-btn edit" title="İşlemi Düzenle" onclick="editIkincilStokIslem(${itemId})"
+            <button class="action-btn delete" title="İşlemi Sil" onclick="deletePlakaGrubuIslem(${itemId})"
               data-item-id="${itemId}" data-item-type="${itemType}">
-              <i class="fas fa-edit"></i>
+              <i class="fas fa-trash"></i>
             </button>
           `;
         }
@@ -397,7 +399,6 @@ if (itemType === 'sarf_malzeme') {
   }
 }
 
-// Düzeltilmiş loadMakineIslemler fonksiyonu 
 async function loadMakineIslemler() {
   try {
     console.log('Makine işlemleri yükleniyor...');
@@ -415,35 +416,45 @@ async function loadMakineIslemler() {
     const makineTable = document.getElementById('makineTable').getElementsByTagName('tbody')[0];
     makineTable.innerHTML = '<tr><td colspan="9" class="text-center"><div class="spinner-border text-primary" role="status"></div><div>İşlemler yükleniyor...</div></td></tr>';
     
-    // Tek sorguda tüm işlemleri yükle
-    const result = await window.electronAPI.invoke.database.getMakineIslemlerHepsiBirlikte();
+    // Tüm işlem türlerini paralel yükle
+    const [
+      hammaddeResult,
+      yariMamulIslemler,
+      plakaGrubuIslemler
+    ] = await Promise.all([
+      window.electronAPI.invoke.database.getMakineIslemlerHepsiBirlikte(),
+      loadYariMamulMakineIslemler(),
+      loadPlakaGrubuMakineIslemler()
+    ]);
     
-    if (!result.success) {
-      throw new Error(result.message || 'İşlemler yüklenemedi');
-    }
-    
-    // Yarı mamul işlemlerini de ekleyelim
-    const yariMamulIslemler = await loadYariMamulMakineIslemler();
-    
-    // Tüm işlemleri birleştir - ÇİFT KAYDI ÖNLEMEK İÇİN DEĞİŞTİRİLDİ
+    // Tüm işlemleri birleştir
     const tumIslemler = [];
     const yuklenenIslemIDs = new Set();
 
-    // Önce makine işlemlerini ekle
-    result.islemler.forEach(islem => {
-      const islemKey = `${islem.islem_turu}_${islem.islem_id}`;
-      yuklenenIslemIDs.add(islemKey);
-      tumIslemler.push(islem);
-    });
+    // Önce mevcut işlemleri ekle
+    if (hammaddeResult.success) {
+      hammaddeResult.islemler.forEach(islem => {
+        const islemKey = `${islem.islem_turu}_${islem.islem_id}`;
+        yuklenenIslemIDs.add(islemKey);
+        tumIslemler.push(islem);
+      });
+    }
 
-    // Sonra yarı mamul işlemlerini ekle (çift ekleme olmadığından emin olarak)
+    // Yarı mamul işlemlerini ekle
     yariMamulIslemler.forEach(islem => {
       const islemKey = `${islem.islem_turu}_${islem.islem_id}`;
       if (!yuklenenIslemIDs.has(islemKey)) {
         yuklenenIslemIDs.add(islemKey);
         tumIslemler.push(islem);
-      } else {
-        console.log(`Çift işlem önlendi: ${islemKey}`);
+      }
+    });
+    
+    // Plaka grubu işlemlerini ekle
+    plakaGrubuIslemler.forEach(islem => {
+      const islemKey = `${islem.islem_turu}_${islem.islem_id}`;
+      if (!yuklenenIslemIDs.has(islemKey)) {
+        yuklenenIslemIDs.add(islemKey);
+        tumIslemler.push(islem);
       }
     });
     
@@ -469,11 +480,11 @@ async function loadMakineIslemler() {
       row.setAttribute('data-islem-id', islem.islem_id);
       row.setAttribute('data-islem-type', islem.islem_turu);
       
-      // Stok Kodu - Sadece stok kodunu göster
+      // Stok Kodu
       const cell1 = row.insertCell(0);
       cell1.innerHTML = `<strong>${islem.stok_kodu}</strong>`;
       
-      // Malzeme (malzeme adı, ölçüler ve barkod)
+      // Malzeme
       const cell2 = row.insertCell(1);
       
       // İşlem türüne göre malzeme bilgisini yapılandır
@@ -483,26 +494,28 @@ async function loadMakineIslemler() {
           <div class="small-text">${islem.barkod_kodu || ''}</div>
         `;
       } else if (islem.islem_turu === 'sarf_malzeme') {
-        // Sarf malzeme için farklı bir gösterim
         cell2.innerHTML = `
           <div>${islem.malzeme_adi} (Sarf Malzeme)</div>
           <div class="small-text">${islem.birim || ''}</div>
         `;
       } else if (islem.islem_turu === 'yari_mamul') {
-        // Yarı mamul için farklı bir gösterim
         cell2.innerHTML = `
           <div>${islem.malzeme_adi} (Yarı Mamul)</div>
           <div class="small-text">${islem.birim || ''}</div>
         `;
       } else if (islem.islem_turu === 'ikincil_stok') {
-        // İkincil stok için özel görünüm
         cell2.innerHTML = `
           <div>${islem.malzeme_adi} (İkincil Stok)</div>
           <div class="small-text">${islem.birim || ''}</div>
         `;
+      } else if (islem.islem_turu === 'plaka_grubu') {
+        cell2.innerHTML = `
+          <div>${islem.malzeme_adi}</div>
+          <div class="small-text">Plaka Grubu</div>
+        `;
       }
       
-      // Proje - Proje adından gelen değeri göster
+      // Proje
       const cell3 = row.insertCell(2);
       cell3.textContent = islem.proje_adi || 'Belirtilmemiş';
       
@@ -511,7 +524,6 @@ async function loadMakineIslemler() {
       let islemText = '';
       
       if (islem.islem_turu === 'hammadde') {
-        // Hammadde işlem türleri
         switch (islem.hammadde_islem_turu) {
           case 'LazerKesim':
             islemText = 'Lazer Kesim';
@@ -526,11 +538,23 @@ async function loadMakineIslemler() {
             islemText = islem.hammadde_islem_turu;
         }
       } else if (islem.islem_turu === 'sarf_malzeme' || islem.islem_turu === 'yari_mamul') {
-        // Sarf malzeme ya da yarı mamul işlem türleri
         islemText = islem.sarf_islem_turu || 'Standart';
       } else if (islem.islem_turu === 'ikincil_stok') {
-        // İkincil stok işlem türleri (Kullanım veya İade)
         islemText = islem.sarf_islem_turu || 'Standart';
+      } else if (islem.islem_turu === 'plaka_grubu') {
+        switch (islem.hammadde_islem_turu) {
+          case 'LazerKesim':
+            islemText = 'Lazer Kesim';
+            break;
+          case 'KaynakliImalat':
+            islemText = 'Kaynaklı İmalat';
+            break;
+          case 'TalasliImalat':
+            islemText = 'Talaşlı İmalat';
+            break;
+          default:
+            islemText = islem.hammadde_islem_turu || 'Plaka Grubu İşlemi';
+        }
       }
       
       cell4.textContent = islemText;
@@ -540,19 +564,18 @@ async function loadMakineIslemler() {
       if (islem.calisan_ad && islem.calisan_soyad) {
         cell5.textContent = `${islem.calisan_ad} ${islem.calisan_soyad}`;
       } else if (islem.makine) {
-        // Eğer çalışan yok ama makine varsa makine bilgisini gösterelim
         cell5.textContent = `Makine: ${islem.makine}`;
       } else {
         cell5.textContent = '-';
       }
       
-      // Miktar (Kullanılan + Hurda)
+      // Miktar
       const cell6 = row.insertCell(5);
       
-      if (islem.islem_turu === 'hammadde') {
+      if (islem.islem_turu === 'hammadde' || islem.islem_turu === 'plaka_grubu') {
         cell6.innerHTML = `
           <div>Kullanılan: ${parseFloat(islem.kullanilanMiktar).toFixed(2)} kg</div>
-          <div>Hurda: ${parseFloat(islem.hurdaMiktar).toFixed(2)} kg</div>
+          <div>Hurda: ${parseFloat(islem.hurdaMiktar || 0).toFixed(2)} kg</div>
         `;
       } else {
         // Sarf malzeme, yarı mamul veya ikincil stok için sadece miktar göster
@@ -579,15 +602,15 @@ async function loadMakineIslemler() {
       
       // İşlem daha önce işlenmiş mi kontrol et
       let isProcessed = false;
-if (itemType === 'sarf_malzeme') {
-  // Sarf malzemeler için ek kontrol - sadece gerçekten işlenmişse işaretleniyor
-  isProcessed = editedItems[itemType] && 
-                editedItems[itemType][itemId] && 
-                (editedItems[itemType][itemId].edited === true);
-} else {
-  // Diğer türler için normal kontrol devam ediyor
-  isProcessed = editedItems[itemType] && editedItems[itemType][itemId];
-}
+      if (itemType === 'sarf_malzeme') {
+        // Sarf malzemeler için ek kontrol - sadece gerçekten işlenmişse işaretleniyor
+        isProcessed = editedItems[itemType] && 
+                      editedItems[itemType][itemId] && 
+                      (editedItems[itemType][itemId].edited === true);
+      } else {
+        // Diğer türler için normal kontrol devam ediyor
+        isProcessed = editedItems[itemType] && editedItems[itemType][itemId];
+      }
       
       // Düzenleme butonu oluştur
       let editButtonHtml = '';
@@ -639,6 +662,14 @@ if (itemType === 'sarf_malzeme') {
             <button class="action-btn edit" title="İşlemi Düzenle" onclick="editIkincilStokIslem(${itemId})"
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-edit"></i>
+            </button>
+          `;
+        } else if (itemType === 'plaka_grubu') {
+          // Plaka grubu için sadece silme işlemi
+          editButtonHtml = `
+            <button class="action-btn delete" title="İşlemi Sil" onclick="deletePlakaGrubuIslem(${itemId})"
+              data-item-id="${itemId}" data-item-type="${itemType}">
+              <i class="fas fa-trash"></i>
             </button>
           `;
         }
@@ -806,7 +837,6 @@ async function loadYariMamulMakineIslemler() {
     return [];
   }
 }
-
 
 
   // Hammadde fason işlemlerini yükle (yardımcı fonksiyon)
@@ -2017,6 +2047,242 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+// Plaka Grubu Fason İşlemlerini Yükle (Basit Versiyon)
+async function loadPlakaGrubuFasonIslemler() {
+  try {
+    console.log("Plaka grubu fason işlemleri yükleniyor...");
+    
+    // Tüm plaka gruplarını al
+    const plakaGruplariResult = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId();
+    if (!plakaGruplariResult || !plakaGruplariResult.success) {
+      console.log('Plaka grupları bulunamadı');
+      return [];
+    }
+
+    const plakaGrubuFasonIslemler = [];
+    
+    // Tüm plaka grubu ID'lerini topla
+    const plakaGrubuIds = [];
+    for (const hammaddeId in plakaGruplariResult) {
+      if (plakaGruplariResult[hammaddeId] && plakaGruplariResult[hammaddeId].gruplar) {
+        plakaGruplariResult[hammaddeId].gruplar.forEach(grup => {
+          plakaGrubuIds.push(grup.id);
+        });
+      }
+    }
+    
+    if (plakaGrubuIds.length === 0) {
+      return [];
+    }
+
+    // Tüm plaka grubu işlemlerini al
+    const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByMultiplePlakaGrubuIds(plakaGrubuIds);
+    
+    if (islemlerResult.success && islemlerResult.islemler.length > 0) {
+      // FasonImalat olan işlemleri filtrele
+      const fasonIslemler = islemlerResult.islemler.filter(islem => islem.kullanim_alani === 'FasonImalat');
+      
+      // Her işlem için plaka grubu bilgilerini al ve formatla
+      for (const islem of fasonIslemler) {
+        const plakaGrubuResult = await window.electronAPI.invoke.database.getPlakaGrubuById(islem.plaka_grubu_id);
+        
+        if (plakaGrubuResult.success) {
+          const plakaGrubu = plakaGrubuResult.plaka_grubu;
+          
+          plakaGrubuFasonIslemler.push({
+            islem_id: islem.id,
+            islem_tarihi: islem.islem_tarihi,
+            islem_turu: 'plaka_grubu',
+            stok_kodu: plakaGrubu.stok_kodu,
+            malzeme_adi: `Plaka Grubu (${plakaGrubu.en}x${plakaGrubu.boy}x${plakaGrubu.kalinlik}mm)`,
+            kullanilanMiktar: islem.kullanilan_miktar,
+            hurdaMiktar: islem.hurda_miktar,
+            proje_adi: islem.proje_adi,
+            hammadde_islem_turu: islem.islem_turu,
+            calisan_ad: islem.calisan_ad,
+            calisan_soyad: islem.calisan_soyad,
+            makine: islem.makine,
+            kullanici_ad: islem.kullanici_ad,
+            kullanici_soyad: islem.kullanici_soyad
+          });
+        }
+      }
+    }
+    
+    return plakaGrubuFasonIslemler;
+  } catch (error) {
+    console.error('Plaka grubu fason işlemleri yükleme hatası:', error);
+    return [];
+  }
+}
+
+// Plaka Grubu Makine İşlemlerini Yükle (Basit Versiyon)
+async function loadPlakaGrubuMakineIslemler() {
+  try {
+    console.log("Plaka grubu makine işlemleri yükleniyor...");
+    
+    // Tüm plaka gruplarını al
+    const plakaGruplariResult = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId();
+    if (!plakaGruplariResult || !plakaGruplariResult.success) {
+      console.log('Plaka grupları bulunamadı');
+      return [];
+    }
+
+    const plakaGrubuMakineIslemler = [];
+    
+    // Tüm plaka grubu ID'lerini topla
+    const plakaGrubuIds = [];
+    for (const hammaddeId in plakaGruplariResult) {
+      if (plakaGruplariResult[hammaddeId] && plakaGruplariResult[hammaddeId].gruplar) {
+        plakaGruplariResult[hammaddeId].gruplar.forEach(grup => {
+          plakaGrubuIds.push(grup.id);
+        });
+      }
+    }
+    
+    if (plakaGrubuIds.length === 0) {
+      return [];
+    }
+
+    // Tüm plaka grubu işlemlerini al
+    const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByMultiplePlakaGrubuIds(plakaGrubuIds);
+    
+    if (islemlerResult.success && islemlerResult.islemler.length > 0) {
+      // MakineImalat olan işlemleri filtrele
+      const makineIslemler = islemlerResult.islemler.filter(islem => islem.kullanim_alani === 'MakineImalat');
+      
+      // Her işlem için plaka grubu bilgilerini al ve formatla
+      for (const islem of makineIslemler) {
+        const plakaGrubuResult = await window.electronAPI.invoke.database.getPlakaGrubuById(islem.plaka_grubu_id);
+        
+        if (plakaGrubuResult.success) {
+          const plakaGrubu = plakaGrubuResult.plaka_grubu;
+          
+          plakaGrubuMakineIslemler.push({
+            islem_id: islem.id,
+            islem_tarihi: islem.islem_tarihi,
+            islem_turu: 'plaka_grubu',
+            stok_kodu: plakaGrubu.stok_kodu,
+            malzeme_adi: `Plaka Grubu (${plakaGrubu.en}x${plakaGrubu.boy}x${plakaGrubu.kalinlik}mm)`,
+            kullanilanMiktar: islem.kullanilan_miktar,
+            hurdaMiktar: islem.hurda_miktar,
+            proje_adi: islem.proje_adi,
+            hammadde_islem_turu: islem.islem_turu,
+            calisan_ad: islem.calisan_ad,
+            calisan_soyad: islem.calisan_soyad,
+            kullanici_ad: islem.kullanici_ad,
+            kullanici_soyad: islem.kullanici_soyad
+          });
+        }
+      }
+    }
+    
+    return plakaGrubuMakineIslemler;
+  } catch (error) {
+    console.error('Plaka grubu makine işlemleri yükleme hatası:', error);
+    return [];
+  }
+}
+
+
+async function loadPlakaGrubuIskartaIslemler() {
+  try {
+    console.log("Plaka grubu ıskarta işlemleri yükleniyor...");
+    
+    // Tüm plaka gruplarını al
+    const plakaGruplariResult = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId();
+    if (!plakaGruplariResult || !plakaGruplariResult.success) {
+      console.log('Plaka grupları bulunamadı');
+      return [];
+    }
+
+    const plakaGrubuIskartaIslemler = [];
+    
+    // Tüm plaka grubu ID'lerini topla
+    const plakaGrubuIds = [];
+    for (const hammaddeId in plakaGruplariResult) {
+      if (plakaGruplariResult[hammaddeId] && plakaGruplariResult[hammaddeId].gruplar) {
+        plakaGruplariResult[hammaddeId].gruplar.forEach(grup => {
+          plakaGrubuIds.push(grup.id);
+        });
+      }
+    }
+    
+    if (plakaGrubuIds.length === 0) {
+      return [];
+    }
+
+    // Tüm plaka grubu işlemlerini al
+    const islemlerResult = await window.electronAPI.invoke.database.getIslemlerByMultiplePlakaGrubuIds(plakaGrubuIds);
+    
+    if (islemlerResult.success && islemlerResult.islemler.length > 0) {
+      // Iskarta olan işlemleri filtrele (iskarta_urun = 1)
+      const iskartaIslemler = islemlerResult.islemler.filter(islem => islem.iskarta_urun === 1);
+      
+      // Her işlem için plaka grubu bilgilerini al ve formatla
+      for (const islem of iskartaIslemler) {
+        const plakaGrubuResult = await window.electronAPI.invoke.database.getPlakaGrubuById(islem.plaka_grubu_id);
+        
+        if (plakaGrubuResult.success) {
+          const plakaGrubu = plakaGrubuResult.plaka_grubu;
+          
+          plakaGrubuIskartaIslemler.push({
+            islem_id: islem.id,
+            islem_tarihi: islem.islem_tarihi,
+            islem_turu: 'plaka_grubu',
+            stok_kodu: plakaGrubu.stok_kodu,
+            malzeme_adi: `Plaka Grubu (${plakaGrubu.en}x${plakaGrubu.boy}x${plakaGrubu.kalinlik}mm)`,
+            kullanilanMiktar: islem.kullanilan_miktar,
+            hurdaMiktar: islem.hurda_miktar,
+            proje_adi: islem.proje_adi,
+            hammadde_islem_turu: islem.islem_turu,
+            kullanim_alani: islem.kullanim_alani,
+            calisan_ad: islem.calisan_ad,
+            calisan_soyad: islem.calisan_soyad,
+            kullanici_ad: islem.kullanici_ad,
+            kullanici_soyad: islem.kullanici_soyad
+          });
+        }
+      }
+    }
+    
+    return plakaGrubuIskartaIslemler;
+  } catch (error) {
+    console.error('Plaka grubu ıskarta işlemleri yükleme hatası:', error);
+    return [];
+  }
+}
+
+
+async function deletePlakaGrubuIslem(islemId) {
+  if (!confirm('Bu plaka grubu işlemini silmek istediğinizden emin misiniz?')) {
+    return;
+  }
+  
+  try {
+    const result = await window.electronAPI.invoke.database.deletePlakaGrubuIslem(islemId);
+    
+    if (result.success) {
+      showToast('Plaka grubu işlemi başarıyla silindi.', 'success');
+      
+      // Sayfaları yenile
+      await loadFasonIslemler();
+      await loadMakineIslemler();
+      await loadIskartaUrunler();
+      
+      // Dashboard'ı güncelle
+      updateDashboard();
+    } else {
+      showToast('Hata: ' + result.message, 'error');
+    }
+  } catch (error) {
+    console.error('Plaka grubu işlemi silme hatası:', error);
+    showToast('İşlem silinirken hata oluştu: ' + error.message, 'error');
+  }
+}
+
+window.deletePlakaGrubuIslem = deletePlakaGrubuIslem;
+
 
 window.searchIskartaUrunler = searchIskartaUrunler;
 window.resetIskartaUrunlerFilters = resetIskartaUrunlerFilters;
@@ -2041,3 +2307,6 @@ window.fillProjeSelectForIskartaUrunler = fillProjeSelectForIskartaUrunler;
   window.loadSarfMalzemeFasonIslemler = loadSarfMalzemeFasonIslemler;
   window.loadSarfMalzemeMakineIslemler = loadSarfMalzemeMakineIslemler;
   window.loadIskartaUrunler = loadIskartaUrunler;
+  window.loadPlakaGrubuFasonIslemler = loadPlakaGrubuFasonIslemler;
+window.loadPlakaGrubuMakineIslemler = loadPlakaGrubuMakineIslemler;
+window.loadPlakaGrubuIskartaIslemler = loadPlakaGrubuIskartaIslemler;

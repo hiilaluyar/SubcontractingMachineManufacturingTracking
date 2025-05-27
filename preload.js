@@ -166,7 +166,9 @@ updatePlakaGrubu: (updateData) =>
 
 
 canUpdatePlakaGrubu: (plakaGrubuId, yeniPlakaSayisi) => 
-  ipcRenderer.invoke('database:canUpdatePlakaGrubu', plakaGrubuId, yeniPlakaSayisi)
+  ipcRenderer.invoke('database:canUpdatePlakaGrubu', plakaGrubuId, yeniPlakaSayisi),
+
+deletePlakaGrubuIslem: (islemId) => ipcRenderer.invoke('database:deletePlakaGrubuIslem', islemId)
 
 
 
