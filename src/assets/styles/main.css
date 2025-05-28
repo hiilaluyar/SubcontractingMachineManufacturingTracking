@@ -2077,6 +2077,15 @@ div[id^="NotiflixConfirmWrap"] div[class*="confirm-buttons"] div[id^="NotiflixCo
   transition: all 0.3s ease;
 }
 
+
+.action-btn.delete {
+  order: -1; /* Delete butonunu sola al */
+}
+
+.action-btn.edit {
+  order: 1;  /* Edit butonunu sağa al */
+}
+
 /* Style for edited buttons */
 .action-btn.edit.edited {
   opacity: 0.9;

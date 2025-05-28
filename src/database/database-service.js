@@ -4821,9 +4821,10 @@ async function loadHammaddeMakineIslemlerById(parcaId) {
 }
 
 
+
 async function getFasonIslemlerHepsiBirlikte() {
   try {
-    // Hammadde işlemleri - doğru sütun adları
+    // Hammadde işlemleri - müşteri bilgisi eklendi
     const [hammaddeRows] = await pool.execute(`
       SELECT 
         i.id AS islem_id, 
@@ -4843,7 +4844,8 @@ async function getFasonIslemlerHepsiBirlikte() {
         c.soyad AS calisan_soyad,
         i.makine,
         u.ad AS kullanici_ad, 
-        u.soyad AS kullanici_soyad
+        u.soyad AS kullanici_soyad,
+        m.musteri_adi AS musteri_adi
       FROM 
         islemler i
         JOIN parcalar p ON i.parca_id = p.id
@@ -4851,11 +4853,12 @@ async function getFasonIslemlerHepsiBirlikte() {
         LEFT JOIN projeler pr ON i.proje_id = pr.id
         LEFT JOIN calisanlar c ON i.calisan_id = c.id
         LEFT JOIN kullanicilar u ON i.kullanici_id = u.id
+        LEFT JOIN musteriler m ON i.musteri_id = m.id
       WHERE 
         i.kullanim_alani = 'FasonImalat'
     `);
 
-    // Sarf malzeme işlemleri
+    // Sarf malzeme işlemleri - müşteri bilgisi çıkarıldı
     const [sarfMalzemeRows] = await pool.execute(`
       SELECT 
         si.id AS islem_id, 
@@ -4882,7 +4885,7 @@ async function getFasonIslemlerHepsiBirlikte() {
         si.kullanim_alani = 'FasonImalat'
     `);
 
-    // Yarı mamul işlemleri
+    // Yarı mamul işlemleri - müşteri bilgisi çıkarıldı
     const [yariMamulRows] = await pool.execute(`
       SELECT 
         ymi.id AS islem_id, 
@@ -4909,7 +4912,7 @@ async function getFasonIslemlerHepsiBirlikte() {
         ymi.kullanim_alani = 'FasonImalat'
     `);
 
-    // Plaka grubu işlemleri
+    // Plaka grubu işlemleri - müşteri bilgisi eklendi
     const [plakaGrubuRows] = await pool.execute(`
       SELECT 
         pi.id AS islem_id, 
@@ -4929,7 +4932,8 @@ async function getFasonIslemlerHepsiBirlikte() {
         c.soyad AS calisan_soyad,
         pi.makine,
         u.ad AS kullanici_ad, 
-        u.soyad AS kullanici_soyad
+        u.soyad AS kullanici_soyad,
+        m.musteri_adi AS musteri_adi
       FROM 
         plaka_islemler pi
         JOIN plaka_gruplari pg ON pi.plaka_grubu_id = pg.id
@@ -4937,6 +4941,7 @@ async function getFasonIslemlerHepsiBirlikte() {
         LEFT JOIN projeler pr ON pi.proje_id = pr.id
         LEFT JOIN calisanlar c ON pi.calisan_id = c.id
         LEFT JOIN kullanicilar u ON pi.kullanici_id = u.id
+        LEFT JOIN musteriler m ON pi.musteri_id = m.id
       WHERE 
         pi.kullanim_alani = 'FasonImalat'
     `);
@@ -4955,6 +4960,7 @@ async function getFasonIslemlerHepsiBirlikte() {
     return { success: false, message: error.message };
   }
 }
+
 
 async function getMakineIslemlerHepsiBirlikte() {
   try {

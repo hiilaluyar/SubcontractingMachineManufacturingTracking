@@ -162,13 +162,13 @@ async function loadFasonIslemler() {
       console.error('Database invoke metodu bulunamadı');
       
       const fasonTable = document.getElementById('fasonTable').getElementsByTagName('tbody')[0];
-      fasonTable.innerHTML = '<tr><td colspan="10" class="text-center">Veri yüklenirken hata oluştu</td></tr>';
+      fasonTable.innerHTML = '<tr><td colspan="9" class="text-center">Veri yüklenirken hata oluştu</td></tr>';
       return;
     }
     
     // Yükleme göstergesini göster
     const fasonTable = document.getElementById('fasonTable').getElementsByTagName('tbody')[0];
-    fasonTable.innerHTML = '<tr><td colspan="10" class="text-center"><div class="spinner-border text-primary" role="status"></div><div>İşlemler yükleniyor...</div></td></tr>';
+    fasonTable.innerHTML = '<tr><td colspan="9" class="text-center"><div class="spinner-border text-primary" role="status"></div><div>İşlemler yükleniyor...</div></td></tr>';
     
     // Tüm işlem türlerini paralel yükle
     const [
@@ -198,7 +198,7 @@ async function loadFasonIslemler() {
     
     if (tumIslemler.length === 0) {
       const row = fasonTable.insertRow();
-      row.innerHTML = '<td colspan="10" class="text-center">Fason işlem bulunamadı</td>';
+      row.innerHTML = '<td colspan="9" class="text-center">Fason işlem bulunamadı</td>';
       return;
     }
     
@@ -242,12 +242,8 @@ async function loadFasonIslemler() {
         `;
       }
       
-      // Proje
+      // İşlem Türü (Proje sütunu kaldırıldı, bu artık 3. sütun)
       const cell3 = row.insertCell(2);
-      cell3.textContent = islem.proje_adi || 'Belirtilmemiş';
-      
-      // İşlem Türü
-      const cell4 = row.insertCell(3);
       let islemText = '';
       
       if (islem.islem_turu === 'hammadde') {
@@ -282,45 +278,45 @@ async function loadFasonIslemler() {
         islemText = islem.sarf_islem_turu || 'Standart';
       }
       
-      cell4.textContent = islemText;
+      cell3.textContent = islemText;
       
-      // Alan Kişi (çalışan) sütunu
-      const cell5 = row.insertCell(4);
+      // Alan Kişi (çalışan) sütunu (artık 4. sütun)
+      const cell4 = row.insertCell(3);
       if (islem.calisan_ad && islem.calisan_soyad) {
-        cell5.textContent = `${islem.calisan_ad} ${islem.calisan_soyad}`;
+        cell4.textContent = `${islem.calisan_ad} ${islem.calisan_soyad}`;
       } else {
-        cell5.textContent = '-';
+        cell4.textContent = '-';
       }
       
-      // Miktar
-      const cell6 = row.insertCell(5);
+      // Miktar (artık 5. sütun)
+      const cell5 = row.insertCell(4);
       
       if (islem.islem_turu === 'hammadde' || islem.islem_turu === 'plaka_grubu') {
-        cell6.innerHTML = `
+        cell5.innerHTML = `
           <div>Kullanılan: ${parseFloat(islem.kullanilanMiktar).toFixed(2)} kg</div>
           <div>Hurda: ${parseFloat(islem.hurdaMiktar).toFixed(2)} kg</div>
         `;
       } else {
-        cell6.innerHTML = `
+        cell5.innerHTML = `
           <div>Miktar: ${parseFloat(islem.miktar).toFixed(2)} ${islem.birim || ''}</div>
         `;
       }
       
-      // Makine
+      // Makine (artık 6. sütun)
+      const cell6 = row.insertCell(5);
+      cell6.textContent = islem.makine || '-';
+      
+      // Müşteri (artık 7. sütun)
       const cell7 = row.insertCell(6);
-      cell7.textContent = islem.makine || '-';
+      cell7.textContent = islem.musteri_adi || '-';
       
-      // İşlemi Yapan (Kullanıcı)
+      // Tarih (artık 8. sütun)
       const cell8 = row.insertCell(7);
-      cell8.textContent = `${islem.kullanici_ad} ${islem.kullanici_soyad}`;
-      
-      // Tarih
-      const cell9 = row.insertCell(8);
       const date = new Date(islem.islem_tarihi);
-      cell9.textContent = date.toLocaleString('tr-TR');
+      cell8.textContent = date.toLocaleString('tr-TR');
       
-      // İşlemler
-      const cell10 = row.insertCell(9);
+      // İşlemler (artık 9. sütun)
+      const cell9 = row.insertCell(8);
       
       // İşlemin ID'sini ve türünü belirle
       const itemId = islem.islem_id;
@@ -382,7 +378,7 @@ async function loadFasonIslemler() {
         }
       }
       
-      cell10.innerHTML = `
+      cell9.innerHTML = `
         <div class="action-buttons">
           ${editButtonHtml}
         </div>
@@ -395,10 +391,9 @@ async function loadFasonIslemler() {
     console.error('Fason işlemleri yükleme hatası:', error);
     
     const fasonTable = document.getElementById('fasonTable').getElementsByTagName('tbody')[0];
-    fasonTable.innerHTML = '<tr><td colspan="10" class="text-center">İşlemler yüklenirken hata oluştu</td></tr>';
+    fasonTable.innerHTML = '<tr><td colspan="9" class="text-center">İşlemler yüklenirken hata oluştu</td></tr>';
   }
 }
-
 
 async function loadMakineIslemler() {
   try {
