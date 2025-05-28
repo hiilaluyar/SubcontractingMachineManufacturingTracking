@@ -2078,13 +2078,6 @@ div[id^="NotiflixConfirmWrap"] div[class*="confirm-buttons"] div[id^="NotiflixCo
 }
 
 
-.action-btn.delete {
-  order: -1; /* Delete butonunu sola al */
-}
-
-.action-btn.edit {
-  order: 1;  /* Edit butonunu sağa al */
-}
 
 /* Style for edited buttons */
 .action-btn.edit.edited {
