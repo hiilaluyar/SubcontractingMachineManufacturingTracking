@@ -281,7 +281,6 @@ async function loadPlakaParcalar(plakaId) {
 
 
 // Plaka gruplarını görüntülemek için HTML ve JavaScript
-
 async function loadPlakaGruplari(hammaddeId) {
   try {
     const result = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId(hammaddeId);
@@ -312,7 +311,11 @@ async function loadPlakaGruplari(hammaddeId) {
     }
     
     // Her bir plaka grubunu tabloya ekle
-    result.gruplar.forEach(grup => {
+    for (const grup of result.gruplar) {
+      // HER GRUP İÇİN PARÇA SAYISINI AYRI AYRI HESAPLA
+      const parcaResult = await window.electronAPI.invoke.database.getParcalarByPlakaGrubuId(grup.id);
+      const parcaSayisi = parcaResult.success && parcaResult.parcalar ? parcaResult.parcalar.length : 0;
+      
       const row = tableBody.insertRow();
       
       // Plaka No (Stok Kodu)
@@ -324,7 +327,7 @@ async function loadPlakaGruplari(hammaddeId) {
       // Toplam Kilo
       row.insertCell(2).textContent = `${Number(grup.toplam_kilo).toFixed(2)} kg`;
       
-      // DÜZELTME: Kalan Kilo - Sadece kalan plaka sayısı * plaka ağırlığı
+      // Kalan Kilo - Sadece kalan plaka sayısı * plaka ağırlığı
       const plakaAgirligi = grup.toplam_plaka_sayisi > 0 ? 
         Number(grup.toplam_kilo) / grup.toplam_plaka_sayisi : 0;
       const kalanPlakaKilosu = grup.kalan_plaka_sayisi * plakaAgirligi;
@@ -337,8 +340,8 @@ async function loadPlakaGruplari(hammaddeId) {
       // Kalan Plaka
       row.insertCell(5).textContent = grup.kalan_plaka_sayisi;
       
-      // Toplam Parça
-      row.insertCell(6).textContent = grup.parca_sayisi || 0;
+      // Toplam Parça - DÜZELTME: Gerçek parça sayısını göster
+      row.insertCell(6).textContent = parcaSayisi;
       
       // İşlemler
       const islemlerCell = row.insertCell(7);
@@ -364,7 +367,7 @@ async function loadPlakaGruplari(hammaddeId) {
           </div>
         `;
       }
-    });
+    }
   } catch (error) {
     console.error('Plaka grupları yükleme hatası:', error);
     

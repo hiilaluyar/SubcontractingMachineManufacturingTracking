@@ -5229,68 +5229,6 @@ async function getIskartaUrunlerHepsiBirlikte() {
   }
 }
 
-// getPlakaGruplariByHammaddeId fonksiyonunu da düzeltmek gerekebilir
-// Bu fonksiyon muhtemelen şöyle olmalı:
-async function getPlakaGruplariByHammaddeId(hammaddeId = null) {
-  try {
-    let query = `
-      SELECT 
-        pg.id,
-        pg.hammadde_id,
-        pg.stok_kodu,
-        pg.en,
-        pg.boy,
-        pg.kalinlik,
-        pg.toplam_plaka_sayisi,
-        pg.kalan_plaka_sayisi,
-        pg.toplam_kilo,
-        pg.kalan_kilo,
-        pg.plaka_agirlik,
-        h.malzeme_adi,
-        h.hammadde_turu
-      FROM plaka_gruplari pg
-      JOIN hammaddeler h ON pg.hammadde_id = h.id
-    `;
-    
-    let params = [];
-    
-    if (hammaddeId !== null && hammaddeId !== undefined) {
-      query += ' WHERE pg.hammadde_id = ?';
-      params.push(hammaddeId);
-    }
-    
-    query += ' ORDER BY pg.stok_kodu';
-    
-    const [rows] = await pool.execute(query, params);
-    
-    if (hammaddeId !== null && hammaddeId !== undefined) {
-      return {
-        success: true,
-        gruplar: rows
-      };
-    } else {
-      // Tüm plaka gruplarını hammadde ID'sine göre grupla
-      const result = {};
-      rows.forEach(row => {
-        if (!result[row.hammadde_id]) {
-          result[row.hammadde_id] = {
-            success: true,
-            gruplar: []
-          };
-        }
-        result[row.hammadde_id].gruplar.push(row);
-      });
-      return result;
-    }
-  } catch (error) {
-    console.error('Plaka grupları getirme hatası:', error);
-    return { success: false, message: error.message };
-  }
-}
-
-
-
-
 
 async function getIskartaUrunlerHepsiBirlikte() {
   try {
@@ -5645,7 +5583,6 @@ async function addPlakaGrubu(grubuData) {
   }
 }
 
-// Plaka gruplarını getirme
 async function getPlakaGruplariByHammaddeId(hammaddeId = null) {
   try {
     let query = `
@@ -5662,7 +5599,9 @@ async function getPlakaGruplariByHammaddeId(hammaddeId = null) {
         pg.kalan_kilo,
         pg.plaka_agirlik,
         h.malzeme_adi,
-        h.hammadde_turu
+        h.hammadde_turu,
+        -- PARÇA SAYISINI DOĞRUDAN HESAPLA
+        (SELECT COUNT(*) FROM plaka_parcalari pp WHERE pp.plaka_grubu_id = pg.id) as parca_sayisi
       FROM plaka_gruplari pg
       JOIN hammaddeler h ON pg.hammadde_id = h.id
     `;
