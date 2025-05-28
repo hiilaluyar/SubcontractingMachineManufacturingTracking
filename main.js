@@ -777,3 +777,51 @@ ipcMain.handle('database:deletePlakaGrubuIslem', async (event, islemId) => {
   }
 });
 
+ipcMain.handle('database:getAllStockAtDate', async (event, targetDate) => {
+  try {
+    return await DatabaseService.getAllStockAtDate(targetDate);
+  } catch (error) {
+    console.error('getAllStockAtDate error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// Belirli tarih için hammadde stok durumlarını getir
+ipcMain.handle('database:getAllHammaddeAtDate', async (event, targetDate) => {
+  try {
+    return await DatabaseService.getAllHammaddeAtDate(targetDate);
+  } catch (error) {
+    console.error('getAllHammaddeAtDate error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// Belirli tarih için sarf malzeme stok durumlarını getir
+ipcMain.handle('database:getAllSarfMalzemeAtDate', async (event, targetDate) => {
+  try {
+    return await DatabaseService.getAllSarfMalzemeAtDate(targetDate);
+  } catch (error) {
+    console.error('getAllSarfMalzemeAtDate error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// Belirli tarih için yarı mamul stok durumlarını getir
+ipcMain.handle('database:getAllYariMamulAtDate', async (event, targetDate) => {
+  try {
+    return await DatabaseService.getAllYariMamulAtDate(targetDate);
+  } catch (error) {
+    console.error('getAllYariMamulAtDate error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// Tarih aralığındaki stok hareketlerini getir
+ipcMain.handle('database:getStockMovementsBetweenDates', async (event, startDate, endDate) => {
+  try {
+    return await DatabaseService.getStockMovementsBetweenDates(startDate, endDate);
+  } catch (error) {
+    console.error('getStockMovementsBetweenDates error:', error);
+    return { success: false, message: error.message };
+  }
+});

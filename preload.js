@@ -168,11 +168,12 @@ updatePlakaGrubu: (updateData) =>
 canUpdatePlakaGrubu: (plakaGrubuId, yeniPlakaSayisi) => 
   ipcRenderer.invoke('database:canUpdatePlakaGrubu', plakaGrubuId, yeniPlakaSayisi),
 
-deletePlakaGrubuIslem: (islemId) => ipcRenderer.invoke('database:deletePlakaGrubuIslem', islemId)
-
-
-
-
+deletePlakaGrubuIslem: (islemId) => ipcRenderer.invoke('database:deletePlakaGrubuIslem', islemId),
+getAllStockAtDate: (targetDate) => ipcRenderer.invoke('database:getAllStockAtDate', targetDate),
+getAllHammaddeAtDate: (targetDate) => ipcRenderer.invoke('database:getAllHammaddeAtDate', targetDate),
+getAllSarfMalzemeAtDate: (targetDate) => ipcRenderer.invoke('database:getAllSarfMalzemeAtDate', targetDate),
+getAllYariMamulAtDate: (targetDate) => ipcRenderer.invoke('database:getAllYariMamulAtDate', targetDate),
+getStockMovementsBetweenDates: (startDate, endDate) => ipcRenderer.invoke('database:getStockMovementsBetweenDates', startDate, endDate)
   
         }
     }

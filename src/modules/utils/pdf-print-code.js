@@ -1,3 +1,4 @@
+//pdf-print-code.js
 
 // Tüm liste sayfaları için PDF önizleme butonu ekleyen ana fonksiyon
 function initPrintButtons() {
@@ -1362,7 +1363,805 @@ function generateExcel() {
     });
   });
   
+function addHistoricalReportButtons() {
+  // Her sayfa için tarihli rapor butonları ekle
+  addHistoricalButtonTo('sarf-malzeme-listesi', 'sarfMalzemeTable', 'Sarf Malzeme Listesi', 'sarf-malzeme');
+  addHistoricalButtonTo('hammadde-listesi', 'hammaddeTable', 'Hammadde Listesi', 'hammadde');
+  addHistoricalButtonTo('yari-mamul-listesi', 'yariMamulTable', 'Yarı Mamul Listesi', 'yari-mamul');
+  
+  console.log('Tüm sayfalara Tarihli Rapor butonları eklendi');
+}
 
+function addHistoricalButtonTo(pageId, tableId, pageTitle, reportType) {
+  // Sayfa elementini bul
+  const page = document.getElementById(pageId);
+  if (!page) {
+    console.log(`${pageId} sayfası bulunamadı, tarihli rapor düğmesi eklenemedi`);
+    return;
+  }
+  
+  // Mevcut arama çubuğunu bul
+  const searchBar = page.querySelector('.search-bar');
+  
+  if (!searchBar) {
+    console.log(`${pageId} sayfasında arama çubuğu elementi bulunamadı`);
+    return;
+  }
+  
+  // Eğer buton zaten varsa çık
+  if (searchBar.querySelector('#historical-button-' + pageId)) {
+    return;
+  }
+  
+  // Tarihli Rapor butonu oluştur
+  const historicalButton = document.createElement('button');
+  historicalButton.id = 'historical-button-' + pageId;
+  historicalButton.className = 'historical-report-button';
+  historicalButton.innerHTML = '<i class="fas fa-history"></i> Tarihli Rapor';
+  historicalButton.style.cssText = `
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 13px;
+    transition: background-color 0.2s;
+  `;
+  
+  historicalButton.onmouseover = function() {
+    this.style.backgroundColor = '#218838';
+  };
+  
+  historicalButton.onmouseout = function() {
+    this.style.backgroundColor = '#28a745';
+  };
+  
+  historicalButton.onclick = function() {
+    openHistoricalReportModal(reportType, pageTitle);
+  };
+  
+  // Butonu arama çubuğuna ekle
+  const searchRow = searchBar.querySelector('.search-row');
+  if (searchRow) {
+    searchRow.appendChild(historicalButton);
+  } else {
+    searchBar.appendChild(historicalButton);
+  }
+  
+  console.log(`${pageTitle} sayfasına Tarihli Rapor butonu eklendi`);
+}
+
+// Tarihli rapor modalını aç
+function openHistoricalReportModal(reportType, pageTitle) {
+  // Modal HTML'i oluştur
+  const modalHTML = `
+    <div id="historical-report-modal" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    ">
+      <div style="
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        width: 500px;
+        max-width: 90%;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      ">
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          padding-bottom: 15px;
+          border-bottom: 2px solid #6A0C0D;
+        ">
+          <h2 style="
+            color: #6A0C0D;
+            margin: 0;
+            font-size: 20px;
+          ">
+            <i class="fas fa-history"></i>
+            Tarihli ${pageTitle} Raporu
+          </h2>
+          <button onclick="closeHistoricalReportModal()" style="
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+          ">&times;</button>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+          ">Rapor Tarihi Seçin:</label>
+          <input type="date" id="historical-date-input" style="
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+          " max="${new Date().toISOString().split('T')[0]}">
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+          ">Rapor Formatı:</label>
+          <div style="display: flex; gap: 10px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input type="radio" name="report-format" value="excel" checked style="margin-right: 8px;">
+              <i class="fas fa-file-excel" style="color: #28a745; margin-right: 5px;"></i>
+              Excel
+            </label>
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input type="radio" name="report-format" value="pdf" style="margin-right: 8px;">
+              <i class="fas fa-file-pdf" style="color: #dc3545; margin-right: 5px;"></i>
+              PDF
+            </label>
+          </div>
+        </div>
+        
+        <div id="historical-loading" style="
+          display: none;
+          text-align: center;
+          padding: 20px;
+          color: #6A0C0D;
+        ">
+          <i class="fas fa-spinner fa-spin fa-2x"></i>
+          <p style="margin-top: 10px;">Rapor hazırlanıyor...</p>
+        </div>
+        
+        <div style="
+          display: flex;
+          gap: 10px;
+          justify-content: flex-end;
+          margin-top: 25px;
+        ">
+          <button onclick="closeHistoricalReportModal()" style="
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+          ">İptal</button>
+          <button onclick="generateHistoricalReport('${reportType}')" style="
+            background: #6A0C0D;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+          ">
+            <i class="fas fa-download"></i>
+            Raporu Oluştur
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Modal'ı body'ye ekle
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  // Bugünün tarihini varsayılan olarak ayarla
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('historical-date-input').value = today;
+}
+
+// Modal'ı kapat
+function closeHistoricalReportModal() {
+  const modal = document.getElementById('historical-report-modal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+// Tarihli rapor oluştur
+async function generateHistoricalReport(reportType) {
+  const dateInput = document.getElementById('historical-date-input');
+  const formatRadios = document.querySelectorAll('input[name="report-format"]');
+  const loadingDiv = document.getElementById('historical-loading');
+  
+  if (!dateInput.value) {
+    showToast('Lütfen bir tarih seçin', 'warning');
+    return;
+  }
+  
+  const selectedDate = dateInput.value;
+  const selectedFormat = Array.from(formatRadios).find(radio => radio.checked)?.value || 'excel';
+  
+  try {
+    // Loading göster
+    loadingDiv.style.display = 'block';
+    
+    console.log(`${selectedDate} tarihi için ${reportType} raporu oluşturuluyor...`);
+    
+    let result;
+    
+    // Doğru API metodunu çağır - preload.js'deki yapıya uygun
+    switch(reportType) {
+      case 'hammadde':
+        result = await window.electronAPI.invoke.database.getAllHammaddeAtDate(selectedDate);
+        break;
+      case 'sarf-malzeme':
+        result = await window.electronAPI.invoke.database.getAllSarfMalzemeAtDate(selectedDate);
+        break;
+      case 'yari-mamul':
+        result = await window.electronAPI.invoke.database.getAllYariMamulAtDate(selectedDate);
+        break;
+      default:
+        throw new Error('Geçersiz rapor türü');
+    }
+    
+    if (result.success) {
+      if (selectedFormat === 'excel') {
+        await generateHistoricalExcel(result, reportType, selectedDate);
+      } else {
+        generateHistoricalPDF(result, reportType, selectedDate);
+      }
+      
+      showToast('Rapor başarıyla oluşturuldu', 'success');
+      closeHistoricalReportModal();
+    } else {
+      showToast('Rapor oluşturulamadı: ' + result.message, 'error');
+    }
+    
+  } catch (error) {
+    console.error('Tarihli rapor oluşturma hatası:', error);
+    showToast('Rapor oluşturulurken hata oluştu: ' + error.message, 'error');
+  } finally {
+    // Loading gizle
+    loadingDiv.style.display = 'none';
+  }
+}
+
+// Tarihli Excel raporu oluştur
+async function generateHistoricalExcel(data, reportType, selectedDate) {
+  try {
+    // ExcelJS kütüphanesinin yüklü olduğundan emin ol
+    if (typeof ExcelJS === 'undefined') {
+      throw new Error('ExcelJS kütüphanesi yüklü değil');
+    }
+    
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Karataş Makine';
+    workbook.created = new Date();
+    
+    let worksheet;
+    let sheetData;
+    let sheetTitle;
+    
+    switch(reportType) {
+      case 'hammadde':
+        sheetData = data.hammaddeler || [];
+        sheetTitle = 'Hammadde Stok Raporu';
+        worksheet = workbook.addWorksheet('Hammaddeler');
+        setupHistoricalHammaddeSheet(worksheet, sheetData, selectedDate);
+        break;
+      case 'sarf-malzeme':
+        sheetData = data.sarfMalzemeler || [];
+        sheetTitle = 'Sarf Malzeme Stok Raporu';
+        worksheet = workbook.addWorksheet('Sarf Malzemeler');
+        setupHistoricalSarfMalzemeSheet(worksheet, sheetData, selectedDate);
+        break;
+      case 'yari-mamul':
+        sheetData = data.yariMamuller || [];
+        sheetTitle = 'Yarı Mamul Stok Raporu';
+        worksheet = workbook.addWorksheet('Yarı Mamüller');
+        setupHistoricalYariMamulSheet(worksheet, sheetData, selectedDate);
+        break;
+    }
+    
+    // Dosya adı oluştur
+    const formattedDate = selectedDate.replace(/-/g, '_');
+    const fileName = `${sheetTitle.replace(/\s+/g, '_')}_${formattedDate}.xlsx`;
+    
+    // Excel dosyasını oluştur ve indir
+    const buffer = await workbook.xlsx.writeBuffer();
+    downloadHistoricalFile(buffer, fileName);
+    
+  } catch (error) {
+    console.error('Tarihli Excel oluşturma hatası:', error);
+    throw error;
+  }
+}
+
+// Hammadde için tarihli Excel sheet ayarla
+function setupHistoricalHammaddeSheet(sheet, data, selectedDate) {
+  // Başlık satırı
+  const headerRow = sheet.addRow(['KARATAŞ MAKİNE - HAMMADDE STOK RAPORU (TARİHLİ)']);
+  sheet.mergeCells(1, 1, 1, 5);
+  headerRow.font = { size: 16, bold: true };
+  headerRow.alignment = { horizontal: 'center' };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6A0C0D' } };
+  headerRow.font = { color: { argb: 'FFFFFFFF' }, size: 16, bold: true };
+  
+  // Tarih satırı
+  const dateRow = sheet.addRow([`Rapor Tarihi: ${formatHistoricalDate(selectedDate)}`]);
+  sheet.mergeCells(2, 1, 2, 5);
+  dateRow.font = { size: 12, bold: true };
+  dateRow.alignment = { horizontal: 'center' };
+  
+  // Oluşturma tarihi
+  const createdRow = sheet.addRow([`Oluşturma Tarihi: ${formatHistoricalDate(new Date().toISOString().split('T')[0])}`]);
+  sheet.mergeCells(3, 1, 3, 5);
+  createdRow.font = { size: 10 };
+  createdRow.alignment = { horizontal: 'center' };
+  
+  // Boş satır
+  sheet.addRow([]);
+  
+  // Tablo başlıkları
+  const headers = ['Stok Kodu', 'Malzeme Adı', 'Kalan (kg)', 'Barkod', 'Durum'];
+  const headerRow2 = sheet.addRow(headers);
+  headerRow2.font = { bold: true };
+  headerRow2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+  
+  // Veri satırları
+  data.forEach(item => {
+    const row = sheet.addRow([
+      item.stok_kodu || '',
+      item.malzeme_adi || '',
+      parseFloat(item.kalan_kilo || 0),
+      item.barkod || '',
+      getHistoricalDurumText(item.durum)
+    ]);
+    
+    // Durum sütununa renk ekle
+    const durumCell = row.getCell(5);
+    switch(item.durum) {
+      case 'STOKTA_VAR':
+        durumCell.font = { color: { argb: 'FF28a745' }, bold: true };
+        break;
+      case 'AZ_KALDI':
+        durumCell.font = { color: { argb: 'FFffc107' }, bold: true };
+        break;
+      case 'STOKTA_YOK':
+        durumCell.font = { color: { argb: 'FFdc3545' }, bold: true };
+        break;
+    }
+  });
+  
+  // Sütun genişliklerini ayarla
+  sheet.columns = [
+    { width: 15 }, // Stok Kodu
+    { width: 40 }, // Malzeme Adı
+    { width: 15 }, // Kalan
+    { width: 20 }, // Barkod
+    { width: 15 }  // Durum
+  ];
+  
+  // Tabloya border ekle
+  const lastRow = sheet.rowCount;
+  for (let i = 5; i <= lastRow; i++) {
+    for (let j = 1; j <= 5; j++) {
+      const cell = sheet.getCell(i, j);
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    }
+  }
+}
+
+// Sarf malzeme için tarihli Excel sheet ayarla
+function setupHistoricalSarfMalzemeSheet(sheet, data, selectedDate) {
+  // Başlık satırı
+  const headerRow = sheet.addRow(['KARATAŞ MAKİNE - SARF MALZEME STOK RAPORU (TARİHLİ)']);
+  sheet.mergeCells(1, 1, 1, 6);
+  headerRow.font = { size: 16, bold: true };
+  headerRow.alignment = { horizontal: 'center' };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6A0C0D' } };
+  headerRow.font = { color: { argb: 'FFFFFFFF' }, size: 16, bold: true };
+  
+  // Tarih satırları
+  const dateRow = sheet.addRow([`Rapor Tarihi: ${formatHistoricalDate(selectedDate)}`]);
+  sheet.mergeCells(2, 1, 2, 6);
+  dateRow.font = { size: 12, bold: true };
+  dateRow.alignment = { horizontal: 'center' };
+  
+  const createdRow = sheet.addRow([`Oluşturma Tarihi: ${formatHistoricalDate(new Date().toISOString().split('T')[0])}`]);
+  sheet.mergeCells(3, 1, 3, 6);
+  createdRow.font = { size: 10 };
+  createdRow.alignment = { horizontal: 'center' };
+  
+  // Boş satır
+  sheet.addRow([]);
+  
+  // Tablo başlıkları
+  const headers = ['Stok Kodu', 'Malzeme Adı', 'Kalan Miktar', 'Birim', 'Barkod', 'Durum'];
+  const headerRow2 = sheet.addRow(headers);
+  headerRow2.font = { bold: true };
+  headerRow2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+  
+  // Veri satırları
+  data.forEach(item => {
+    const row = sheet.addRow([
+      item.stok_kodu || '',
+      item.malzeme_adi || '',
+      parseFloat(item.kalan_miktar || 0),
+      item.birim || '',
+      item.barkod || '',
+      getHistoricalDurumText(item.durum)
+    ]);
+    
+    // Durum sütununa renk ekle
+    const durumCell = row.getCell(6);
+    switch(item.durum) {
+      case 'STOKTA_VAR':
+        durumCell.font = { color: { argb: 'FF28a745' }, bold: true };
+        break;
+      case 'AZ_KALDI':
+        durumCell.font = { color: { argb: 'FFffc107' }, bold: true };
+        break;
+      case 'STOKTA_YOK':
+        durumCell.font = { color: { argb: 'FFdc3545' }, bold: true };
+        break;
+    }
+  });
+  
+  // Sütun genişliklerini ayarla
+  sheet.columns = [
+    { width: 15 }, // Stok Kodu
+    { width: 40 }, // Malzeme Adı
+    { width: 15 }, // Kalan Miktar
+    { width: 10 }, // Birim
+    { width: 20 }, // Barkod
+    { width: 15 }  // Durum
+  ];
+}
+
+// Yarı mamul için tarihli Excel sheet ayarla
+function setupHistoricalYariMamulSheet(sheet, data, selectedDate) {
+  // Hammadde sheet'i ile aynı yapı, sadece başlık farklı
+  const headerRow = sheet.addRow(['KARATAŞ MAKİNE - YARI MAMUL STOK RAPORU (TARİHLİ)']);
+  sheet.mergeCells(1, 1, 1, 6);
+  headerRow.font = { size: 16, bold: true };
+  headerRow.alignment = { horizontal: 'center' };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6A0C0D' } };
+  headerRow.font = { color: { argb: 'FFFFFFFF' }, size: 16, bold: true };
+  
+  const dateRow = sheet.addRow([`Rapor Tarihi: ${formatHistoricalDate(selectedDate)}`]);
+  sheet.mergeCells(2, 1, 2, 6);
+  dateRow.font = { size: 12, bold: true };
+  dateRow.alignment = { horizontal: 'center' };
+  
+  const createdRow = sheet.addRow([`Oluşturma Tarihi: ${formatHistoricalDate(new Date().toISOString().split('T')[0])}`]);
+  sheet.mergeCells(3, 1, 3, 6);
+  createdRow.font = { size: 10 };
+  createdRow.alignment = { horizontal: 'center' };
+  
+  sheet.addRow([]);
+  
+  const headers = ['Stok Kodu', 'Malzeme Adı', 'Kalan Miktar', 'Birim', 'Barkod', 'Durum'];
+  const headerRow2 = sheet.addRow(headers);
+  headerRow2.font = { bold: true };
+  headerRow2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+  
+  data.forEach(item => {
+    const row = sheet.addRow([
+      item.stok_kodu || '',
+      item.malzeme_adi || '',
+      parseFloat(item.kalan_miktar || 0),
+      item.birim || '',
+      item.barkod || '',
+      getHistoricalDurumText(item.durum)
+    ]);
+    
+    const durumCell = row.getCell(6);
+    switch(item.durum) {
+      case 'STOKTA_VAR':
+        durumCell.font = { color: { argb: 'FF28a745' }, bold: true };
+        break;
+      case 'AZ_KALDI':
+        durumCell.font = { color: { argb: 'FFffc107' }, bold: true };
+        break;
+      case 'STOKTA_YOK':
+        durumCell.font = { color: { argb: 'FFdc3545' }, bold: true };
+        break;
+    }
+  });
+  
+  sheet.columns = [
+    { width: 15 }, { width: 40 }, { width: 15 }, 
+    { width: 10 }, { width: 20 }, { width: 15 }
+  ];
+}
+
+// Tarihli PDF raporu oluştur
+function generateHistoricalPDF(data, reportType, selectedDate) {
+  const pdfContent = createHistoricalPDFContent(data, reportType, selectedDate);
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(pdfContent);
+  printWindow.document.close();
+}
+
+// Tarihli PDF içeriği oluştur
+function createHistoricalPDFContent(data, reportType, selectedDate) {
+  let title = '';
+  let tableContent = '';
+  
+  switch(reportType) {
+    case 'hammadde':
+      title = 'HAMMADDE STOK RAPORU';
+      tableContent = createHistoricalPDFHammaddeTable(data.hammaddeler || []);
+      break;
+    case 'sarf-malzeme':
+      title = 'SARF MALZEME STOK RAPORU';
+      tableContent = createHistoricalPDFSarfMalzemeTable(data.sarfMalzemeler || []);
+      break;
+    case 'yari-mamul':
+      title = 'YARI MAMUL STOK RAPORU';
+      tableContent = createHistoricalPDFYariMamulTable(data.yariMamuller || []);
+      break;
+  }
+  
+  return `
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+      <title>${title} - ${formatHistoricalDate(selectedDate)}</title>
+      <meta charset="UTF-8">
+      <style>
+        body { 
+          font-family: Arial, sans-serif; 
+          margin: 20px; 
+          color: #333;
+        }
+        .header { 
+          text-align: center; 
+          margin-bottom: 30px; 
+          border-bottom: 3px solid #6A0C0D;
+          padding-bottom: 20px;
+        }
+        .header h1 { 
+          color: #6A0C0D; 
+          margin: 0; 
+          font-size: 24px;
+        }
+        .header p { 
+          margin: 5px 0; 
+          font-size: 14px;
+        }
+        .date-info {
+          background: #f8f9fa;
+          padding: 10px;
+          border-radius: 5px;
+          margin: 10px 0;
+        }
+        table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          margin-bottom: 20px; 
+        }
+        th, td { 
+          border: 1px solid #ddd; 
+          padding: 8px; 
+          text-align: left; 
+        }
+        th { 
+          background-color: #6A0C0D; 
+          color: white; 
+          font-weight: bold;
+        }
+        .durum-stokta-var { color: #28a745; font-weight: bold; }
+        .durum-az-kaldi { color: #ffc107; font-weight: bold; }
+        .durum-stokta-yok { color: #dc3545; font-weight: bold; }
+        .footer {
+          margin-top: 30px;
+          text-align: center;
+          border-top: 1px solid #ddd;
+          padding-top: 15px;
+          font-size: 12px;
+          color: #666;
+        }
+        @media print {
+          .print-btn { display: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>KARATAŞ MAKİNE ${title}</h1>
+        <div class="date-info">
+          <p><strong>Rapor Tarihi:</strong> ${formatHistoricalDate(selectedDate)}</p>
+          <p><strong>Oluşturma Tarihi:</strong> ${formatHistoricalDate(new Date().toISOString().split('T')[0])}</p>
+        </div>
+      </div>
+      
+      ${tableContent}
+      
+      <div class="footer">
+        <p>© ${new Date().getFullYear()} Karataş Makine - Tüm Hakları Saklıdır</p>
+        <p>Bu rapor sistem tarafından otomatik olarak oluşturulmuştur.</p>
+      </div>
+      
+      <div style="text-align: center; margin-top: 30px;">
+        <button class="print-btn" onclick="window.print()" style="
+          background: #6A0C0D; 
+          color: white; 
+          border: none; 
+          padding: 10px 20px; 
+          border-radius: 5px; 
+          cursor: pointer;
+          margin-right: 10px;
+        ">
+          PDF Olarak Yazdır
+        </button>
+        <button class="print-btn" onclick="window.close()" style="
+          background: #666; 
+          color: white; 
+          border: none; 
+          padding: 10px 20px; 
+          border-radius: 5px; 
+          cursor: pointer;
+        ">
+          Kapat
+        </button>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+// PDF için hammadde tablosu oluştur
+function createHistoricalPDFHammaddeTable(data) {
+  if (!data || data.length === 0) {
+    return '<p style="text-align: center; color: #666; padding: 20px;">Veri bulunamadı.</p>';
+  }
+  
+  const rows = data.map(item => `
+    <tr>
+      <td>${item.stok_kodu || ''}</td>
+      <td>${item.malzeme_adi || ''}</td>
+      <td style="text-align: right;">${formatHistoricalNumber(item.kalan_kilo)} kg</td>
+      <td>${item.barkod || ''}</td>
+      <td class="durum-${item.durum?.toLowerCase().replace('_', '-')}">${getHistoricalDurumText(item.durum)}</td>
+    </tr>
+  `).join('');
+  
+  return `
+    <table>
+      <thead>
+        <tr>
+          <th>Stok Kodu</th>
+          <th>Malzeme Adı</th>
+          <th>Kalan (kg)</th>
+          <th>Barkod</th>
+          <th>Durum</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  `;
+}
+
+// PDF için yarı mamul tablosu oluştur
+function createHistoricalPDFYariMamulTable(data) {
+  if (!data || data.length === 0) {
+    return '<p style="text-align: center; color: #666; padding: 20px;">Veri bulunamadı.</p>';
+  }
+  
+  const rows = data.map(item => `
+    <tr>
+      <td>${item.stok_kodu || ''}</td>
+      <td>${item.malzeme_adi || ''}</td>
+      <td style="text-align: right;">${formatHistoricalNumber(item.kalan_miktar)}</td>
+      <td>${item.birim || ''}</td>
+      <td>${item.barkod || ''}</td>
+      <td class="durum-${item.durum?.toLowerCase().replace('_', '-')}">${getHistoricalDurumText(item.durum)}</td>
+    </tr>
+  `).join('');
+  
+  return `
+    <table>
+      <thead>
+        <tr>
+          <th>Stok Kodu</th>
+          <th>Malzeme Adı</th>
+          <th>Kalan Miktar</th>
+          <th>Birim</th>
+          <th>Barkod</th>
+          <th>Durum</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  `;
+}
+
+// Yardımcı fonksiyonlar
+function formatHistoricalDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('tr-TR');
+}
+
+function formatHistoricalNumber(number) {
+  return parseFloat(number || 0).toFixed(2);
+}
+
+function getHistoricalDurumText(durum) {
+  switch(durum) {
+    case 'STOKTA_VAR': return 'Stokta Var';
+    case 'AZ_KALDI': return 'Az Kaldı';
+    case 'STOKTA_YOK': return 'Stokta Yok';
+    default: return 'Bilinmiyor';
+  }
+}
+
+function downloadHistoricalFile(buffer, fileName) {
+  const blob = new Blob([buffer], { 
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+  });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+// Ana sayfa yüklendiğinde tarihli rapor butonlarını ekle
+(function() {
+  // Sayfa yüklendiğinde ve tab değişikliklerinde butonları ekle
+  function initHistoricalButtons() {
+    // Önceki butonları temizle
+    document.querySelectorAll('.historical-report-button').forEach(btn => btn.remove());
+    
+    // Yeni butonları ekle
+    setTimeout(() => {
+      addHistoricalReportButtons();
+    }, 500);
+  }
+  
+  // Sayfa yüklendiğinde
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHistoricalButtons);
+  } else {
+    initHistoricalButtons();
+  }
+  
+  // Tab değişikliklerini dinle
+  document.addEventListener('click', function(event) {
+    if (event.target.classList.contains('tab-button') || 
+        event.target.closest('.tab-button')) {
+      setTimeout(initHistoricalButtons, 300);
+    }
+  });
+})();
+
+// Global scope'a fonksiyonları ekle
+window.openHistoricalReportModal = openHistoricalReportModal;
+window.closeHistoricalReportModal = closeHistoricalReportModal;
+window.generateHistoricalReport = generateHistoricalReport;
+window.addHistoricalReportButtons = addHistoricalReportButtons;
 
 
 window.initPrintButtons = initPrintButtons;

@@ -19,6 +19,7 @@
 </head>
 <body>
     <div class="container">
+
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="logo">
@@ -50,6 +51,16 @@
             <!-- Anasayfa -->
             <!-- Anasayfa -->
 <div class="page active" id="anasayfa">
+
+<button class="tab-button" data-target="tarihli-rapor-sayfasi">
+  <i class="fas fa-history"></i> Tarihli Raporlar
+</button>
+
+<!-- Sayfa içeriklerinizin yanına yeni sayfa ekleyin -->
+<div id="tarihli-rapor-sayfasi" class="page-content" style="display: none;">
+  <!-- Buraya index-html-tab-ekleme artifact'ındaki HTML içeriğini koyun -->
+</div>
+
     <h1>Hoşgeldiniz</h1>
     <div class="dashboard">
         <!-- Hammadde Kartları Satırı -->
@@ -3116,8 +3127,9 @@
 
 
 
-
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
 <script src="../modules/globals.js"></script>
+
 
 
 <script src="../modules/utils/tab-events.js"></script>

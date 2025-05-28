@@ -19,7 +19,7 @@ const dbConfig = {
   database: 'KaratasDene'
 };
 // Veritabanı bağlantı havuzu
-let pool;s
+let pool;
 // Bağlantı havuzunu oluştur
 async function createPool() {
   try {
@@ -6826,6 +6826,377 @@ async function deletePlakaGrubuIslem(deleteData) {
   }
 }
 
+
+async function calculateHammaddeStockAtDate(hammaddeId, targetDate) {
+  const connection = await pool.getConnection();
+  
+  try {
+    // Hammadde bilgilerini al
+    const [hammaddeRows] = await connection.execute(
+      'SELECT * FROM hammaddeler WHERE id = ?',
+      [hammaddeId]
+    );
+    
+    if (hammaddeRows.length === 0) {
+      return null;
+    }
+    
+    const hammadde = hammaddeRows[0];
+    
+    // Belirtilen tarihe kadar olan tüm giriş hareketlerini topla
+    const [girisRows] = await connection.execute(
+      `SELECT COALESCE(SUM(miktar), 0) as toplam_giris 
+       FROM hammadde_giris_gecmisi 
+       WHERE hammadde_id = ? AND DATE(giris_tarihi) <= ?`,
+      [hammaddeId, targetDate]
+    );
+    
+    const toplamGiris = parseFloat(girisRows[0].toplam_giris || 0);
+    
+    // Belirtilen tarihe kadar olan tüm kullanım hareketlerini topla
+    const [islemRows] = await connection.execute(
+      `SELECT COALESCE(SUM(i.kullanilanMiktar + i.hurdaMiktar), 0) as toplam_cikis
+       FROM islemler i
+       JOIN parcalar p ON i.parca_id = p.id
+       WHERE p.hammadde_id = ? AND DATE(i.islem_tarihi) <= ?`,
+      [hammaddeId, targetDate]
+    );
+    
+    const toplamCikis = parseFloat(islemRows[0].toplam_cikis || 0);
+    
+    // Plaka işlemlerinden çıkışları da ekle
+    const [plakaIslemRows] = await connection.execute(
+      `SELECT COALESCE(SUM(pi.kullanilan_miktar + pi.hurda_miktar), 0) as plaka_cikis
+       FROM plaka_islemler pi
+       JOIN plaka_gruplari pg ON pi.plaka_grubu_id = pg.id
+       WHERE pg.hammadde_id = ? AND DATE(pi.islem_tarihi) <= ?`,
+      [hammaddeId, targetDate]
+    );
+    
+    const plakaCikis = parseFloat(plakaIslemRows[0].plaka_cikis || 0);
+    
+    // O tarihteki kalan miktarı hesapla
+    const kalanMiktar = toplamGiris - toplamCikis - plakaCikis;
+    
+    // Durum belirle
+    let durum = 'STOKTA_VAR';
+    if (kalanMiktar <= 0) {
+      durum = 'STOKTA_YOK';
+    } else if (kalanMiktar <= hammadde.kritik_seviye) {
+      durum = 'AZ_KALDI';
+    }
+    
+    return {
+      ...hammadde,
+      kalan_kilo: Math.max(0, kalanMiktar),
+      durum: durum,
+      hesaplama_tarihi: targetDate
+    };
+    
+  } catch (error) {
+    console.error('Tarihli stok hesaplama hatası:', error);
+    return null;
+  } finally {
+    connection.release();
+  }
+}
+
+// Belirli bir tarih için tüm hammaddelerin stok durumunu getir
+async function getAllHammaddeAtDate(targetDate) {
+  try {
+    // Tüm hammaddeleri al
+    const [hammaddeler] = await pool.execute(
+      'SELECT id FROM hammaddeler ORDER BY stok_kodu'
+    );
+    
+    const sonuclar = [];
+    
+    // Her hammadde için o tarihteki durumu hesapla
+    for (const hammadde of hammaddeler) {
+      const tarihliDurum = await calculateHammaddeStockAtDate(hammadde.id, targetDate);
+      if (tarihliDurum) {
+        sonuclar.push(tarihliDurum);
+      }
+    }
+    
+    return { success: true, hammaddeler: sonuclar };
+  } catch (error) {
+    console.error('Tarihli hammadde listesi hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Sarf malzeme için tarihli stok hesaplama
+async function calculateSarfMalzemeStockAtDate(sarfMalzemeId, targetDate) {
+  const connection = await pool.getConnection();
+  
+  try {
+    // Sarf malzeme bilgilerini al
+    const [sarfMalzemeRows] = await connection.execute(
+      'SELECT * FROM sarf_malzemeler WHERE id = ?',
+      [sarfMalzemeId]
+    );
+    
+    if (sarfMalzemeRows.length === 0) {
+      return null;
+    }
+    
+    const sarfMalzeme = sarfMalzemeRows[0];
+    
+    // Belirtilen tarihe kadar olan tüm giriş hareketlerini topla
+    const [girisRows] = await connection.execute(
+      `SELECT COALESCE(SUM(miktar), 0) as toplam_giris 
+       FROM sarf_malzeme_giris_gecmisi 
+       WHERE sarf_malzeme_id = ? AND DATE(giris_tarihi) <= ?`,
+      [sarfMalzemeId, targetDate]
+    );
+    
+    const toplamGiris = parseFloat(girisRows[0].toplam_giris || 0);
+    
+    // Belirtilen tarihe kadar olan kullanım ve fire işlemlerini topla
+    const [kullanımRows] = await connection.execute(
+      `SELECT COALESCE(SUM(miktar), 0) as toplam_kullanim
+       FROM sarf_malzeme_islemleri 
+       WHERE sarf_malzeme_id = ? 
+       AND (islem_turu = 'Kullanım' OR islem_turu = 'Fire')
+       AND DATE(islem_tarihi) <= ?`,
+      [sarfMalzemeId, targetDate]
+    );
+    
+    const toplamKullanim = parseFloat(kullanımRows[0].toplam_kullanim || 0);
+    
+    // İade işlemlerini topla
+    const [iadeRows] = await connection.execute(
+      `SELECT COALESCE(SUM(miktar), 0) as toplam_iade
+       FROM sarf_malzeme_islemleri 
+       WHERE sarf_malzeme_id = ? 
+       AND (islem_turu = 'İade' OR islem_turu = 'Ek')
+       AND DATE(islem_tarihi) <= ?`,
+      [sarfMalzemeId, targetDate]
+    );
+    
+    const toplamIade = parseFloat(iadeRows[0].toplam_iade || 0);
+    
+    // O tarihteki kalan miktarı hesapla
+    const kalanMiktar = toplamGiris + toplamIade - toplamKullanim;
+    
+    // Durum belirle
+    let durum = 'STOKTA_VAR';
+    if (kalanMiktar <= 0) {
+      durum = 'STOKTA_YOK';
+    } else if (kalanMiktar <= sarfMalzeme.kritik_seviye) {
+      durum = 'AZ_KALDI';
+    }
+    
+    return {
+      ...sarfMalzeme,
+      kalan_miktar: Math.max(0, kalanMiktar),
+      durum: durum,
+      hesaplama_tarihi: targetDate
+    };
+    
+  } catch (error) {
+    console.error('Sarf malzeme tarihli hesaplama hatası:', error);
+    return null;
+  } finally {
+    connection.release();
+  }
+}
+
+// Belirli bir tarih için tüm sarf malzemelerin stok durumunu getir
+async function getAllSarfMalzemeAtDate(targetDate) {
+  try {
+    // Tüm sarf malzemeleri al
+    const [sarfMalzemeler] = await pool.execute(
+      'SELECT id FROM sarf_malzemeler ORDER BY stok_kodu'
+    );
+    
+    const sonuclar = [];
+    
+    // Her sarf malzeme için o tarihteki durumu hesapla
+    for (const sarfMalzeme of sarfMalzemeler) {
+      const tarihliDurum = await calculateSarfMalzemeStockAtDate(sarfMalzeme.id, targetDate);
+      if (tarihliDurum) {
+        sonuclar.push(tarihliDurum);
+      }
+    }
+    
+    return { success: true, sarfMalzemeler: sonuclar };
+  } catch (error) {
+    console.error('Tarihli sarf malzeme listesi hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Yarı mamul için tarihli stok hesaplama
+async function calculateYariMamulStockAtDate(yariMamulId, targetDate) {
+  const connection = await pool.getConnection();
+  
+  try {
+    // Yarı mamul bilgilerini al
+    const [yariMamulRows] = await connection.execute(
+      'SELECT * FROM yari_mamuller WHERE id = ?',
+      [yariMamulId]
+    );
+    
+    if (yariMamulRows.length === 0) {
+      return null;
+    }
+    
+    const yariMamul = yariMamulRows[0];
+    
+    // Belirtilen tarihe kadar olan tüm giriş hareketlerini topla
+    const [girisRows] = await connection.execute(
+      `SELECT COALESCE(SUM(miktar), 0) as toplam_giris 
+       FROM yari_mamul_giris_gecmisi 
+       WHERE yari_mamul_id = ? AND DATE(giris_tarihi) <= ?`,
+      [yariMamulId, targetDate]
+    );
+    
+    const toplamGiris = parseFloat(girisRows[0].toplam_giris || 0);
+    
+    // Belirtilen tarihe kadar olan kullanım ve fire işlemlerini topla
+    const [kullanımRows] = await connection.execute(
+      `SELECT COALESCE(SUM(miktar), 0) as toplam_kullanim
+       FROM yari_mamul_islemleri 
+       WHERE yari_mamul_id = ? 
+       AND (islem_turu = 'Kullanım' OR islem_turu = 'Fire')
+       AND DATE(islem_tarihi) <= ?`,
+      [yariMamulId, targetDate]
+    );
+    
+    const toplamKullanim = parseFloat(kullanımRows[0].toplam_kullanim || 0);
+    
+    // İade işlemlerini topla
+    const [iadeRows] = await connection.execute(
+      `SELECT COALESCE(SUM(miktar), 0) as toplam_iade
+       FROM yari_mamul_islemleri 
+       WHERE yari_mamul_id = ? 
+       AND (islem_turu = 'İade' OR islem_turu = 'Ek')
+       AND DATE(islem_tarihi) <= ?`,
+      [yariMamulId, targetDate]
+    );
+    
+    const toplamIade = parseFloat(iadeRows[0].toplam_iade || 0);
+    
+    // O tarihteki kalan miktarı hesapla
+    const kalanMiktar = toplamGiris + toplamIade - toplamKullanim;
+    
+    // Durum belirle
+    let durum = 'STOKTA_VAR';
+    if (kalanMiktar <= 0) {
+      durum = 'STOKTA_YOK';
+    } else if (kalanMiktar <= yariMamul.kritik_seviye) {
+      durum = 'AZ_KALDI';
+    }
+    
+    return {
+      ...yariMamul,
+      kalan_miktar: Math.max(0, kalanMiktar),
+      durum: durum,
+      hesaplama_tarihi: targetDate
+    };
+    
+  } catch (error) {
+    console.error('Yarı mamul tarihli hesaplama hatası:', error);
+    return null;
+  } finally {
+    connection.release();
+  }
+}
+
+// Belirli bir tarih için tüm yarı mamullerin stok durumunu getir
+async function getAllYariMamulAtDate(targetDate) {
+  try {
+    // Tüm yarı mamulleri al
+    const [yariMamuller] = await pool.execute(
+      'SELECT id FROM yari_mamuller ORDER BY stok_kodu'
+    );
+    
+    const sonuclar = [];
+    
+    // Her yarı mamul için o tarihteki durumu hesapla
+    for (const yariMamul of yariMamuller) {
+      const tarihliDurum = await calculateYariMamulStockAtDate(yariMamul.id, targetDate);
+      if (tarihliDurum) {
+        sonuclar.push(tarihliDurum);
+      }
+    }
+    
+    return { success: true, yariMamuller: sonuclar };
+  } catch (error) {
+    console.error('Tarihli yarı mamul listesi hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Ana fonksiyon - belirli bir tarih için tüm stok durumlarını getir
+async function getAllStockAtDate(targetDate) {
+  try {
+    console.log(`${targetDate} tarihi için stok durumu hesaplanıyor...`);
+    
+    // Paralel olarak tüm stok tiplerini getir
+    const [hammaddeResult, sarfMalzemeResult, yariMamulResult] = await Promise.all([
+      getAllHammaddeAtDate(targetDate),
+      getAllSarfMalzemeAtDate(targetDate),
+      getAllYariMamulAtDate(targetDate)
+    ]);
+    
+    return {
+      success: true,
+      date: targetDate,
+      hammaddeler: hammaddeResult.success ? hammaddeResult.hammaddeler : [],
+      sarfMalzemeler: sarfMalzemeResult.success ? sarfMalzemeResult.sarfMalzemeler : [],
+      yariMamuller: yariMamulResult.success ? yariMamulResult.yariMamuller : []
+    };
+    
+  } catch (error) {
+    console.error('Tarihli stok durumu getirme hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// Tarih aralığındaki stok hareketlerini getir
+async function getStockMovementsBetweenDates(startDate, endDate) {
+  try {
+    // Hammadde hareketleri
+    const [hammaddeHareketleri] = await pool.execute(
+      `SELECT 
+        'GIRIS' as hareket_tipi,
+        'HAMMADDE' as stok_tipi,
+        h.stok_kodu,
+        h.malzeme_adi,
+        hgg.miktar,
+        hgg.giris_tarihi as tarih
+       FROM hammadde_giris_gecmisi hgg
+       JOIN hammaddeler h ON hgg.hammadde_id = h.id
+       WHERE DATE(hgg.giris_tarihi) BETWEEN ? AND ?
+       
+       UNION ALL
+       
+       SELECT 
+        'CIKIS' as hareket_tipi,
+        'HAMMADDE' as stok_tipi,
+        h.stok_kodu,
+        h.malzeme_adi,
+        (i.kullanilanMiktar + i.hurdaMiktar) as miktar,
+        i.islem_tarihi as tarih
+       FROM islemler i
+       JOIN parcalar p ON i.parca_id = p.id
+       JOIN hammaddeler h ON p.hammadde_id = h.id
+       WHERE DATE(i.islem_tarihi) BETWEEN ? AND ?
+       
+       ORDER BY tarih DESC`,
+      [startDate, endDate, startDate, endDate]
+    );
+    
+    return { success: true, hareketler: hammaddeHareketleri };
+  } catch (error) {
+    console.error('Stok hareketleri getirme hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
   loginUser,
@@ -6930,6 +7301,15 @@ addPlakaGrubuToIslemde,
 
   canUpdatePlakaGrubu,
   findPlakaGrubuByGiris,
-  deletePlakaGrubuIslem
+  deletePlakaGrubuIslem,
+
+   calculateHammaddeStockAtDate,
+  getAllHammaddeAtDate,
+  calculateSarfMalzemeStockAtDate,
+  getAllSarfMalzemeAtDate,
+  calculateYariMamulStockAtDate,
+  getAllYariMamulAtDate,
+  getAllStockAtDate,
+  getStockMovementsBetweenDates
 
 };
