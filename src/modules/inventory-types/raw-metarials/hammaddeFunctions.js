@@ -739,21 +739,33 @@ async function loadHammaddeListesi() {
                 
                 // İşlemler
                 const islemlerCell = row.insertCell(6);
-                islemlerCell.innerHTML = `
-                    <div class="action-buttons">
-                        <button class="action-btn view" onclick="viewHammaddeDetail(${hammadde.id})">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="action-btn add" onclick="${hammadde.hammadde_turu === 'sac' ? 
-                            `openYeniPlakaModalWithSelection(${hammadde.id})` : 
-                            `openHammaddeGirisModal(${hammadde.id})`}">
-                            <i class="fas fa-plus-square" style="color: #28a745;"></i>
-                        </button>
-                        <button class="action-btn delete" onclick="deleteHammadde(${hammadde.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                `;
+
+// Kullanıcı yetki kontrolü - global user data'dan rol bilgisini al
+const userRole = window.globalUserData ? window.globalUserData.rol : null;
+const isAdmin = userRole === 'yonetici';
+
+// Giriş butonu için yetki kontrolü
+const girisButtonHTML = isAdmin ? 
+    `<button class="action-btn add" onclick="${hammadde.hammadde_turu === 'sac' ? 
+        `openYeniPlakaModalWithSelection(${hammadde.id})` : 
+        `openHammaddeGirisModal(${hammadde.id})`}">
+        <i class="fas fa-plus-square" style="color: #28a745;"></i>
+    </button>` :
+    `<button class="action-btn add disabled" disabled title="Bu işlem için yönetici yetkisi gereklidir">
+        <i class="fas fa-plus-square" style="color: #cccccc;"></i>
+    </button>`;
+
+islemlerCell.innerHTML = `
+    <div class="action-buttons">
+        <button class="action-btn view" onclick="viewHammaddeDetail(${hammadde.id})">
+            <i class="fas fa-eye"></i>
+        </button>
+        ${girisButtonHTML}
+        <button class="action-btn delete" onclick="deleteHammadde(${hammadde.id})">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
+`;
             });
         } else {
             const row = tableBody.insertRow();
@@ -1598,7 +1610,6 @@ async function deleteHammadde(id) {
   }
 
 
-
 async function loadHammaddeGirisGecmisi(hammaddeId) {
     try {
         console.log('📋 Giriş geçmişi yükleniyor - Hammadde ID:', hammaddeId);
@@ -1624,6 +1635,10 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
         // Giriş geçmişini tarihe göre sırala (en yeni en üstte)
         const sortedGirisGecmisi = result.girisGecmisi
             .sort((a, b) => new Date(b.giris_tarihi) - new Date(a.giris_tarihi));
+        
+        // Kullanıcı yetki kontrolü - ÖNEMLİ: Bu kontrolü döngü dışında yapıyoruz
+        const userRole = window.globalUserData ? window.globalUserData.rol : null;
+        const isAdmin = userRole === 'yonetici';
         
         // Her giriş kaydını tabloya ekle
         sortedGirisGecmisi.forEach((giris, index) => {
@@ -1683,32 +1698,33 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
             const kullaniciCell = row.insertCell(6);
             kullaniciCell.textContent = `${giris.kullanici_ad || ''} ${giris.kullanici_soyad || ''}`.trim() || 'Bilinmiyor';
             
-            // İşlemler sütunu - TÜM GİRİŞLER DÜZENLENEBİLİR
+            // İşlemler sütunu - YETKİ KONTROLÜ İLE
             const islemlerCell = row.insertCell(7);
             
             // Plaka grubu girişi mi kontrol et
             const isPlakaGrubuGirisi = giris.plaka_sayisi && giris.plaka_sayisi > 0;
             
-            // Düzenleme durumunu belirle
-            let canEdit = true; // Artık hepsini düzenlenebilir yapıyoruz
+            // Düzenleme durumunu belirle - SADECE ADMİNLER DÜZENLEYEBİLİR
+            let canEdit = isAdmin && giris.id; // Admin olmalı VE ID olmalı
             let editReason = '';
             
             if (!giris.id) {
-                // ID yoksa düzenlenemez
-                canEdit = false;
                 editReason = 'Giriş ID\'si bulunamadı';
+            } else if (!isAdmin) {
+                editReason = 'Bu işlem için yönetici yetkisi gereklidir';
             }
             
             console.log(`📝 Giriş ${index + 1} düzenleme durumu:`, {
                 id: giris.id,
                 isPlakaGrubu: isPlakaGrubuGirisi,
+                isAdmin: isAdmin,
                 canEdit,
                 reason: editReason || 'Düzenlenebilir'
             });
             
             if (canEdit) {
                 if (isPlakaGrubuGirisi) {
-                    // Plaka grubu girişi için özel düzenleme butonu
+                    // Admin için plaka grubu girişi düzenleme butonu
                     islemlerCell.innerHTML = `
                         <div class="action-buttons">
                             <button class="action-btn edit plaka-grubu-edit" 
@@ -1721,7 +1737,7 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
                         </div>
                     `;
                 } else {
-                    // Normal hammadde girişi için standart düzenleme
+                    // Admin için normal hammadde girişi düzenleme
                     islemlerCell.innerHTML = `
                         <div class="action-buttons">
                             <button class="action-btn edit normal-edit" 
@@ -1735,21 +1751,25 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
                     `;
                 }
             } else {
-                // Düzenlenemez durumda
+                // Düzenlenemez durumda - admin değilse veya ID yoksa
+                const iconClass = !isAdmin ? 'fas fa-lock' : 'fas fa-ban';
+                const buttonText = !isAdmin ? 'Yetkisiz' : 'Kilitli';
+                const buttonColor = !isAdmin ? '#dc3545' : '#6c757d';
+                
                 islemlerCell.innerHTML = `
                     <div class="action-buttons">
                         <button class="action-btn edit disabled" 
                                 title="${editReason}" 
                                 disabled>
-                            <i class="fas fa-ban"></i>
-                            <span class="btn-text">Kilitli</span>
+                            <i class="${iconClass}" style="color: ${buttonColor} !important;"></i>
+                            <span class="btn-text" style="color: ${buttonColor} !important;">${buttonText}</span>
                         </button>
                     </div>
                 `;
             }
         });
         
-        console.log('✅ Giriş geçmişi başarıyla yüklendi - Tüm girişler düzenlenebilir');
+        console.log('✅ Giriş geçmişi başarıyla yüklendi - Yetki kontrolü uygulandı');
         
     } catch (error) {
         console.error('❌ Giriş geçmişi yükleme hatası:', error);
@@ -1762,7 +1782,6 @@ async function loadHammaddeGirisGecmisi(hammaddeId) {
         }
     }
 }
-
 
 
 // Modal kapatıldığında normal moda döndürme işlemi

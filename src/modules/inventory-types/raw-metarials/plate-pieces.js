@@ -980,8 +980,6 @@ async function openParcaIslemModal(parcaId, parcaNo) {
 }
 
 
-
-// Boru ve Mil için parça listesini yükle
 async function loadParcaList(hammaddeId) {
     try {
         const result = await window.electronAPI.invoke.database.getParcalarByHammaddeId(hammaddeId);
@@ -996,7 +994,7 @@ async function loadParcaList(hammaddeId) {
             return;
         }
         
-        // Hammadde bilgilerini al (kalinlik, cap, uzunluk vb. için gerekli)
+        // Hammadde bilgilerini al
         const hammaddeResult = await window.electronAPI.invoke.database.getHammaddeById(hammaddeId);
         const hammadde = hammaddeResult.success ? hammaddeResult.hammadde : null;
         const hammaddeTuru = hammadde?.hammadde_turu || 'sac';
@@ -1010,7 +1008,7 @@ async function loadParcaList(hammaddeId) {
             // Barkod Kodu
             row.insertCell(1).textContent = parca.barkod_kodu || 'Belirtilmemiş';
             
-            // Boyut - Boru ve Mil için farklı formatlama
+            // Boyut
             const boyutCell = row.insertCell(2);
             if (hammaddeTuru === 'boru') {
                 boyutCell.textContent = `Ø${hammadde.cap}x${hammadde.kalinlik}x${hammadde.uzunluk} mm`;
@@ -1052,16 +1050,33 @@ async function loadParcaList(hammaddeId) {
             // Kullanım Oranı
             row.insertCell(6).textContent = `%${Number(parca.kullanim_orani).toFixed(2)}`;
             
-            // İşlemler
+            // İşlemler - YETKİ KONTROLÜ EKLE
             const islemlerCell = row.insertCell(7);
+            
+            // Kullanıcı yetki kontrolü
+            const userRole = window.globalUserData ? window.globalUserData.rol : null;
+            const isAdmin = userRole === 'yonetici';
+            
             if (parca.durum !== 'TUKENDI') {
-                islemlerCell.innerHTML = `
-                    <div class="action-buttons">
-                        <button class="action-btn process" title="İşlem Yap" onclick="openIslemModal(${parca.id}, ${parca.parca_no})">
-                            <i class="fas fa-cut"></i>
-                        </button>
-                    </div>
-                `;
+                if (isAdmin) {
+                    // Admin için normal buton
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process" title="İşlem Yap" onclick="openIslemModal(${parca.id}, ${parca.parca_no})">
+                                <i class="fas fa-cut"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    // Kullanıcı için pasif buton
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process disabled" title="Bu işlem için yönetici yetkisi gereklidir" disabled>
+                                <i class="fas fa-cut" style="color: #cccccc;"></i>
+                            </button>
+                        </div>
+                    `;
+                }
             } else {
                 islemlerCell.textContent = 'Tükenmiş';
             }
@@ -1076,119 +1091,137 @@ async function loadParcaList(hammaddeId) {
         const row = tableBody.insertRow();
         row.innerHTML = '<td colspan="8" class="text-center">Parça listesi yüklenirken hata oluştu</td>';
     }
-  }
+}
 
+// 2. loadPlakaParcaList fonksiyonunda yetki kontrolü
 window.loadPlakaParcaList = async function(hammaddeId) {
-  try {
-    // Plaka gruplarını al
-    const plakaGruplariResult = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId(hammaddeId);
-    
-    // Toplu liste oluştur
-    let tumParcalar = [];
-    
-    // Plaka gruplarından gelen parçaları ekle
-    if (plakaGruplariResult.success && plakaGruplariResult.gruplar && plakaGruplariResult.gruplar.length > 0) {
-      for (const grup of plakaGruplariResult.gruplar) {
-        const grupParcalarResult = await window.electronAPI.invoke.database.getParcalarByPlakaGrubuId(grup.id);
+    try {
+        // Plaka gruplarını al
+        const plakaGruplariResult = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId(hammaddeId);
         
-        if (grupParcalarResult.success && grupParcalarResult.parcalar && grupParcalarResult.parcalar.length > 0) {
-          // Parçalara grup bilgisini ekle
-          const parcalar = grupParcalarResult.parcalar.map(parca => ({
-            ...parca,
-            plaka_stok_kodu: grup.stok_kodu,
-            kaynak_tipi: 'grup'
-          }));
-          
-          tumParcalar = [...tumParcalar, ...parcalar];
+        // Toplu liste oluştur
+        let tumParcalar = [];
+        
+        // Plaka gruplarından gelen parçaları ekle
+        if (plakaGruplariResult.success && plakaGruplariResult.gruplar && plakaGruplariResult.gruplar.length > 0) {
+            for (const grup of plakaGruplariResult.gruplar) {
+                const grupParcalarResult = await window.electronAPI.invoke.database.getParcalarByPlakaGrubuId(grup.id);
+                
+                if (grupParcalarResult.success && grupParcalarResult.parcalar && grupParcalarResult.parcalar.length > 0) {
+                    // Parçalara grup bilgisini ekle
+                    const parcalar = grupParcalarResult.parcalar.map(parca => ({
+                        ...parca,
+                        plaka_stok_kodu: grup.stok_kodu,
+                        kaynak_tipi: 'grup'
+                    }));
+                    
+                    tumParcalar = [...tumParcalar, ...parcalar];
+                }
+            }
         }
-      }
+        
+        // Parçaları listele
+        const parcalarTable = document.getElementById('parcalarTable');
+        const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
+        tableBody.innerHTML = '';
+        
+        if (tumParcalar.length === 0) {
+            const row = tableBody.insertRow();
+            row.innerHTML = '<td colspan="8" class="text-center">Parça bulunamadı</td>';
+            return;
+        }
+        
+        // Her bir parçayı tabloya ekle - YETKİ KONTROLÜ İLE
+        tumParcalar.forEach(parca => {
+            const row = tableBody.insertRow();
+            
+            // Parça No
+            row.insertCell(0).textContent = `#${parca.parca_no}`;
+            
+            // Plaka/Grup No
+            row.insertCell(1).textContent = `#${parca.plaka_stok_kodu} (Grup)`;
+            
+            // En x Boy
+            const enBoyCell = row.insertCell(2);
+            if (parca.en != null && parca.boy != null) {
+                enBoyCell.textContent = `${parca.en} x ${parca.boy} mm`;
+            } else {
+                enBoyCell.textContent = 'Belirtilmemiş';
+            }
+            
+            // Durum
+            const durumCell = row.insertCell(3);
+            let durumText = '';
+            let durumClass = '';
+            
+            switch (parca.durum) {
+                case 'TAM':
+                    durumText = 'TAM';
+                    durumClass = 'stokta-var';
+                    break;
+                case 'KISMEN_KULLANILDI':
+                    durumText = 'KISMEN KULLANILDI';
+                    durumClass = 'az-kaldi';
+                    break;
+                case 'TUKENDI':
+                    durumText = 'TÜKENDİ';
+                    durumClass = 'stokta-yok';
+                    break;
+            }
+            
+            durumCell.innerHTML = `<span class="${durumClass}">${durumText}</span>`;
+            durumCell.style.verticalAlign = 'middle';
+            
+            // Orijinal Kilo
+            row.insertCell(4).textContent = `${Number(parca.orijinal_kilo).toFixed(2)} kg`;
+            
+            // Kalan Kilo
+            row.insertCell(5).textContent = `${Number(parca.kalan_kilo).toFixed(2)} kg`;
+            
+            // Kullanım Oranı
+            row.insertCell(6).textContent = `%${Number(parca.kullanim_orani).toFixed(2)}`;
+            
+            // İşlemler - YETKİ KONTROLÜ
+            const islemlerCell = row.insertCell(7);
+            
+            // Kullanıcı yetki kontrolü
+            const userRole = window.globalUserData ? window.globalUserData.rol : null;
+            const isAdmin = userRole === 'yonetici';
+            
+            if (parca.durum !== 'TUKENDI') {
+                if (isAdmin) {
+                    // Admin için normal buton
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process" title="İşlem Yap" onclick="openParcaIslemModal(${parca.id}, ${parca.parca_no})">
+                                <i class="fas fa-cut"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    // Kullanıcı için pasif buton
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process disabled" title="Bu işlem için yönetici yetkisi gereklidir" disabled>
+                                <i class="fas fa-cut" style="color: #cccccc;"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+            } else {
+                islemlerCell.textContent = 'Tükenmiş';
+            }
+        });
+    } catch (error) {
+        console.error('Plaka parça listesi yükleme hatası:', error);
+        
+        const parcalarTable = document.getElementById('parcalarTable');
+        const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
+        tableBody.innerHTML = '';
+        
+        const row = tableBody.insertRow();
+        row.innerHTML = '<td colspan="8" class="text-center">Parça listesi yüklenirken hata oluştu</td>';
     }
-    
-    // Parçaları listele
-    const parcalarTable = document.getElementById('parcalarTable');
-    const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
-    tableBody.innerHTML = '';
-    
-    if (tumParcalar.length === 0) {
-      const row = tableBody.insertRow();
-      row.innerHTML = '<td colspan="8" class="text-center">Parça bulunamadı</td>';
-      return;
-    }
-    
-    // Her bir parçayı tabloya ekle
-    tumParcalar.forEach(parca => {
-      const row = tableBody.insertRow();
-      
-      // Parça No
-      row.insertCell(0).textContent = `#${parca.parca_no}`;
-      
-      // Plaka/Grup No
-      row.insertCell(1).textContent = `#${parca.plaka_stok_kodu} (Grup)`;
-      
-      // En x Boy
-      const enBoyCell = row.insertCell(2);
-      if (parca.en != null && parca.boy != null) {
-        enBoyCell.textContent = `${parca.en} x ${parca.boy} mm`;
-      } else {
-        enBoyCell.textContent = 'Belirtilmemiş';
-      }
-      
-      // Durum
-      const durumCell = row.insertCell(3);
-      let durumText = '';
-      let durumClass = '';
-      
-      switch (parca.durum) {
-        case 'TAM':
-          durumText = 'TAM';
-          durumClass = 'stokta-var';
-          break;
-        case 'KISMEN_KULLANILDI':
-          durumText = 'KISMEN KULLANILDI';
-          durumClass = 'az-kaldi';
-          break;
-        case 'TUKENDI':
-          durumText = 'TÜKENDİ';
-          durumClass = 'stokta-yok';
-          break;
-      }
-      
-      durumCell.innerHTML = `<span class="${durumClass}">${durumText}</span>`;
-      durumCell.style.verticalAlign = 'middle';
-      
-      // Orijinal Kilo
-      row.insertCell(4).textContent = `${Number(parca.orijinal_kilo).toFixed(2)} kg`;
-      
-      // Kalan Kilo
-      row.insertCell(5).textContent = `${Number(parca.kalan_kilo).toFixed(2)} kg`;
-      
-      // Kullanım Oranı
-      row.insertCell(6).textContent = `%${Number(parca.kullanim_orani).toFixed(2)}`;
-      
-      // İşlemler
-      const islemlerCell = row.insertCell(7);
-      if (parca.durum !== 'TUKENDI') {
-        islemlerCell.innerHTML = `
-          <div class="action-buttons">
-            <button class="action-btn process" title="İşlem Yap" onclick="openParcaIslemModal(${parca.id}, ${parca.parca_no})">
-              <i class="fas fa-cut"></i>
-            </button>
-          </div>
-        `;
-      } else {
-        islemlerCell.textContent = 'Tükenmiş';
-      }
-    });
-  } catch (error) {
-    console.error('Plaka parça listesi yükleme hatası:', error);
-    
-    const parcalarTable = document.getElementById('parcalarTable');
-    const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
-    tableBody.innerHTML = '';
-    
-    const row = tableBody.insertRow();
-    row.innerHTML = '<td colspan="8" class="text-center">Parça listesi yüklenirken hata oluştu</td>';
-  }
 }
 
 

@@ -161,8 +161,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
 
-
-  
 async function loadPlakaParcalar(plakaId) {
     try {
         // Plaka bilgilerini al
@@ -196,6 +194,10 @@ async function loadPlakaParcalar(plakaId) {
         
         // Hata ayıklama için
         console.log("Plaka parçaları:", parcalarResult.parcalar);
+        
+        // *** YETKİ KONTROLÜ EKLE ***
+        const userRole = window.globalUserData ? window.globalUserData.rol : null;
+        const isAdmin = userRole === 'yonetici';
         
         // Parçaları listele
         parcalarResult.parcalar.forEach(parca => {
@@ -252,16 +254,31 @@ async function loadPlakaParcalar(plakaId) {
             // Kullanım Oranı
             row.insertCell(7).textContent = `%${Number(parca.kullanim_orani).toFixed(2)}`;
             
-            // İşlemler
+            // İşlemler - YETKİ KONTROLÜ
             const islemlerCell = row.insertCell(8);
             if (parca.durum !== 'TUKENDI') {
-                islemlerCell.innerHTML = `
-                    <div class="action-buttons">
-                        <button class="action-btn process" title="İşlem Yap" onclick="openParcaIslemModal(${parca.id}, ${parca.parca_no})">
-                            <i class="fas fa-cut"></i>
-                        </button>
-                    </div>
-                `;
+                if (isAdmin) {
+                    // Admin için normal buton
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process" title="İşlem Yap" onclick="openParcaIslemModal(${parca.id}, ${parca.parca_no})">
+                                <i class="fas fa-cut"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    // Kullanıcı için yetkisiz butonu
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process disabled" 
+                                    title="Bu işlem için yönetici yetkisi gereklidir" 
+                                    disabled>
+                                <i class="fas fa-lock" style="color: #dc3545 !important;"></i>
+                                <span class="btn-text" style="color: #dc3545 !important;">Yetkisiz</span>
+                            </button>
+                        </div>
+                    `;
+                }
             } else {
                 islemlerCell.textContent = 'Tükenmiş';
             }
@@ -280,237 +297,452 @@ async function loadPlakaParcalar(plakaId) {
 }
 
 
-// Plaka gruplarını görüntülemek için HTML ve JavaScript
 async function loadPlakaGruplari(hammaddeId) {
-  try {
-    const result = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId(hammaddeId);
-    
-    const plakalarTable = document.getElementById('plakalarTable');
-    const tableBody = plakalarTable.getElementsByTagName('tbody')[0];
-    tableBody.innerHTML = '';
-    
-    if (!result.success || !result.gruplar || result.gruplar.length === 0) {
-      const row = tableBody.insertRow();
-      row.innerHTML = '<td colspan="8" class="text-center">Plaka grubu bulunamadı</td>';
-      return;
+    try {
+        const result = await window.electronAPI.invoke.database.getPlakaGruplariByHammaddeId(hammaddeId);
+        
+        const plakalarTable = document.getElementById('plakalarTable');
+        const tableBody = plakalarTable.getElementsByTagName('tbody')[0];
+        tableBody.innerHTML = '';
+        
+        if (!result.success || !result.gruplar || result.gruplar.length === 0) {
+            const row = tableBody.insertRow();
+            row.innerHTML = '<td colspan="8" class="text-center">Plaka grubu bulunamadı</td>';
+            return;
+        }
+        
+        // Tabloda header'ı güncelle
+        const headerRow = plakalarTable.querySelector('thead tr');
+        if (headerRow) {
+            headerRow.innerHTML = `
+                <th>Plaka No</th>
+                <th>En x Boy</th>
+                <th>Toplam Kilo</th>
+                <th>Kalan Kilo</th>
+                <th>Toplam Plaka</th>
+                <th>Kalan Plaka</th>
+                <th>Toplam Parça</th>
+                <th>İşlemler</th>
+            `;
+        }
+        
+        // Kullanıcı yetki kontrolü
+        const userRole = window.globalUserData ? window.globalUserData.rol : null;
+        const isAdmin = userRole === 'yonetici';
+        
+        // Her bir plaka grubunu tabloya ekle
+        for (const grup of result.gruplar) {
+            // HER GRUP İÇİN PARÇA SAYISINI AYRI AYRI HESAPLA
+            const parcaResult = await window.electronAPI.invoke.database.getParcalarByPlakaGrubuId(grup.id);
+            const parcaSayisi = parcaResult.success && parcaResult.parcalar ? parcaResult.parcalar.length : 0;
+            
+            const row = tableBody.insertRow();
+            
+            // Plaka No (Stok Kodu)
+            row.insertCell(0).textContent = `#${grup.stok_kodu}`;
+            
+            // En x Boy
+            row.insertCell(1).textContent = `${grup.en} x ${grup.boy} mm`;
+            
+            // Toplam Kilo
+            row.insertCell(2).textContent = `${Number(grup.toplam_kilo).toFixed(2)} kg`;
+            
+            // Kalan Kilo - Sadece kalan plaka sayısı * plaka ağırlığı
+            const plakaAgirligi = grup.toplam_plaka_sayisi > 0 ? 
+                Number(grup.toplam_kilo) / grup.toplam_plaka_sayisi : 0;
+            const kalanPlakaKilosu = grup.kalan_plaka_sayisi * plakaAgirligi;
+            
+            row.insertCell(3).textContent = `${kalanPlakaKilosu.toFixed(2)} kg`;
+            
+            // Toplam Plaka
+            row.insertCell(4).textContent = grup.toplam_plaka_sayisi;
+            
+            // Kalan Plaka
+            row.insertCell(5).textContent = grup.kalan_plaka_sayisi;
+            
+            // Toplam Parça
+            row.insertCell(6).textContent = parcaSayisi;
+            
+            // İşlemler - YETKİ KONTROLÜ
+            const islemlerCell = row.insertCell(7);
+            
+            // Kalan plaka sayısı 0'dan büyükse işlem yapma butonunu göster
+            if (grup.kalan_plaka_sayisi > 0) {
+                if (isAdmin) {
+                    // Admin için normal butonlar
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process" title="İşlem Yap" onclick="openPlakaGrubuIslemModal(${grup.id})">
+                                <i class="fas fa-cut"></i>
+                            </button>
+                            <button class="action-btn view" title="Parçaları Gör" onclick="loadPlakaGrubuParcalar(${grup.id})">
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    // Kullanıcı için - "Yetkisiz" butonu
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process disabled" 
+                                    title="Bu işlem için yönetici yetkisi gereklidir" 
+                                    disabled>
+                                <i class="fas fa-lock" style="color: #dc3545 !important;"></i>
+                                <span class="btn-text" style="color: #dc3545 !important;">Yetkisiz</span>
+                            </button>
+                            <button class="action-btn view" title="Parçaları Gör" onclick="loadPlakaGrubuParcalar(${grup.id})">
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+            } else {
+                // Plaka kalmamışsa sadece görüntüleme butonu (herkese açık)
+                islemlerCell.innerHTML = `
+                    <div class="action-buttons">
+                        <button class="action-btn view" title="Parçaları Gör" onclick="loadPlakaGrubuParcalar(${grup.id})">
+                            <i class="fas fa-list"></i>
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Plaka grupları yükleme hatası:', error);
+        
+        const plakalarTable = document.getElementById('plakalarTable');
+        const tableBody = plakalarTable.getElementsByTagName('tbody')[0];
+        tableBody.innerHTML = '';
+        
+        const row = tableBody.insertRow();
+        row.innerHTML = '<td colspan="8" class="text-center">Plaka grupları yüklenirken hata oluştu</td>';
     }
-    
-    // Tabloda header'ı güncelle
-    const headerRow = plakalarTable.querySelector('thead tr');
-    if (headerRow) {
-      headerRow.innerHTML = `
-        <th>Plaka No</th>
-        <th>En x Boy</th>
-        <th>Toplam Kilo</th>
-        <th>Kalan Kilo</th>
-        <th>Toplam Plaka</th>
-        <th>Kalan Plaka</th>
-        <th>Toplam Parça</th>
-        <th>İşlemler</th>
-      `;
-    }
-    
-    // Her bir plaka grubunu tabloya ekle
-    for (const grup of result.gruplar) {
-      // HER GRUP İÇİN PARÇA SAYISINI AYRI AYRI HESAPLA
-      const parcaResult = await window.electronAPI.invoke.database.getParcalarByPlakaGrubuId(grup.id);
-      const parcaSayisi = parcaResult.success && parcaResult.parcalar ? parcaResult.parcalar.length : 0;
-      
-      const row = tableBody.insertRow();
-      
-      // Plaka No (Stok Kodu)
-      row.insertCell(0).textContent = `#${grup.stok_kodu}`;
-      
-      // En x Boy
-      row.insertCell(1).textContent = `${grup.en} x ${grup.boy} mm`;
-      
-      // Toplam Kilo
-      row.insertCell(2).textContent = `${Number(grup.toplam_kilo).toFixed(2)} kg`;
-      
-      // Kalan Kilo - Sadece kalan plaka sayısı * plaka ağırlığı
-      const plakaAgirligi = grup.toplam_plaka_sayisi > 0 ? 
-        Number(grup.toplam_kilo) / grup.toplam_plaka_sayisi : 0;
-      const kalanPlakaKilosu = grup.kalan_plaka_sayisi * plakaAgirligi;
-      
-      row.insertCell(3).textContent = `${kalanPlakaKilosu.toFixed(2)} kg`;
-      
-      // Toplam Plaka
-      row.insertCell(4).textContent = grup.toplam_plaka_sayisi;
-      
-      // Kalan Plaka
-      row.insertCell(5).textContent = grup.kalan_plaka_sayisi;
-      
-      // Toplam Parça - DÜZELTME: Gerçek parça sayısını göster
-      row.insertCell(6).textContent = parcaSayisi;
-      
-      // İşlemler
-      const islemlerCell = row.insertCell(7);
-      
-      // Kalan plaka sayısı 0'dan büyükse işlem yapma butonunu göster
-      if (grup.kalan_plaka_sayisi > 0) {
-        islemlerCell.innerHTML = `
-          <div class="action-buttons">
-            <button class="action-btn process" title="İşlem Yap" onclick="openPlakaGrubuIslemModal(${grup.id})">
-              <i class="fas fa-cut"></i>
-            </button>
-            <button class="action-btn view" title="Parçaları Gör" onclick="loadPlakaGrubuParcalar(${grup.id})">
-              <i class="fas fa-list"></i>
-            </button>
-          </div>
-        `;
-      } else {
-        islemlerCell.innerHTML = `
-          <div class="action-buttons">
-            <button class="action-btn view" title="Parçaları Gör" onclick="loadPlakaGrubuParcalar(${grup.id})">
-              <i class="fas fa-list"></i>
-            </button>
-          </div>
-        `;
-      }
-    }
-  } catch (error) {
-    console.error('Plaka grupları yükleme hatası:', error);
-    
-    const plakalarTable = document.getElementById('plakalarTable');
-    const tableBody = plakalarTable.getElementsByTagName('tbody')[0];
-    tableBody.innerHTML = '';
-    
-    const row = tableBody.insertRow();
-    row.innerHTML = '<td colspan="8" class="text-center">Plaka grupları yüklenirken hata oluştu</td>';
-  }
 }
 
-// Plaka grubu parçalarını yükle
+
+// 2. loadPlakaGrubuParcalar fonksiyonunda "Yetkisiz" butonları
 async function loadPlakaGrubuParcalar(grubuId) {
-  try {
-    // Plaka grubu bilgilerini al
-    const grubuResult = await window.electronAPI.invoke.database.getPlakaGrubuById(grubuId);
-    
-    if (!grubuResult.success) {
-      showToast('Plaka grubu bilgileri alınamadı: ' + grubuResult.message, 'error');
-      return;
+    try {
+        // Plaka grubu bilgilerini al
+        const grubuResult = await window.electronAPI.invoke.database.getPlakaGrubuById(grubuId);
+        
+        if (!grubuResult.success) {
+            showToast('Plaka grubu bilgileri alınamadı: ' + grubuResult.message, 'error');
+            return;
+        }
+        
+        const plaka_grubu = grubuResult.plaka_grubu;
+        
+        // Parçaları al
+        const parcalarResult = await window.electronAPI.invoke.database.getParcalarByPlakaGrubuId(grubuId);
+        
+        const parcalarTable = document.getElementById('parcalarTable');
+        const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
+        tableBody.innerHTML = '';
+        
+        if (!parcalarResult.success || !parcalarResult.parcalar || parcalarResult.parcalar.length === 0) {
+            const row = tableBody.insertRow();
+            row.innerHTML = '<td colspan="8" class="text-center">Bu plaka grubunda parça bulunamadı</td>';
+            
+            // Detay modalını aç/güncelle
+            openModal('detayModal');
+            
+            // Parçalar tabına geç
+            const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
+            if (parcalarTab) parcalarTab.click();
+            
+            return;
+        }
+        
+        // Kullanıcı yetki kontrolü
+        const userRole = window.globalUserData ? window.globalUserData.rol : null;
+        const isAdmin = userRole === 'yonetici';
+        
+        // Parçaları listele
+        parcalarResult.parcalar.forEach(parca => {
+            const row = tableBody.insertRow();
+            
+            // Parça No
+            row.insertCell(0).textContent = `#${parca.parca_no}`;
+            
+            // Barkod Kodu
+            row.insertCell(1).textContent = parca.barkod_kodu || 'Belirtilmemiş';
+            
+            // Plaka No
+            row.insertCell(2).textContent = `#${plaka_grubu.stok_kodu}`;
+            
+            // En x Boy
+            const enBoyCell = row.insertCell(3);
+            if (parca.en != null && parca.boy != null) {
+                enBoyCell.textContent = `${parca.en} x ${parca.boy} mm`;
+            } else {
+                enBoyCell.textContent = 'Belirtilmemiş';
+            }
+            
+            // Durum
+            const durumCell = row.insertCell(4);
+            let durumText = '';
+            let durumClass = '';
+            
+            switch (parca.durum) {
+                case 'TAM':
+                    durumText = 'TAM';
+                    durumClass = 'stokta-var';
+                    break;
+                case 'KISMEN_KULLANILDI':
+                    durumText = 'KISMEN KULLANILDI';
+                    durumClass = 'az-kaldi';
+                    break;
+                case 'TUKENDI':
+                    durumText = 'TÜKENDİ';
+                    durumClass = 'stokta-yok';
+                    break;
+            }
+            
+            durumCell.innerHTML = `<span class="${durumClass}">${durumText}</span>`;
+            durumCell.style.verticalAlign = 'middle';
+            
+            // Orijinal Kilo
+            row.insertCell(5).textContent = `${Number(parca.orijinal_kilo).toFixed(2)} kg`;
+            
+            // Kalan Kilo
+            row.insertCell(6).textContent = `${Number(parca.kalan_kilo).toFixed(2)} kg`;
+            
+            // İşlemler - YETKİ KONTROLÜ
+            const islemlerCell = row.insertCell(7);
+            
+            if (parca.durum !== 'TUKENDI') {
+                if (isAdmin) {
+                    // Admin için normal buton
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process" title="İşlem Yap" onclick="openParcaIslemModal(${parca.id}, ${parca.parca_no})">
+                                <i class="fas fa-cut"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    // Kullanıcı için "Yetkisiz" butonu
+                    islemlerCell.innerHTML = `
+                        <div class="action-buttons">
+                            <button class="action-btn process disabled" 
+                                    title="Bu işlem için yönetici yetkisi gereklidir" 
+                                    disabled>
+                                <i class="fas fa-lock" style="color: #dc3545 !important;"></i>
+                                <span class="btn-text" style="color: #dc3545 !important;">Yetkisiz</span>
+                            </button>
+                        </div>
+                    `;
+                }
+            } else {
+                islemlerCell.textContent = 'Tükenmiş';
+            }
+        });
+        
+        // Detay modalını aç/güncelle
+        openModal('detayModssal');
+        
+        // Parçalar tabına geç
+        const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
+        if (parcalarTab) parcalarTab.click();
+    } catch (error) {
+        console.error('Plaka grubu parçaları yükleme hatası:', error);
+        showToast('Plaka grubu parçaları yüklenirken bir hata oluştu.', 'error');
     }
-    
-    const plaka_grubu = grubuResult.plaka_grubu;
-    
-    // Parçaları al
-    const parcalarResult = await window.electronAPI.invoke.database.getParcalarByPlakaGrubuId(grubuId);
-    
-    const parcalarTable = document.getElementById('parcalarTable');
-    const tableBody = parcalarTable.getElementsByTagName('tbody')[0];
-    tableBody.innerHTML = '';
-    
-    if (!parcalarResult.success || !parcalarResult.parcalar || parcalarResult.parcalar.length === 0) {
-      const row = tableBody.insertRow();
-      row.innerHTML = '<td colspan="8" class="text-center">Bu plaka grubunda parça bulunamadı</td>';
-      
-      // Detay modalını aç/güncelle
-      openModal('detayModal');
-      
-      // Parçalar tabına geç
-      const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
-      if (parcalarTab) parcalarTab.click();
-      
-      return;
-    }
-    
-    // Parçaları listele
-    parcalarResult.parcalar.forEach(parca => {
-      const row = tableBody.insertRow();
-      
-      // Parça No
-      row.insertCell(0).textContent = `#${parca.parca_no}`;
-      
-      // Barkod Kodu
-      row.insertCell(1).textContent = parca.barkod_kodu || 'Belirtilmemiş';
-      
-      // Plaka No
-      row.insertCell(2).textContent = `#${plaka_grubu.stok_kodu}`;
-      
-      // En x Boy
-      const enBoyCell = row.insertCell(3);
-      if (parca.en != null && parca.boy != null) {
-        enBoyCell.textContent = `${parca.en} x ${parca.boy} mm`;
-      } else {
-        enBoyCell.textContent = 'Belirtilmemiş';
-      }
-      
-      // Durum
-      const durumCell = row.insertCell(4);
-      let durumText = '';
-      let durumClass = '';
-      
-      switch (parca.durum) {
-        case 'TAM':
-          durumText = 'TAM';
-          durumClass = 'stokta-var';
-          break;
-        case 'KISMEN_KULLANILDI':
-          durumText = 'KISMEN KULLANILDI';
-          durumClass = 'az-kaldi';
-          break;
-        case 'TUKENDI':
-          durumText = 'TÜKENDİ';
-          durumClass = 'stokta-yok';
-          break;
-      }
-      
-      durumCell.innerHTML = `<span class="${durumClass}">${durumText}</span>`;
-      durumCell.style.verticalAlign = 'middle';
-      
-      // Orijinal Kilo
-      row.insertCell(5).textContent = `${Number(parca.orijinal_kilo).toFixed(2)} kg`;
-      
-      // Kalan Kilo
-      row.insertCell(6).textContent = `${Number(parca.kalan_kilo).toFixed(2)} kg`;
-      
-      // İşlemler
-      const islemlerCell = row.insertCell(7);
-      if (parca.durum !== 'TUKENDI') {
-        islemlerCell.innerHTML = `
-          <div class="action-buttons">
-            <button class="action-btn process" title="İşlem Yap" onclick="openParcaIslemModal(${parca.id}, ${parca.parca_no})">
-              <i class="fas fa-cut"></i>
-            </button>
-          </div>
-        `;
-      } else {
-        islemlerCell.textContent = 'Tükenmiş';
-      }
-    });
-    
-    // Detay modalını aç/güncelle
-    openModal('detayModal');
-    
-    // Parçalar tabına geç
-    const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
-    if (parcalarTab) parcalarTab.click();
-  } catch (error) {
-    console.error('Plaka grubu parçaları yükleme hatası:', error);
-    showToast('Plaka grubu parçaları yüklenirken bir hata oluştu.', 'error');
-  }
 }
-
 
 async function openYeniPlakaGrubuModal() {
-  if (!currentHammaddeId || !currentHammadde) {
-    showToast('Lütfen önce bir hammadde seçin.', 'error');
-    return;
-  }
-  
-  // Modal içeriğini sıfırla
-  resetPlakaGrubuModal();
-  
-  // Tedarikçileri yükle
-  await loadTedarikciListesiForPlakaGrubu();
-  
-  // Modalı aç
-  openModal('yeniPlakaGrubuModal');
-  
-  // Detay modalını kapat
-  closeModal('detayModal');
+    // YETKİ KONTROLÜ EKLE
+    const userRole = window.globalUserData ? window.globalUserData.rol : null;
+    const isAdmin = userRole === 'yonetici';
+    
+    if (!isAdmin) {
+        showToast('Bu işlem için yönetici yetkisi gereklidir.', 'error');
+        return;
+    }
+    
+    if (!currentHammaddeId || !currentHammadde) {
+        showToast('Lütfen önce bir hammadde seçin.', 'error');
+        return;
+    }
+    
+    // Modal içeriğini sıfırla
+    resetPlakaGrubuModal();
+    
+    // Tedarikçileri yükle
+    await loadTedarikciListesiForPlakaGrubu();
+    
+    // Modalı aç
+    openModal('yeniPlakaGrubuModal');
+    
+    // Detay modalını kapat
+    closeModal('detayModal');
 }
 
+// 3. Yeni Plaka Grubu butonu için yetki kontrolü (HTML'de onclick olarak çağrılan butonlar için)
+function checkAdminAccessForPlakaGrubu(callback) {
+    const userRole = window.globalUserData ? window.globalUserData.rol : null;
+    const isAdmin = userRole === 'yonetici';
+    
+    if (!isAdmin) {
+        showToast('Bu işlem için yönetici yetkisi gereklidir.', 'error');
+        return false;
+    }
+    
+    // Admin ise callback'i çağır
+    if (typeof callback === 'function') {
+        callback();
+    }
+    
+    return true;
+}
+
+// 4. Plaka grubu butonlarında yetki kontrolü için wrapper fonksiyonlar
+function openYeniPlakaGrubuModalWithCheck() {
+    checkAdminAccessForPlakaGrubu(openYeniPlakaGrubuModal);
+}
+
+function openPlakaGrubuIslemModalWithCheck(grubuId) {
+    const userRole = window.globalUserData ? window.globalUserData.rol : null;
+    const isAdmin = userRole === 'yonetici';
+    
+    if (!isAdmin) {
+        showToast('Bu işlem için yönetici yetkisi gereklidir.', 'error');
+        return;
+    }
+    
+    openPlakaGrubuIslemModal(grubuId);
+}
+
+function updateHammaddeDetailButtons() {
+    // Kullanıcı yetki kontrolü
+    const userRole = window.globalUserData ? window.globalUserData.rol : null;
+    const isAdmin = userRole === 'yonetici';
+    
+    // Yeni Plaka Grubu butonu yetki kontrolü
+    const yeniPlakaGrubuBtn = document.getElementById('yeniPlakaGrubuBtn');
+    if (yeniPlakaGrubuBtn) {
+        if (isAdmin) {
+            // Admin için normal buton
+            yeniPlakaGrubuBtn.disabled = false;
+            yeniPlakaGrubuBtn.style.opacity = '1';
+            yeniPlakaGrubuBtn.style.cursor = 'pointer';
+            yeniPlakaGrubuBtn.title = 'Yeni Plaka Grubu Ekle';
+        } else {
+            // Kullanıcı için pasif buton
+            yeniPlakaGrubuBtn.disabled = true;
+            yeniPlakaGrubuBtn.style.opacity = '0.5';
+            yeniPlakaGrubuBtn.style.cursor = 'not-allowed';
+            yeniPlakaGrubuBtn.title = 'Bu işlem için yönetici yetkisi gereklidir';
+        }
+    }
+    
+    // Hammadde giriş butonu yetki kontrolü (eğer varsa)
+    const hammaddeGirisBtn = document.getElementById('yeniHammaddeGirisBtn');
+    if (hammaddeGirisBtn) {
+        if (isAdmin) {
+            // Admin için normal buton
+            hammaddeGirisBtn.disabled = false;
+            hammaddeGirisBtn.style.opacity = '1';
+            hammaddeGirisBtn.style.cursor = 'pointer';
+            hammaddeGirisBtn.title = 'Yeni Hammadde Girişi';
+        } else {
+            // Kullanıcı için pasif buton
+            hammaddeGirisBtn.disabled = true;
+            hammaddeGirisBtn.style.opacity = '0.5';
+            hammaddeGirisBtn.style.cursor = 'not-allowed';
+            hammaddeGirisBtn.title = 'Bu işlem için yönetici yetkisi gereklidir';
+        }
+    }
+}
+
+// 6. viewHammaddeDetail fonksiyonunu çağırdıktan sonra buton kontrolü yapmak için wrapper
+const originalViewHammaddeDetail = window.viewHammaddeDetail;
+if (originalViewHammaddeDetail) {
+    window.viewHammaddeDetail = async function(id) {
+        // Orijinal fonksiyonu çağır
+        await originalViewHammaddeDetail(id);
+        
+        // Butonları güncelle
+        setTimeout(updateHammaddeDetailButtons, 500);
+    };
+}
+
+// 7. CSS stillerini ekle - disabled butonlar için
+const plakaGrubuButtonStyles = `
+/* Plaka grubu butonları için disabled stiller */
+.btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+
+.btn.disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+
+/* Hover efektlerini devre dışı bırak */
+.btn:disabled:hover,
+.btn.disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    background-color: inherit !important;
+}
+
+/* Admin butonları için normal görünüm */
+.btn:not(:disabled):not(.disabled) {
+    opacity: 1;
+    cursor: pointer;
+}
+
+/* Tooltip için özel stil */
+.btn[title]:hover:after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+    max-width: 200px;
+}
+`;
+
+// Stilleri ekle (sadece bir kez)
+if (!document.getElementById('plaka-grubu-button-styles')) {
+    const styleElement = document.createElement('style');
+    styleElement.id = 'plaka-grubu-button-styles';
+    styleElement.textContent = plakaGrubuButtonStyles;
+    document.head.appendChild(styleElement);
+}
+
+// 8. Sayfa yüklendiğinde buton kontrollerini ayarla
+document.addEventListener('DOMContentLoaded', function() {
+    // Sayfa ilk yüklendiğinde buton durumlarını kontrol et
+    setTimeout(updateHammaddeDetailButtons, 1000);
+    
+    // Modal açılıp kapandığında da kontrol et
+    const detayModal = document.getElementById('detayModal');
+    if (detayModal) {
+        detayModal.addEventListener('show', function() {
+            setTimeout(updateHammaddeDetailButtons, 200);
+        });
+    }
+});
+
+// 9. Global fonksiyonları ekle
+window.checkAdminAccessForPlakaGrubu = checkAdminAccessForPlakaGrubu;
+window.openYeniPlakaGrubuModalWithCheck = openYeniPlakaGrubuModalWithCheck;
+window.openPlakaGrubuIslemModalWithCheck = openPlakaGrubuIslemModalWithCheck;
+window.updateHammaddeDetailButtons = updateHammaddeDetailButtons;
 
 async function loadTedarikciListesiForPlakaGrubu() {
   try {
@@ -814,143 +1046,151 @@ async function savePlakaGrubu() {
   }
 }
 
-
 async function openPlakaGrubuIslemModal(grubuId) {
-  try {
-    // Global değişkene ata
-    currentPlakaGrubuId = grubuId;
-    
-    // Plaka grubu bilgilerini al
-    const result = await window.electronAPI.invoke.database.getPlakaGrubuById(grubuId);
-    
-    if (!result.success) {
-      showToast('Plaka grubu bilgileri alınamadı: ' + result.message, 'error');
-      return;
-    }
-    
-    currentPlakaGrubu = result.plaka_grubu;
-    
-    // Başlığı güncelle
-    const plakaGrubuHeader = document.getElementById('plakaGrubuIslemHeader');
-    if (plakaGrubuHeader) {
-      plakaGrubuHeader.textContent = `Plaka Grubu #${result.plaka_grubu.stok_kodu}`;
-    }
-    
-    // Formları sıfırla
-    resetPlakaGrubuIslemForm();
-    
-    // DÜZELTME: Sadece kalan plaka kg'sini hesapla
-    const plakaAgirligi = result.plaka_grubu.toplam_plaka_sayisi > 0 ? 
-      Number(result.plaka_grubu.toplam_kilo) / result.plaka_grubu.toplam_plaka_sayisi : 0;
-    const kalanPlakaKilosu = result.plaka_grubu.kalan_plaka_sayisi * plakaAgirligi;
-    
-    // Bilgi alanını oluştur - DÜZELTME: Sadece kalan plaka kg'si
-    const bilgiAlani = document.getElementById('plakaGrubuIslemModalBilgi');
-    
-    if (!bilgiAlani) {
-      const yeniBilgiAlani = document.createElement('div');
-      yeniBilgiAlani.id = 'plakaGrubuIslemModalBilgi';
-      yeniBilgiAlani.className = 'form-info';
-      yeniBilgiAlani.innerHTML = `
-        <p><strong>Ölçüler:</strong> ${result.plaka_grubu.en} x ${result.plaka_grubu.boy} mm</p>
-        <p><strong>Kalan Plaka Sayısı:</strong> ${result.plaka_grubu.kalan_plaka_sayisi}</p>
-        <p><strong>Kalan Plaka Kilosu:</strong> ${kalanPlakaKilosu.toFixed(2)} kg</p>
-      `;
-      
-      // Bilgi alanını forma ekle
-      const form = document.querySelector('#plakaGrubuIslemModal .plaka-islem-form');
-      if (form) {
-        form.insertBefore(yeniBilgiAlani, form.firstChild);
-      }
-    } else {
-      bilgiAlani.innerHTML = `
-        <p><strong>Ölçüler:</strong> ${result.plaka_grubu.en} x ${result.plaka_grubu.boy} mm</p>
-        <p><strong>Kalan Plaka Sayısı:</strong> ${result.plaka_grubu.kalan_plaka_sayisi}</p>
-        <p><strong>Kalan Plaka Kilosu:</strong> ${kalanPlakaKilosu.toFixed(2)} kg</p>
-      `;
-    }
-    
-    // DÜZELTME: Güncellenmiş plaka grubu bilgisini currentPlakaGrubu'ya kaydet
-    currentPlakaGrubu.kalan_plaka_kilosu = kalanPlakaKilosu;
-    
-    // Önce detay modalını kapat
-    closeModal('detayModal');
-    
-    // Diğer açık modalları kapat
-    document.querySelectorAll('.modal').forEach(modal => {
-      if (modal.style.display === 'block' && modal.id !== 'detayModal') {
-        closeModal(modal.id);
-      }
-    });
-    
-    // Modal açılmadan önce async olarak bekleyen işlemleri tamamla
     try {
-      console.log("Projeler yükleniyor...");
-      await loadProjelerForPlates();
-      console.log("Projeler yüklendi");
-    } catch (e) {
-      console.error("Projeler yüklenirken hata:", e);
-    }
-    
-    try {
-      console.log("Müşteriler yükleniyor...");
-      await loadMusteriler();
-      console.log("Müşteriler yüklendi");
-    } catch (e) {
-      console.error("Müşteriler yüklenirken hata:", e);
-    }
-    
-    try {
-      console.log("Çalışanlar yükleniyor...");
-      await loadCalisanlar();
-      console.log("Çalışanlar yüklendi");
-    } catch (e) {
-      console.error("Çalışanlar yüklenirken hata:", e);
-    }
-    
-    // İşlem modalını aç
-    openModal('plakaGrubuIslemModal');
-    
-    // Açıldıktan sonra form alanlarını güncelle
-    togglePlakaGrubuFormSections();
-    
-    // Plaka sayısı alanını kalan plaka sayısı ile sınırla
-    document.getElementById('plakaGrubuPlakaSayisiInput').setAttribute('max', result.plaka_grubu.kalan_plaka_sayisi);
-    document.getElementById('plakaGrubuPlakaSayisiInput').value = 1; // Varsayılan değer
-    
-    // Select elementlerinin stil düzeltmesi
-    setTimeout(() => {
-      const projectSelect = document.getElementById('plakaGrubuProjeSecimi');
-      if (projectSelect) {
-        projectSelect.style.color = '#333';
-        Array.from(projectSelect.options).forEach(option => {
-          option.style.color = '#333';
-          option.style.backgroundColor = '#fff';
+        // *** YETKİ KONTROLÜ EKLE ***
+        const userRole = window.globalUserData ? window.globalUserData.rol : null;
+        const isAdmin = userRole === 'yonetici';
+        
+        if (!isAdmin) {
+            showToast('Bu işlem için yönetici yetkisi gereklidir.', 'error');
+            return;
+        }
+        
+        // Global değişkene ata
+        currentPlakaGrubuId = grubuId;
+        
+        // Plaka grubu bilgilerini al
+        const result = await window.electronAPI.invoke.database.getPlakaGrubuById(grubuId);
+        
+        if (!result.success) {
+            showToast('Plaka grubu bilgileri alınamadı: ' + result.message, 'error');
+            return;
+        }
+        
+        currentPlakaGrubu = result.plaka_grubu;
+        
+        // Başlığı güncelle
+        const plakaGrubuHeader = document.getElementById('plakaGrubuIslemHeader');
+        if (plakaGrubuHeader) {
+            plakaGrubuHeader.textContent = `Plaka Grubu #${result.plaka_grubu.stok_kodu}`;
+        }
+        
+        // Formları sıfırla
+        resetPlakaGrubuIslemForm();
+        
+        // DÜZELTME: Sadece kalan plaka kg'sini hesapla
+        const plakaAgirligi = result.plaka_grubu.toplam_plaka_sayisi > 0 ? 
+            Number(result.plaka_grubu.toplam_kilo) / result.plaka_grubu.toplam_plaka_sayisi : 0;
+        const kalanPlakaKilosu = result.plaka_grubu.kalan_plaka_sayisi * plakaAgirligi;
+        
+        // Bilgi alanını oluştur - DÜZELTME: Sadece kalan plaka kg'si
+        const bilgiAlani = document.getElementById('plakaGrubuIslemModalBilgi');
+        
+        if (!bilgiAlani) {
+            const yeniBilgiAlani = document.createElement('div');
+            yeniBilgiAlani.id = 'plakaGrubuIslemModalBilgi';
+            yeniBilgiAlani.className = 'form-info';
+            yeniBilgiAlani.innerHTML = `
+                <p><strong>Ölçüler:</strong> ${result.plaka_grubu.en} x ${result.plaka_grubu.boy} mm</p>
+                <p><strong>Kalan Plaka Sayısı:</strong> ${result.plaka_grubu.kalan_plaka_sayisi}</p>
+                <p><strong>Kalan Plaka Kilosu:</strong> ${kalanPlakaKilosu.toFixed(2)} kg</p>
+            `;
+            
+            // Bilgi alanını forma ekle
+            const form = document.querySelector('#plakaGrubuIslemModal .plaka-islem-form');
+            if (form) {
+                form.insertBefore(yeniBilgiAlani, form.firstChild);
+            }
+        } else {
+            bilgiAlani.innerHTML = `
+                <p><strong>Ölçüler:</strong> ${result.plaka_grubu.en} x ${result.plaka_grubu.boy} mm</p>
+                <p><strong>Kalan Plaka Sayısı:</strong> ${result.plaka_grubu.kalan_plaka_sayisi}</p>
+                <p><strong>Kalan Plaka Kilosu:</strong> ${kalanPlakaKilosu.toFixed(2)} kg</p>
+            `;
+        }
+        
+        // DÜZELTME: Güncellenmiş plaka grubu bilgisini currentPlakaGrubu'ya kaydet
+        currentPlakaGrubu.kalan_plaka_kilosu = kalanPlakaKilosu;
+        
+        // Önce detay modalını kapat
+        closeModal('detayModal');
+        
+        // Diğer açık modalları kapat
+        document.querySelectorAll('.modal').forEach(modal => {
+            if (modal.style.display === 'block' && modal.id !== 'detayModal') {
+                closeModal(modal.id);
+            }
         });
-      }
-      
-      const customerSelect = document.getElementById('plakaGrubuMusteriSecimi');
-      if (customerSelect) {
-        customerSelect.style.color = '#333';
-        Array.from(customerSelect.options).forEach(option => {
-          option.style.color = '#333';
-          option.style.backgroundColor = '#fff';
-        });
-      }
-      
-      const employeeSelect = document.getElementById('plakaGrubuCalisanSecimi');
-      if (employeeSelect) {
-        employeeSelect.style.color = '#333';
-        Array.from(employeeSelect.options).forEach(option => {
-          option.style.color = '#333';
-          option.style.backgroundColor = '#fff';
-        });
-      }
-    }, 200);
-  } catch (error) {
-    console.error('Plaka grubu işlem modalı açma hatası:', error);
-    showToast('Plaka grubu işlem modalı açılırken bir hata oluştu: ' + error.message, 'error');
-  }
+        
+        // Modal açılmadan önce async olarak bekleyen işlemleri tamamla
+        try {
+            console.log("Projeler yükleniyor...");
+            await loadProjelerForPlates();
+            console.log("Projeler yüklendi");
+        } catch (e) {
+            console.error("Projeler yüklenirken hata:", e);
+        }
+        
+        try {
+            console.log("Müşteriler yükleniyor...");
+            await loadMusteriler();
+            console.log("Müşteriler yüklendi");
+        } catch (e) {
+            console.error("Müşteriler yüklenirken hata:", e);
+        }
+        
+        try {
+            console.log("Çalışanlar yükleniyor...");
+            await loadCalisanlar();
+            console.log("Çalışanlar yüklendi");
+        } catch (e) {
+            console.error("Çalışanlar yüklenirken hata:", e);
+        }
+        
+        // İşlem modalını aç
+        openModal('plakaGrubuIslemModal');
+        
+        // Açıldıktan sonra form alanlarını güncelle
+        togglePlakaGrubuFormSections();
+        
+        // Plaka sayısı alanını kalan plaka sayısı ile sınırla
+        document.getElementById('plakaGrubuPlakaSayisiInput').setAttribute('max', result.plaka_grubu.kalan_plaka_sayisi);
+        document.getElementById('plakaGrubuPlakaSayisiInput').value = 1; // Varsayılan değer
+        
+        // Select elementlerinin stil düzeltmesi
+        setTimeout(() => {
+            const projectSelect = document.getElementById('plakaGrubuProjeSecimi');
+            if (projectSelect) {
+                projectSelect.style.color = '#333';
+                Array.from(projectSelect.options).forEach(option => {
+                    option.style.color = '#333';
+                    option.style.backgroundColor = '#fff';
+                });
+            }
+            
+            const customerSelect = document.getElementById('plakaGrubuMusteriSecimi');
+            if (customerSelect) {
+                customerSelect.style.color = '#333';
+                Array.from(customerSelect.options).forEach(option => {
+                    option.style.color = '#333';
+                    option.style.backgroundColor = '#fff';
+                });
+            }
+            
+            const employeeSelect = document.getElementById('plakaGrubuCalisanSecimi');
+            if (employeeSelect) {
+                employeeSelect.style.color = '#333';
+                Array.from(employeeSelect.options).forEach(option => {
+                    option.style.color = '#333';
+                    option.style.backgroundColor = '#fff';
+                });
+            }
+        }, 200);
+    } catch (error) {
+        console.error('Plaka grubu işlem modalı açma hatası:', error);
+        showToast('Plaka grubu işlem modalı açılırken bir hata oluştu: ' + error.message, 'error');
+    }
 }
 
 
