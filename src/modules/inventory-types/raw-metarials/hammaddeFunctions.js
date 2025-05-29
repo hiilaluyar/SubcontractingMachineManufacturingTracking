@@ -2138,10 +2138,10 @@ async function deleteHammaddeIslem(islemId) {
   }
 
 
-  
+// main.js dosyasındaki openIslemModal fonksiyonunu şu şekilde güncelleyin:
+
 async function openIslemModal(parcaId, parcaNo) {
     currentParcaId = parcaId;
-    // Parça numarasını global olarak sakla (yeni müşteri ekleme vb. için)
     currentParcaNo = parcaNo;
     
     try {
@@ -2157,14 +2157,11 @@ async function openIslemModal(parcaId, parcaNo) {
             const hammaddeTuru = hammadde ? (hammadde.hammadde_turu || 'sac') : 'sac';
             
             if (parca) {
-                // Parça başlığını güncelle - barkod kodunu göster
                 document.getElementById('parcaHeader').textContent = parca.barkod_kodu || 
                     `${hammaddeTuru.charAt(0).toUpperCase() + hammaddeTuru.slice(1)} ${parcaNo}`;
                 
-                // Hata düzeltmesi: toString() kullanarak number'dan string'e çevir
                 const kalanKilo = parseFloat(parca.kalan_kilo);
                 if (!isNaN(kalanKilo)) {
-                    // Kalan kilo bilgisini form içinde göster
                     const bilgiAlani = document.getElementById('islemModalBilgi') || document.createElement('div');
                     bilgiAlani.id = 'islemModalBilgi';
                     bilgiAlani.className = 'form-info';
@@ -2172,13 +2169,10 @@ async function openIslemModal(parcaId, parcaNo) {
                         <p><strong>Kalan Kilo:</strong> ${kalanKilo.toFixed(2)} kg</p>
                     `;
                     
-                    // Bilgi alanını forma ekle
                     const form = document.getElementById('islemForm');
                     if (form && !document.getElementById('islemModalBilgi')) {
                         form.insertBefore(bilgiAlani, form.firstChild);
                     }
-                } else {
-                    console.warn('Kalan kilo değeri sayısal değil:', parca.kalan_kilo);
                 }
             } else {
                 document.getElementById('parcaHeader').textContent = `Parça ${parcaNo}`;
@@ -2191,34 +2185,169 @@ async function openIslemModal(parcaId, parcaNo) {
         document.getElementById('parcaHeader').textContent = `Parça ${parcaNo}`;
     }
     
-    // Proje listesini yükle
-    await loadProjeler();
-    
-    // Müşteri ve çalışan listelerini yükle - Bu kısmı ekledik
-    try {
-        await loadMusteriler();
-        console.log('İşlem modalı için müşteriler yüklendi');
-    } catch (error) {
-        console.error('Müşteriler yüklenirken hata:', error);
-    }
-    
-    try {
-        await loadCalisanlar();
-        console.log('İşlem modalı için çalışanlar yüklendi');
-    } catch (error) {
-        console.error('Çalışanlar yüklenirken hata:', error);
-    }
-    
     // İşlem modalını aç
     openModal('islemModal');
     
     // Detay modalını kapat
     closeModal('detayModal');
     
-    // Müşteri/Yarı Mamul panellerini başlangıçta ayarla
-    // Hemen çağırmak yerine setTimeout ile çağıralım (modal tam açıldıktan sonra)
-    setTimeout(toggleYariMamulPanelIki, 10);
-  }
+    // Modal açıldıktan SONRA listeleri yükle (DOM elementleri hazır olduğunda)
+    setTimeout(async () => {
+        try {
+            console.log('İşlem modalı listeleri yükleniyor...');
+            
+            // Önce projeler listesini yükle
+            await loadProjeler();
+            
+            // Sonra çalışan ve müşteri listelerini yükle
+            await loadCalisanlarForIslemModal();
+            await loadMusterilerForIslemModal();
+            
+            console.log('İşlem modalı için tüm listeler yüklendi');
+        } catch (error) {
+            console.error('İşlem modalı listeleri yüklenirken hata:', error);
+        }
+        
+        // Kullanım alanı değişikliğine göre panelleri ayarla
+        toggleYariMamulPanelIki();
+    }, 100);
+}
+
+// İşlem modalı için özel çalışan yükleme fonksiyonu
+async function loadCalisanlarForIslemModal() {
+    try {
+        if (!window.electronAPI?.invoke?.database) {
+            console.warn('Database API bulunamadı');
+            return;
+        }
+        
+        const result = await window.electronAPI.invoke.database.getAllCalisan();
+        
+        if (result.success && result.calisanlar) {
+            const calisanSelect = document.getElementById('calisanSecimi');
+            
+            if (calisanSelect) {
+                // Mevcut seçenekleri temizle
+                calisanSelect.innerHTML = '<option value="">-- Çalışan Seçin --</option>';
+                
+                // Çalışanları ekle
+                result.calisanlar.forEach(calisan => {
+                    const option = document.createElement('option');
+                    option.value = calisan.id;
+                    option.textContent = `${calisan.ad} ${calisan.soyad}`;
+                    calisanSelect.appendChild(option);
+                });
+                
+                console.log('İşlem modalı çalışanları yüklendi:', result.calisanlar.length);
+            } else {
+                console.warn('calisanSecimi elementi bulunamadı');
+            }
+        }
+    } catch (error) {
+        console.error('İşlem modalı çalışanları yüklenirken hata:', error);
+    }
+}
+
+// İşlem modalı için özel müşteri yükleme fonksiyonu
+async function loadMusterilerForIslemModal() {
+    try {
+        if (!window.electronAPI?.invoke?.database) {
+            console.warn('Database API bulunamadı');
+            return;
+        }
+        
+        const result = await window.electronAPI.invoke.database.getAllMusteriler();
+        
+        if (result.success && result.musteriler) {
+            const musteriSelect = document.getElementById('musteriSecimi');
+            
+            if (musteriSelect) {
+                // Mevcut seçenekleri temizle
+                musteriSelect.innerHTML = '<option value="">-- Müşteri Seçin --</option>';
+                
+                // Müşterileri ekle
+                result.musteriler.forEach(musteri => {
+                    const option = document.createElement('option');
+                    option.value = musteri.id;
+                    option.textContent = musteri.musteri_adi;
+                    musteriSelect.appendChild(option);
+                });
+                
+                console.log('İşlem modalı müşterileri yüklendi:', result.musteriler.length);
+            } else {
+                console.warn('musteriSecimi elementi bulunamadı');
+            }
+        }
+    } catch (error) {
+        console.error('İşlem modalı müşterileri yüklenirken hata:', error);
+    }
+}
+
+// toggleYariMamulPanelIki fonksiyonunu da güncelleyin (eğer yoksa ekleyin)
+function toggleYariMamulPanelIki() {
+    const kullanimAlani = document.getElementById('kullanimAlani');
+    const musteriPanel = document.getElementById('musteriPanel');
+    const yariMamulPanel = document.getElementById('yariMamulPanel');
+    
+    if (!kullanimAlani) return;
+    
+    const seciliAlan = kullanimAlani.value;
+    
+    if (seciliAlan === 'FasonImalat') {
+        // Fason imalat seçildiğinde müşteri panelini göster, yarı mamul panelini gizle
+        if (musteriPanel) {
+            musteriPanel.style.display = 'block';
+        }
+        if (yariMamulPanel) {
+            yariMamulPanel.style.display = 'none';
+        }
+    } else if (seciliAlan === 'MakineImalat') {
+        // Makine imalat seçildiğinde yarı mamul panelini göster, müşteri panelini gizle
+        if (musteriPanel) {
+            musteriPanel.style.display = 'none';
+        }
+        if (yariMamulPanel) {
+            yariMamulPanel.style.display = 'block';
+        }
+    } else {
+        // Diğer durumları gizle
+        if (musteriPanel) {
+            musteriPanel.style.display = 'none';
+        }
+        if (yariMamulPanel) {
+            yariMamulPanel.style.display = 'none';
+        }
+    }
+}
+
+// Kullanım alanı değiştiğinde çağrılacak fonksiyon
+function onKullanimAlaniChange() {
+    toggleYariMamulPanelIki();
+    
+    // Eğer fason imalat seçilmişse ve müşteri listesi boşsa, yeniden yükle
+    const kullanimAlani = document.getElementById('kullanimAlani');
+    const musteriSelect = document.getElementById('musteriSecimi');
+    
+    if (kullanimAlani && musteriSelect && kullanimAlani.value === 'FasonImalat') {
+        if (musteriSelect.options.length <= 1) {
+            loadMusterilerForIslemModal();
+        }
+    }
+}
+
+// Event listener'ı ekle
+document.addEventListener('DOMContentLoaded', function() {
+    const kullanimAlani = document.getElementById('kullanimAlani');
+    if (kullanimAlani) {
+        kullanimAlani.addEventListener('change', onKullanimAlaniChange);
+    }
+});
+
+// Global olarak erişilebilir hale getir
+window.loadCalisanlarForIslemModal = loadCalisanlarForIslemModal;
+window.loadMusterilerForIslemModal = loadMusterilerForIslemModal;
+window.toggleYariMamulPanelIki = toggleYariMamulPanelIki;
+window.onKullanimAlaniChange = onKullanimAlaniChange;
 
 
 

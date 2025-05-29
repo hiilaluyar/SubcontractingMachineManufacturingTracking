@@ -2072,7 +2072,6 @@ async function getSarfMalzemeGirisGecmisi(sarfMalzemeId) {
   }
 }
 
-
 async function kaydetHammaddeMalzemeGirisi(girisData) {
   const connection = await pool.getConnection();
   
@@ -2106,25 +2105,29 @@ async function kaydetHammaddeMalzemeGirisi(girisData) {
       userInitials = user.ad.charAt(0).toUpperCase() + user.soyad.charAt(0).toUpperCase();
     }
     
-    // Şu anki ay ve yılı al (AAYY formatında)
+    // Şu anki tarih ve saat bilgilerini al
     const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');     // Gün eklendi
+    const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const year = String(now.getFullYear()).slice(2);
-    const dateCode = day + month + year;  // GGAAYY formatı oluşturuldu
+    const hour = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
+    const second = String(now.getSeconds()).padStart(2, '0');
+    const dateCode = day + month + year;
+    
+    // Benzersizlik için timestamp ekle
+    const timestamp = Date.now();
+    const uniqueCode = timestamp.toString().slice(-6); // Son 6 hanesi
 
     // Hammadde türüne göre toplam kilo hesapla
     const hammaddeTuru = hammadde.hammadde_turu || 'sac';
     let toplamKilo;
     
     if (hammaddeTuru === 'sac') {
-      // Saç için direk miktar kullanılır (miktar zaten kg cinsinden)
       toplamKilo = miktar;
     } else if (hammaddeTuru === 'boru' || hammaddeTuru === 'mil') {
-      // Boru ve mil için artık dönüşüm yapmıyoruz, direk girilen miktarı kullanıyoruz
       toplamKilo = miktar;
     } else {
-      // Varsayılan olarak miktar kullanılır
       toplamKilo = miktar;
     }
     
@@ -2133,29 +2136,21 @@ async function kaydetHammaddeMalzemeGirisi(girisData) {
     const yeniKalanKilo = parseFloat(hammadde.kalan_kilo) + toplamKilo;
     
     // Kritik seviyeyi güncelle
-    // Kritik seviye değerini mutlaka al
     const yeniKritikSeviye = girisData.kritik_seviye;
     
-    // BİRİM FİYAT PARA BİRİMİ İŞLEME
-    // Birim fiyat para birimini işle - DÜZELTME: Kesin tip kontrolü yap
-    let birimFiyatTuru = 'TRY'; // Varsayılan değer
-    
-    // girisData.birim_fiyat_turu değerini kontrol edelim ve geçerli bir değer varsa kullanalım
+    // Birim fiyat para birimi işleme
+    let birimFiyatTuru = 'TRY';
     if (girisData.birim_fiyat_turu && 
         typeof girisData.birim_fiyat_turu === 'string' && 
         girisData.birim_fiyat_turu.trim() !== '') {
       birimFiyatTuru = girisData.birim_fiyat_turu.toUpperCase().trim();
-      console.log(`Alınan para birimi: ${birimFiyatTuru}`);
-    } else {
-      console.log('Para birimi belirtilmediği için varsayılan olarak TRY kullanılıyor');
     }
     
-    // Tedarikçi bilgisini doğrudan kullan (para birimi bilgisini ekleme)
     const tedarikci = girisData.tedarikci || '';
     
-    // Ana barkod değerini al veya varsayılan oluştur
+    // Ana barkod için benzersiz değer oluştur
     const anaBarkod = girisData.ana_barkod || 
-                     `${hammaddeTuru.toUpperCase()}-${dateCode}-${Math.floor(Math.random() * 1000)}`;
+                     `${hammaddeTuru.toUpperCase()}-${dateCode}-${uniqueCode}`;
     
     // Hammadde tablosunu güncelle
     await connection.execute(
@@ -2165,101 +2160,109 @@ async function kaydetHammaddeMalzemeGirisi(girisData) {
       [yeniToplamKilo, yeniKalanKilo, yeniKritikSeviye, girisData.hammadde_id]
     );
     
-    // Hammadde giriş geçmişine ekle (ana_barkod alanı eklendi)
+    // Hammadde giriş geçmişine ekle
     const [result] = await connection.execute(
       `INSERT INTO hammadde_giris_gecmisi 
       (hammadde_id, miktar, birim_fiyat, birim_fiyat_turu, tedarikci, ekleyen_id, ana_barkod) 
       VALUES (?, ?, ?, ?, ?, ?, ?)`,
      [
        girisData.hammadde_id,
-       toplamKilo, // miktar değeri yerine hesaplanan toplam kilo değerini kullan
+       toplamKilo,
        girisData.birim_fiyat,
-       birimFiyatTuru, // Düzeltilmiş para birimi değeri
+       birimFiyatTuru,
        tedarikci,
        girisData.ekleyen_id,
-       anaBarkod // Ana barkod eklendi
+       anaBarkod
      ]
     );
     
-    // Oluşturulan giriş ID'sini al
     const girisId = result.insertId;
     
-    // Mevcut parça sayısını al (yeni parçaların numaralandırılması için)
-    const [existingPartsCount] = await connection.execute(
-      'SELECT COUNT(*) as count FROM parcalar WHERE hammadde_id = ?',
+    // Benzersiz parça numaralandırması için mevcut en yüksek parça sayısını al
+    const [maxPartQuery] = await connection.execute(
+      'SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(barkod_kodu, "-P", -1) AS UNSIGNED)), 0) as max_part FROM parcalar WHERE hammadde_id = ? AND barkod_kodu LIKE "%-P%"',
       [girisData.hammadde_id]
     );
     
-    const startPartNumberFrom = existingPartsCount[0].count + 1;
+    // Başlangıç parça numarasını belirle
+    const startPartNumberFrom = (maxPartQuery[0].max_part || 0) + 1;
     
     // Yeni parçaları oluştur
     if (girisData.plaka_sayisi > 0) {
       console.log(`${girisData.plaka_sayisi} adet parça oluşturuluyor...`);
       
-      // ÖNEMLİ DEĞİŞİKLİK: Gerçek plaka ağırlığını hesaplama
-      let parcaAgirligi = girisData.plaka_agirligi; // Varsayılan değer
+      // Parça ağırlığını hesapla
+      let parcaAgirligi = girisData.plaka_agirligi;
       
       if (hammaddeTuru === 'sac' && girisData.plaka_sayisi > 0) {
-        // Eğer gercek_plaka_agirligi gönderilmişse onu kullan
         if (girisData.gercek_plaka_agirligi) {
           parcaAgirligi = girisData.gercek_plaka_agirligi;
         } else {
-          // Gönderilmemişse kullanıcının girdiği miktar değerinden hesapla
           parcaAgirligi = miktar / girisData.plaka_sayisi;
         }
-        console.log(`Gerçek plaka ağırlığı hesaplandı: ${parcaAgirligi} kg`);
       } else if (hammaddeTuru === 'boru' || hammaddeTuru === 'mil') {
-        // Boru ve mil için tek parça ağırlığı = toplam miktar
         parcaAgirligi = miktar;
       }
       
-      // Hammadde türüne göre barkod formatını belirle
+      // Her parça için benzersiz barkod oluştur
       for (let i = 0; i < girisData.plaka_sayisi; i++) {
-        // BUG FIX: Her parça için doğru index'i kullan
         const partIndex = startPartNumberFrom + i;
         let parcaBarkod;
         
         if (hammaddeTuru === 'sac') {
-          // Sac boyut kodunu belirle
-          let sizeCode = '7'; // Varsayılan (diğer boyutlar)
+          let sizeCode = '7'; // Varsayılan
           const en = Number(hammadde.en);
           const boy = Number(hammadde.boy);
           
-          // Boyutlara göre kod belirle (...)
+          // Boyut kodunu belirle (mevcut mantığınızı koruyun)
+          if (en === 1000 && boy === 2000) sizeCode = '1';
+          else if (en === 1250 && boy === 2500) sizeCode = '2';
+          else if (en === 1500 && boy === 3000) sizeCode = '3';
+          else if (en === 2000 && boy === 4000) sizeCode = '4';
+          else if (en === 1220 && boy === 2440) sizeCode = '5';
+          else if (en === 1500 && boy === 2000) sizeCode = '6';
           
-          // BUG FIX: Benzersiz barkod için parça numarasını (partIndex) ekle
           parcaBarkod = `${hammadde.malzeme_adi}${dateCode}-${sizeCode}-${userInitials}-${partIndex}`;
-        } else if (hammaddeTuru === 'boru') {
-          const capCm = Math.round(Number(hammadde.cap) / 10);
-          const uzunlukCm = Math.round(Number(hammadde.uzunluk) / 10);
-          // Ana barkod değerini ekle
-          parcaBarkod = `${anaBarkod}-P${partIndex}`;
-        } else if (hammaddeTuru === 'mil') {
-          const capCm = Math.round(Number(hammadde.cap) / 10);
-          const uzunlukCm = Math.round(Number(hammadde.uzunluk) / 10);
-          // Ana barkod değerini ekle
-          parcaBarkod = `${anaBarkod}-P${partIndex}`;
+        } else if (hammaddeTuru === 'boru' || hammaddeTuru === 'mil') {
+          // Boru ve mil için benzersiz barkod - timestamp ekleyerek çakışmayı önle
+          parcaBarkod = `${anaBarkod}-P${partIndex}-${hour}${minute}${second}`;
         } else {
-          // Diğer türler için genel format
-          // Ana barkod değerini ekle
-          parcaBarkod = `${anaBarkod}-P${partIndex}`;
+          parcaBarkod = `${anaBarkod}-P${partIndex}-${uniqueCode}`;
         }
         
-        // Parçayı veritabanına ekle - ÖNEMLİ: giris_id ve ana_barkod eklendi
+        // Barkod benzersizliğini kontrol et
+        const [existingBarcodeCheck] = await connection.execute(
+          'SELECT COUNT(*) as count FROM parcalar WHERE barkod_kodu = ?',
+          [parcaBarkod]
+        );
+        
+        // Eğer barkod zaten varsa, ekstra benzersiz değer ekle
+        if (existingBarcodeCheck[0].count > 0) {
+          const extraUnique = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+          if (hammaddeTuru === 'boru' || hammaddeTuru === 'mil') {
+            parcaBarkod = `${anaBarkod}-P${partIndex}-${hour}${minute}${second}-${extraUnique}`;
+          } else {
+            parcaBarkod = `${parcaBarkod}-${extraUnique}`;
+          }
+        }
+        
+        console.log(`Oluşturulan barkod: ${parcaBarkod}`);
+        
+        // Parçayı veritabanına ekle
         await connection.execute(
           `INSERT INTO parcalar 
            (hammadde_id, hammadde_turu, durum, orijinal_kilo, kalan_kilo, barkod_kodu, giris_id, ekleyen_id, ana_barkod) 
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             girisData.hammadde_id,
-            hammaddeTuru, // Hammadde türünü sakla
-            'TAM', // Düzeltildi - 'Aktif' yerine 'TAM' kullanılıyor
-            parcaAgirligi, // Parça ağırlığı burada kullanıldı
-            parcaAgirligi, // Kalan kilo
-            parcaBarkod, // Barkod
-            girisId, // Giriş ID'si
-            girisData.ekleyen_id, // Ekleyen kullanıcı ID'si
-            anaBarkod // Ana barkod değeri
+            hammaddeTuru,
+            'TAM',
+            parcaAgirligi,
+            parcaAgirligi,
+            parcaBarkod,
+            girisId,
+            girisData.ekleyen_id,
+            anaBarkod
           ]
         );
       }
@@ -2271,11 +2274,10 @@ async function kaydetHammaddeMalzemeGirisi(girisData) {
     return { 
       success: true, 
       message: 'Hammadde girişi başarıyla kaydedildi.',
-      girisId: girisId, // Giriş ID'sini döndür
-      ana_barkod: anaBarkod // Ana barkod değerini de döndür
+      girisId: girisId,
+      ana_barkod: anaBarkod
     };
   } catch (error) {
-    // Hata durumunda rollback yap
     await connection.rollback();
     console.error('Hammadde girişi kaydetme hatası:', error);
     
