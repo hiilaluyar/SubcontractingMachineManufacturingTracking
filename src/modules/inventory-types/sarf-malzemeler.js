@@ -53,6 +53,9 @@ async function loadSarfMalzemeListesi() {
         
         console.log('Sarf malzeme sayısı:', result.sarfMalzemeler.length);
         
+        // Kullanıcı yetki kontrolü
+        const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+        
         // Sarf malzemeleri tabloya ekle
         result.sarfMalzemeler.forEach(malzeme => {
             const row = tableBody.insertRow();
@@ -96,21 +99,50 @@ async function loadSarfMalzemeListesi() {
             durumCell.innerHTML = `<span class="${durumClass}">${durumText}</span>`;
             durumCell.style.verticalAlign = 'middle';
             
-            // İşlemler
+            // İşlemler - Yetki kontrolü ile birlikte
             const islemlerCell = row.insertCell(5);
-            islemlerCell.innerHTML = `
-                <div class="action-buttons">
-                    <button class="action-btn view" onclick="viewSarfMalzemeDetail(${malzeme.id})">
-                        <i class="fas fa-eye"></i>
-                    </button>
+            
+            let islemlerHtml = `<div class="action-buttons">`;
+
+            // Görüntüleme butonu - herkes kullanabilir
+            islemlerHtml += `
+                <button class="action-btn view" onclick="viewSarfMalzemeDetail(${malzeme.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+            `;
+
+            // Çıkış işlemi butonu - sadece yöneticiler kullanabilir
+            if (isUserAdmin) {
+                islemlerHtml += `
                     <button class="action-btn edit" onclick="openSarfMalzemeIslemModal(${malzeme.id})">
-                   <i class="fa-solid fa-right-from-bracket" style="color: #f29121;"></i>
+                        <i class="fa-solid fa-right-from-bracket" style="color: #f29121;"></i>
                     </button>
+                `;
+            } else {
+                islemlerHtml += `
+                    <button class="action-btn edit disabled" disabled title="Bu işlem için yönetici yetkisi gereklidir">
+                        <i class="fa-solid fa-right-from-bracket" style="color: #ccc;"></i>
+                    </button>
+                `;
+            }
+
+            // Silme butonu - sadece yöneticiler kullanabilir
+            if (isUserAdmin) {
+                islemlerHtml += `
                     <button class="action-btn delete" onclick="deleteSarfMalzeme(${malzeme.id})">
                         <i class="fas fa-trash"></i>
                     </button>
-                </div>
-            `;
+                `;
+            } else {
+                islemlerHtml += `
+                    <button class="action-btn delete disabled" disabled title="Bu işlem için yönetici yetkisi gereklidir">
+                        <i class="fas fa-trash" style="color: #ccc;"></i>
+                    </button>
+                `;
+            }
+
+            islemlerHtml += `</div>`;
+            islemlerCell.innerHTML = islemlerHtml;
         });
         
         console.log('Sarf malzeme listesi yüklendi!');
@@ -142,7 +174,6 @@ async function loadSarfMalzemeListesi() {
         }
     }
 }
-
 
 
 async function saveSarfMalzeme(e) {
@@ -309,6 +340,9 @@ async function loadSarfMalzemeGirisGecmisi(sarfMalzemeId) {
             return;
         }
         
+        // Kullanıcı yetki kontrolü
+        const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+        
         // Son girişten sonra işlem var mı kontrol et
         const islemlerResult = await window.electronAPI.invoke.database.getSarfMalzemeIslemleri(sarfMalzemeId);
         const islemler = islemlerResult.success ? islemlerResult.islemler : [];
@@ -394,15 +428,25 @@ async function loadSarfMalzemeGirisGecmisi(sarfMalzemeId) {
             const cell7 = row.insertCell(6);
             cell7.textContent = `${giris.kullanici_ad} ${giris.kullanici_soyad}`;
             
-            // İşlem (Güncelle butonu)
+            // İşlem (Güncelle butonu) - Yetki kontrolü ile
             const cell8 = row.insertCell(7);
-            if (guncellenebilir) {
+            
+            if (guncellenebilir && isUserAdmin) {
+                // Hem güncellenebilir hem de yönetici ise aktif buton
                 cell8.innerHTML = `
                     <button class="action-btn edit" title="Güncelle" onclick="openSarfMalzemeGirisGuncelleModal(${giris.id}, ${sarfMalzemeId}, ${giris.miktar}, '${giris.birim}')">
                         <i class="fas fa-edit"></i>
                     </button>
                 `;
+            } else if (guncellenebilir && !isUserAdmin) {
+                // Güncellenebilir ama yönetici değil ise yetki yok butonu
+                cell8.innerHTML = `
+                    <button class="action-btn edit disabled" title="Bu işlem için yönetici yetkisi gereklidir" disabled>
+                        <i class="fas fa-edit" style="color: #ccc;"></i>
+                    </button>
+                `;
             } else {
+                // Güncellenemez ise (işlem yapılmış)
                 cell8.innerHTML = `
                     <button class="action-btn edit edited" title="İşlem yapıldığı için güncellenemez" disabled>
                         <i class="fas fa-ban"></i>
@@ -422,7 +466,6 @@ async function loadSarfMalzemeGirisGecmisi(sarfMalzemeId) {
         }
     }
 }
-
 
 
 // Güncellenmiş openSarfMalzemeGirisGuncelleModal fonksiyonu
@@ -1075,6 +1118,9 @@ async function viewSarfMalzemeDetail(id) {
 
         currentSarfMalzemeId = id;
         
+        // Kullanıcı yetki kontrolü
+        const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+        
         // Veri çekme işlemini başlat
         const result = await window.electronAPI.invoke.database.getSarfMalzemeById(id);
         
@@ -1118,6 +1164,26 @@ async function viewSarfMalzemeDetail(id) {
                     <div class="detay-value">${new Date(sarfMalzeme.ekleme_tarihi).toLocaleString('tr-TR')}</div>
                 </div>
             `;
+            
+            // Yeni Giriş Ekle butonunu yetki kontrolü ile güncelle
+            const yeniSarfMalzemeGirisBtn = document.getElementById('yeniSarfMalzemeGirisBtn');
+            if (yeniSarfMalzemeGirisBtn) {
+                if (isUserAdmin) {
+                    // Yönetici ise butonu aktif tut
+                    yeniSarfMalzemeGirisBtn.disabled = false;
+                    yeniSarfMalzemeGirisBtn.classList.remove('disabled');
+                    yeniSarfMalzemeGirisBtn.style.opacity = '1';
+                    yeniSarfMalzemeGirisBtn.style.cursor = 'pointer';
+                    yeniSarfMalzemeGirisBtn.title = 'Yeni giriş ekle';
+                } else {
+                    // Normal kullanıcı ise butonu deaktif yap
+                    yeniSarfMalzemeGirisBtn.disabled = true;
+                    yeniSarfMalzemeGirisBtn.classList.add('disabled');
+                    yeniSarfMalzemeGirisBtn.style.opacity = '0.5';
+                    yeniSarfMalzemeGirisBtn.style.cursor = 'not-allowed';
+                    yeniSarfMalzemeGirisBtn.title = 'Bu işlem için yönetici yetkisi gereklidir';
+                }
+            }
             
             // Giriş geçmişini yükle
             loadSarfMalzemeGirisGecmisi(id);
