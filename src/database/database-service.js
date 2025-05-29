@@ -3450,7 +3450,7 @@ async function updateHammaddeMalzemeGirisi(guncelleData) {
     // Birim fiyat para birimi
     const birimFiyatTuru = guncelleData.birim_fiyat_turu || 'TRY';
     
-    // Tedarikçi bilgisini doğrudan kullan (para birimi bilgisini ekleme)
+    // Tedarikçi bilgisini doğrudan kullan
     const tedarikci = guncelleData.tedarikci || '';
     
     // Ana barkod değerini al
@@ -3469,7 +3469,6 @@ async function updateHammaddeMalzemeGirisi(guncelleData) {
         userInitials = user.ad.charAt(0).toUpperCase() + user.soyad.charAt(0).toUpperCase();
       }
     } else if (giris.ekleyen_id) {
-      // Eğer güncelleme verisinde ekleyen_id yoksa, orijinal girişten al
       const [userRows] = await connection.execute(
         'SELECT ad, soyad FROM kullanicilar WHERE id = ?',
         [giris.ekleyen_id]
@@ -3483,10 +3482,74 @@ async function updateHammaddeMalzemeGirisi(guncelleData) {
     
     // Hammadde türüne göre güncelleme
     if (hammaddeTuru === 'sac') {
-      // Sac için toleranslı güncelleme
-      // ...
+      // Sac için mevcut toleranslı güncelleme mantığı
+      // Bu kısım değişmeden kalacak...
+      // (Sac kısmının kodunu buraya ekleyin, ama guncelleme_tarihi kaldırın)
+      
     } else if (hammaddeTuru === 'boru' || hammaddeTuru === 'mil') {
-      // ...
+      // BORU VE MİL İÇİN YENİ BASIT KG BAZLI GÜNCELLEME
+      
+      console.log(`${hammaddeTuru.toUpperCase()} güncelleme - Eski: ${eskiMiktar} kg, Yeni: ${yeniMiktar} kg`);
+      
+      // Miktar farkını hesapla
+      const miktarFarki = yeniMiktar - eskiMiktar;
+      
+      // Hammadde toplam ve kalan kilolarını güncelle - guncelleme_tarihi KALDIRILDI
+      await connection.execute(
+        `UPDATE hammaddeler 
+         SET toplam_kilo = toplam_kilo + ?, 
+             kalan_kilo = kalan_kilo + ?,
+             kritik_seviye = ?
+         WHERE id = ?`,
+        [
+          miktarFarki, 
+          miktarFarki, 
+          guncelleData.kritik_seviye || hammadde.kritik_seviye || 0,
+          guncelleData.hammadde_id
+        ]
+      );
+      
+      // Bu hammaddeye ait tek parçayı güncelle (boru/mil için tek parça mantığı)
+      const [parcalarRows] = await connection.execute(
+        'SELECT * FROM parcalar WHERE hammadde_id = ? ORDER BY id DESC LIMIT 1',
+        [guncelleData.hammadde_id]
+      );
+      
+      if (parcalarRows.length > 0) {
+        const parca = parcalarRows[0];
+        
+        // Parçanın kilo değerlerini güncelle - guncelleme_tarihi KALDIRILDI
+        await connection.execute(
+          `UPDATE parcalar 
+           SET orijinal_kilo = orijinal_kilo + ?, 
+               kalan_kilo = kalan_kilo + ?
+           WHERE id = ?`,
+          [
+            miktarFarki, 
+            miktarFarki, 
+            parca.id
+          ]
+        );
+        
+        console.log(`${hammaddeTuru.toUpperCase()} parça güncellendi - Parça ID: ${parca.id}, Miktar farkı: ${miktarFarki} kg`);
+      } else {
+        // Parça yoksa yeni parça oluştur - olusturma_tarihi ve guncelleme_tarihi KALDIRILDI
+        const yeniBarkodKodu = `${userInitials}${Date.now().toString().slice(-6)}`;
+        
+        await connection.execute(
+          `INSERT INTO parcalar (
+            hammadde_id, barkod_kodu, orijinal_kilo, kalan_kilo, durum
+          ) VALUES (?, ?, ?, ?, 'STOKTA')`,
+          [
+            guncelleData.hammadde_id,
+            yeniBarkodKodu,
+            yeniMiktar,
+            yeniMiktar
+          ]
+        );
+        
+        console.log(`${hammaddeTuru.toUpperCase()} için yeni parça oluşturuldu - Barkod: ${yeniBarkodKodu}, Miktar: ${yeniMiktar} kg`);
+      }
     }
     
     // Giriş kaydını güncelle - ana_barkod alanını da ekleyerek
@@ -3500,19 +3563,28 @@ async function updateHammaddeMalzemeGirisi(guncelleData) {
         guncelleData.birim_fiyat || 0,
         birimFiyatTuru,
         tedarikci,
-        anaBarkod, // Ana barkod değeri
+        anaBarkod,
         guncelleData.giris_id
       ]
     );
     
-    // ... (devamı değişmiyor)
+    // Kritik seviye güncelleme
+    if (guncelleData.kritik_seviye !== undefined && guncelleData.kritik_seviye !== null) {
+      await connection.execute(
+        'UPDATE hammaddeler SET kritik_seviye = ? WHERE id = ?',
+        [guncelleData.kritik_seviye, guncelleData.hammadde_id]
+      );
+    }
     
     await connection.commit();
     
+    console.log(`${hammaddeTuru.toUpperCase()} hammadde girişi başarıyla güncellendi`);
+    
     return { 
       success: true, 
-      message: 'Hammadde girişi başarıyla güncellendi.'
+      message: `${hammaddeTuru.charAt(0).toUpperCase() + hammaddeTuru.slice(1)} hammadde girişi başarıyla güncellendi.`
     };
+    
   } catch (error) {
     await connection.rollback();
     console.error('Hammadde girişi güncelleme hatası:', error);

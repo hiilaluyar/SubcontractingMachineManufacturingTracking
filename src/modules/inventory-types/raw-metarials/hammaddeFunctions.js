@@ -2358,7 +2358,301 @@ async function loadPlakaGrubuIslemleri(hammaddeId) {
 }
 
 
+
+function updateHammaddeGuncelleModalForBoruMil(hammaddeTuru) {
+  // Miktar label'ını güncelle
+  const miktarLabel = document.querySelector('label[for="hammaddeGirisGuncelleMiktar"]');
+  if (miktarLabel) {
+    if (hammaddeTuru === 'boru' || hammaddeTuru === 'mil') {
+      miktarLabel.textContent = 'Yeni Miktar (kg)';
+    } else {
+      miktarLabel.textContent = 'Yeni Miktar (kg/adet)';
+    }
+  }
+  
+  // Input placeholder'ı güncelle
+  const miktarInput = document.getElementById('hammaddeGirisGuncelleMiktar');
+  if (miktarInput) {
+    if (hammaddeTuru === 'boru' || hammaddeTuru === 'mil') {
+      miktarInput.placeholder = 'Toplam kg miktarını girin';
+      miktarInput.step = '0.01';
+    } else {
+      miktarInput.placeholder = 'Miktar girin';
+    }
+  }
+}
+
+// Hammadde giriş güncelleme modalını açan fonksiyon - Bu eksikti!
+async function openHammaddeGirisGuncelleModal(girisId, hammaddeId, mevcutMiktar) {
+    try {
+        console.log('Güncelleme modalı açılıyor:', { girisId, hammaddeId, mevcutMiktar });
+        
+        // API kontrolü
+        if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+            console.error('Database invoke metodu bulunamadı');
+            showToast('Modal açılamadı. API erişimi yok.', 'error');
+            return;
+        }
+
+        // Giriş detaylarını al
+        const girisResult = await window.electronAPI.invoke.database.getHammaddeGirisById(girisId);
+        
+        if (!girisResult.success) {
+            showToast('Giriş bilgileri alınamadı: ' + girisResult.message, 'error');
+            return;
+        }
+
+        const giris = girisResult.giris;
+
+        // Hammadde bilgilerini al
+        const hammaddeResult = await window.electronAPI.invoke.database.getHammaddeById(hammaddeId);
+        
+        if (!hammaddeResult.success) {
+            showToast('Hammadde bilgileri alınamadı: ' + hammaddeResult.message, 'error');
+            return;
+        }
+
+        const hammadde = hammaddeResult.hammadde;
+        const hammaddeTuru = hammadde.hammadde_turu || 'sac';
+
+        // Modal başlığını güncelle
+        const modalHeader = document.getElementById('hammaddeGirisGuncelleHeader');
+        if (modalHeader) {
+            modalHeader.textContent = `${hammaddeTuru.toUpperCase()} Hammadde Giriş Güncelleme`;
+        }
+
+        // Form alanlarını doldur
+        document.getElementById('hammaddeGunceleMevcutMiktar').textContent = `${Number(giris.miktar).toFixed(2)} kg`;
+        document.getElementById('hammaddeGirisGuncelleMiktar').value = Number(giris.miktar).toFixed(2);
+        document.getElementById('hammaddeGirisGuncelleAnaBarkod').value = giris.ana_barkod || '';
+        document.getElementById('hammaddeGirisGuncelleBirimFiyat').value = Number(giris.birim_fiyat || 0).toFixed(2);
+        document.getElementById('hammaddeGirisGuncelleBirimFiyatTuru').value = giris.birim_fiyat_turu || 'TRY';
+        document.getElementById('hammaddeGirisGuncelleTedarikci').value = giris.tedarikci || '';
+        document.getElementById('hammaddeGirisGuncelleKritikSeviye').value = Number(hammadde.kritik_seviye || 0).toFixed(2);
+
+        // Hammadde türüne göre UI'ı güncelle
+        updateHammaddeGuncelleModalForBoruMil(hammaddeTuru);
+
+        // Tedarikçi listesini yükle
+        await loadTedarikciListesi();
+
+        // Modalı aç
+        openModal('hammaddeGirisGuncelleModal');
+
+        // Global değişkenleri set et
+        window.currentGirisId = girisId;
+        window.currentHammaddeId = hammaddeId;
+
+        console.log('Güncelleme modalı başarıyla açıldı');
+        
+    } catch (error) {
+        console.error('Güncelleme modalı açma hatası:', error);
+        showToast('Modal açılırken bir hata oluştu: ' + error.message, 'error');
+    }
+}
+
+// Modal UI'ını hammadde türüne göre güncelleyen fonksiyon
+function updateHammaddeGuncelleModalForBoruMil(hammaddeTuru) {
+    // Miktar label'ını güncelle
+    const miktarLabel = document.querySelector('label[for="hammaddeGirisGuncelleMiktar"]');
+    if (miktarLabel) {
+        if (hammaddeTuru === 'boru' || hammaddeTuru === 'mil') {
+            miktarLabel.textContent = 'Yeni Miktar (kg)';
+        } else {
+            miktarLabel.textContent = 'Yeni Miktar (kg/adet)';
+        }
+    }
+    
+    // Input placeholder'ı güncelle
+    const miktarInput = document.getElementById('hammaddeGirisGuncelleMiktar');
+    if (miktarInput) {
+        if (hammaddeTuru === 'boru' || hammaddeTuru === 'mil') {
+            miktarInput.placeholder = 'Toplam kg miktarını girin';
+            miktarInput.step = '0.01';
+        } else {
+            miktarInput.placeholder = 'Miktar girin';
+        }
+    }
+}
+
+// Güncelleme kaydetme fonksiyonu
+async function hammaddeGirisGuncelleKaydet() {
+    try {
+        const girisId = window.currentGirisId;
+        const hammaddeId = window.currentHammaddeId;
+        
+        if (!girisId || !hammaddeId) {
+            showModalError('hammaddeGirisGuncelleModal', 'Giriş ID veya Hammadde ID bulunamadı.');
+            return;
+        }
+
+        // Form değerlerini al
+        const yeniMiktar = parseFloat(document.getElementById('hammaddeGirisGuncelleMiktar').value);
+        const anaBarkod = document.getElementById('hammaddeGirisGuncelleAnaBarkod').value.trim();
+        const birimFiyat = parseFloat(document.getElementById('hammaddeGirisGuncelleBirimFiyat').value);
+        const birimFiyatTuru = document.getElementById('hammaddeGirisGuncelleBirimFiyatTuru').value;
+        const tedarikci = document.getElementById('hammaddeGirisGuncelleTedarikci').value.trim();
+        const kritikSeviye = parseFloat(document.getElementById('hammaddeGirisGuncelleKritikSeviye').value);
+
+        // Doğrulama
+        if (!yeniMiktar || yeniMiktar <= 0) {
+            showModalError('hammaddeGirisGuncelleModal', 'Lütfen geçerli bir miktar girin.');
+            return;
+        }
+
+        if (!anaBarkod) {
+            showModalError('hammaddeGirisGuncelleModal', 'Ana barkod zorunludur.');
+            return;
+        }
+
+        if (!birimFiyat || birimFiyat < 0) {
+            showModalError('hammaddeGirisGuncelleModal', 'Lütfen geçerli bir birim fiyat girin.');
+            return;
+        }
+
+        if (!tedarikci) {
+            showModalError('hammaddeGirisGuncelleModal', 'Tedarikçi bilgisi zorunludur.');
+            return;
+        }
+
+        if (!kritikSeviye || kritikSeviye < 0) {
+            showModalError('hammaddeGirisGuncelleModal', 'Lütfen geçerli bir kritik seviye girin.');
+            return;
+        }
+
+        // Güncelleme verisi
+        const guncelleData = {
+            giris_id: girisId,
+            hammadde_id: hammaddeId,
+            yeni_miktar: yeniMiktar,
+            ana_barkod: anaBarkod,
+            birim_fiyat: birimFiyat,
+            birim_fiyat_turu: birimFiyatTuru,
+            tedarikci: tedarikci,
+            kritik_seviye: kritikSeviye,
+            ekleyen_id: currentUser?.id || 1
+        };
+
+        // İşlem başlıyor mesajı
+        showModalSuccess('hammaddeGirisGuncelleModal', 'Güncelleme kaydediliyor...');
+
+        // Güncellemeyi kaydet
+        const result = await window.electronAPI.invoke.database.updateHammaddeMalzemeGirisi(guncelleData);
+
+        if (result.success) {
+            showToast('Hammadde girişi başarıyla güncellendi.', 'success');
+            
+            // Modalı kapat
+            closeModal('hammaddeGirisGuncelleModal');
+            
+            // Sayfaları güncelle
+            updateDashboard();
+            await loadHammaddeListesi();
+            
+            // Hammadde detayını yeniden yükle
+            if (window.currentHammaddeId) {
+                await viewHammaddeDetail(window.currentHammaddeId);
+            }
+        } else {
+            showModalError('hammaddeGirisGuncelleModal', 'Güncelleme hatası: ' + result.message);
+        }
+
+    } catch (error) {
+        console.error('Güncelleme kaydetme hatası:', error);
+        showModalError('hammaddeGirisGuncelleModal', 'Güncelleme kaydedilirken bir hata oluştu: ' + error.message);
+    }
+}
+
+// Tedarikçi listesini yükleyen fonksiyon (eğer yoksa)
+async function loadTedarikciListesi() {
+    try {
+        if (!window.electronAPI?.invoke?.database) return;
+        
+        const result = await window.electronAPI.invoke.database.getAllTedarikci();
+        const datalist = document.getElementById('tedarikciListesi');
+        
+        if (datalist && result.success && result.tedarikciler) {
+            datalist.innerHTML = '';
+            result.tedarikciler.forEach(tedarikci => {
+                const option = document.createElement('option');
+                option.value = tedarikci.firma_adi;
+                datalist.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Tedarikçi listesi yükleme hatası:', error);
+    }
+}
+
+// Modal açma/kapama fonksiyonları (eğer yoksa)
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'block';
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Modal hata/başarı mesajları
+function showModalError(modalId, message) {
+    const errorDiv = document.getElementById(modalId + '-error');
+    const successDiv = document.getElementById(modalId + '-success');
+    
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+    if (successDiv) {
+        successDiv.style.display = 'none';
+    }
+}
+
+function showModalSuccess(modalId, message) {
+    const errorDiv = document.getElementById(modalId + '-error');
+    const successDiv = document.getElementById(modalId + '-success');
+    
+    if (successDiv) {
+        successDiv.textContent = message;
+        successDiv.style.display = 'block';
+    }
+    if (errorDiv) {
+        errorDiv.style.display = 'none';
+    }
+}
+
+// Event listener'ları ayarla
+document.addEventListener('DOMContentLoaded', function() {
+    // Güncelleme kaydet butonu
+    const guncelleKaydetBtn = document.getElementById('hammaddeGirisGuncelleKaydetBtn');
+    if (guncelleKaydetBtn) {
+        guncelleKaydetBtn.addEventListener('click', hammaddeGirisGuncelleKaydet);
+    }
+    
+    // Yeni tedarikçi ekleme butonu
+    const yeniTedarikciBtn = document.getElementById('hammaddeGirisGuncelleYeniTedarikciEkleBtn');
+    if (yeniTedarikciBtn) {
+        yeniTedarikciBtn.addEventListener('click', function() {
+            // Yeni tedarikçi ekleme modalını aç
+            if (typeof openYeniTedarikciModal === 'function') {
+                openYeniTedarikciModal();
+            }
+        });
+    }
+});
+
+window.updateHammaddeGuncelleModalForBoruMil = updateHammaddeGuncelleModalForBoruMil;
 window.loadPlakaGrubuIslemleri = loadPlakaGrubuIslemleri;
+window.openHammaddeGirisGuncelleModal = openHammaddeGirisGuncelleModal;
 
   window.checkHammaddeExists = async function(hammaddeData) {
     try {
