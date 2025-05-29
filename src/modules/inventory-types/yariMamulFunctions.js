@@ -149,8 +149,7 @@ async function editYariMamulIslem(islemId) {
 }
 
 
-  
-// Yarı mamul listesi yükleme
+  // Yarı mamul listesi yükleme
 async function loadYariMamulListesi() {
   try {
       console.log('Yarı mamul listesi yükleniyor...');
@@ -176,6 +175,9 @@ async function loadYariMamulListesi() {
           row.innerHTML = '<tr><td colspan="7" class="text-center">Yarı mamul bulunamadı</td></tr>';
           return;
       }
+      
+      // Kullanıcı yetki kontrolü
+      const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
       
       result.yariMamuller.forEach(yariMamul => {
           const row = yariMamulTable.insertRow();
@@ -213,24 +215,57 @@ async function loadYariMamulListesi() {
           
           durumCell.innerHTML = `<span class="${durumClass}">${durumText}</span>`;
           
-          // İşlemler
+          // İşlemler - Yetki kontrolü ile birlikte
           const islemlerCell = row.insertCell(5);
-            islemlerCell.innerHTML = `
-                 <div class="action-buttons">
+          
+          let islemlerHtml = `<div class="action-buttons">`;
+
+          // Görüntüleme butonu - herkes kullanabilir
+          islemlerHtml += `
               <button class="action-btn view" onclick="viewYariMamulDetail(${yariMamul.id})">
-            <i class="fas fa-eye"></i>
-             </button>
-         <button class="action-btn process" onclick="openYariMamulIslemModal(${yariMamul.id})">
-            <i class="fas fa-cut"></i>
-        </button>
-      <button class="action-btn photo" onclick="handleYariMamulPhoto(${yariMamul.id})" style="background-color: #607D8B; border: 1px solid #455A64; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
-    <i class="fas fa-file-image" style="color: white;"></i>
-</button>
-        <button class="action-btn delete" onclick="deleteYariMamul(${yariMamul.id})">
-            <i class="fas fa-trash"></i>
-        </button>
-    </div>
-`;
+                  <i class="fas fa-eye"></i>
+              </button>
+          `;
+
+          // İşlem yap butonu (kesme ikonu) - sadece yöneticiler kullanabilir
+          if (isUserAdmin) {
+              islemlerHtml += `
+                  <button class="action-btn process" onclick="openYariMamulIslemModal(${yariMamul.id})">
+                      <i class="fas fa-cut"></i>
+                  </button>
+              `;
+          } else {
+              islemlerHtml += `
+                  <button class="action-btn process disabled" disabled title="Bu işlem için yönetici yetkisi gereklidir">
+                      <i class="fas fa-cut" style="color: #ccc;"></i>
+                  </button>
+              `;
+          }
+
+          // Fotoğraf butonu - herkes kullanabilir (sadece görüntüleme)
+          islemlerHtml += `
+              <button class="action-btn photo" onclick="handleYariMamulPhoto(${yariMamul.id})" style="background-color: #607D8B; border: 1px solid #455A64; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+                  <i class="fas fa-file-image" style="color: white;"></i>
+              </button>
+          `;
+
+          // Silme butonu - sadece yöneticiler kullanabilir
+          if (isUserAdmin) {
+              islemlerHtml += `
+                  <button class="action-btn delete" onclick="deleteYariMamul(${yariMamul.id})">
+                      <i class="fas fa-trash"></i>
+                  </button>
+              `;
+          } else {
+              islemlerHtml += `
+                  <button class="action-btn delete disabled" disabled title="Bu işlem için yönetici yetkisi gereklidir">
+                      <i class="fas fa-trash" style="color: #ccc;"></i>
+                  </button>
+              `;
+          }
+
+          islemlerHtml += `</div>`;
+          islemlerCell.innerHTML = islemlerHtml;
       });
   } catch (error) {
       console.error('Yarı mamul listesi yükleme hatası:', error);
@@ -1315,6 +1350,9 @@ async function handleYariMamulPhoto(yariMamulId) {
   try {
     currentPhotoYariMamulId = yariMamulId;
     
+    // Kullanıcı yetki kontrolü
+    const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+    
     // Yarı mamul bilgilerini al
     const result = await window.electronAPI.invoke.database.getYariMamulById(yariMamulId);
     
@@ -1333,6 +1371,29 @@ async function handleYariMamulPhoto(yariMamulId) {
     document.getElementById('fotografInput').value = '';
     document.getElementById('fotografError').style.display = 'none';
     
+    // Fotoğraf upload container'ını yetki durumuna göre göster/gizle
+    const fotografUploadContainer = document.getElementById('fotografUploadContainer');
+    if (isUserAdmin) {
+      fotografUploadContainer.style.display = 'block';
+    } else {
+      fotografUploadContainer.style.display = 'none';
+    }
+    
+    // Butonları yetki durumuna göre göster/gizle
+    const fotografKaydetBtn = document.getElementById('fotografKaydetBtn');
+    const fotografSilBtn = document.getElementById('fotografSilBtn');
+    
+    if (isUserAdmin) {
+      // Yönetici ise butonları göster
+      fotografKaydetBtn.style.display = 'inline-block';
+      fotografKaydetBtn.disabled = false;
+      fotografKaydetBtn.style.opacity = '1';
+      fotografKaydetBtn.style.cursor = 'pointer';
+    } else {
+      // Normal kullanıcı ise butonları gizle/deaktif yap
+      fotografKaydetBtn.style.display = 'none';
+    }
+    
     try {
       // Fotoğraf var mı kontrol et
       if (yariMamul.fotograf) {
@@ -1350,26 +1411,57 @@ async function handleYariMamulPhoto(yariMamulId) {
         imgElement.onload = function() {
           // Resim başarıyla yüklendi
           document.getElementById('fotografPreviewContainer').style.display = 'block';
-          document.getElementById('fotografSilBtn').style.display = 'inline-block';
+          
+          // Sil butonu sadece yöneticiler için gösterilsin
+          if (isUserAdmin) {
+            fotografSilBtn.style.display = 'inline-block';
+            fotografSilBtn.disabled = false;
+            fotografSilBtn.style.opacity = '1';
+            fotografSilBtn.style.cursor = 'pointer';
+          } else {
+            fotografSilBtn.style.display = 'none';
+          }
         };
         imgElement.onerror = function() {
           // Resim yüklenemedi - hata mesajı ekle
           console.error('Resim görüntülenemiyor. Hatalı URL:', imgSrc);
           document.getElementById('fotografPreviewContainer').style.display = 'none';
           document.getElementById('fotografError').textContent = 'Resim görüntülenemedi. Yeni resim ekleyebilirsiniz.';
-          document.getElementById('fotografError').style.display = 'block';
-          document.getElementById('fotografSilBtn').style.display = 'inline-block';
+          
+          if (isUserAdmin) {
+            document.getElementById('fotografError').style.display = 'block';
+            fotografSilBtn.style.display = 'inline-block';
+          } else {
+            document.getElementById('fotografError').style.display = 'none';
+            fotografSilBtn.style.display = 'none';
+          }
         };
       } else {
         // Fotoğraf yoksa gizle
         document.getElementById('fotografPreviewContainer').style.display = 'none';
-        document.getElementById('fotografSilBtn').style.display = 'none';
+        fotografSilBtn.style.display = 'none';
+        
+        // Eğer yönetici değilse ve fotoğraf yoksa bilgi mesajı göster
+        if (!isUserAdmin) {
+          document.getElementById('fotografError').textContent = 'Bu ürün için henüz fotoğraf eklenmemiş.';
+          document.getElementById('fotografError').style.display = 'block';
+          document.getElementById('fotografError').style.backgroundColor = '#d1ecf1';
+          document.getElementById('fotografError').style.color = '#0c5460';
+        }
       }
     } catch (imgError) {
       console.error('Resim gösterme hatası:', imgError);
       document.getElementById('fotografPreviewContainer').style.display = 'none';
-      document.getElementById('fotografError').textContent = 'Resim görüntülenemiyor. Yeni resim ekleyebilirsiniz.';
-      document.getElementById('fotografError').style.display = 'block';
+      
+      if (isUserAdmin) {
+        document.getElementById('fotografError').textContent = 'Resim görüntülenemiyor. Yeni resim ekleyebilirsiniz.';
+        document.getElementById('fotografError').style.display = 'block';
+      } else {
+        document.getElementById('fotografError').textContent = 'Resim görüntülenemiyor.';
+        document.getElementById('fotografError').style.display = 'block';
+        document.getElementById('fotografError').style.backgroundColor = '#f8d7da';
+        document.getElementById('fotografError').style.color = '#721c24';
+      }
     }
     
     // Modalı aç
