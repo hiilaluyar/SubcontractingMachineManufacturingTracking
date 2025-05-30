@@ -153,6 +153,7 @@ async function loadIskartaUrunler() {
   }
 }
 
+
 async function loadFasonIslemler() {
   try {
     console.log('Fason işlemleri yükleniyor...');
@@ -318,6 +319,10 @@ async function loadFasonIslemler() {
       // İşlemler (artık 9. sütun)
       const cell9 = row.insertCell(8);
       
+      // Kullanıcı rolünü kontrol et
+      const userData = window.currentUser || { rol: 'kullanici' };
+      const isAdmin = userData.rol === 'yonetici' || userData.rol === 'admin';
+      
       // İşlemin ID'sini ve türünü belirle
       const itemId = islem.islem_id;
       let itemType = islem.islem_turu;
@@ -345,32 +350,42 @@ async function loadFasonIslemler() {
           </button>
         `;
       } else {
+        // Butonun disabled durumunu ve tooltip'ini belirle
+        const isDisabled = !isAdmin;
+        const disabledAttr = isDisabled ? 'disabled' : '';
+        const disabledClass = isDisabled ? ' disabled' : '';
+        const tooltipSuffix = isDisabled ? ' (Yönetici yetkisi gereklidir)' : '';
+        
         // İşlem türüne göre düzenleme butonu
         if (itemType === 'hammadde') {
+          const onclickAttr = isAdmin ? `onclick="editIslem(${itemId}, 'hammadde')"` : '';
           editButtonHtml = `
-            <button class="action-btn edit" title="İşlemi Düzenle" onclick="editIslem(${itemId}, 'hammadde')"
+            <button class="action-btn edit${disabledClass}" title="İşlemi Düzenle${tooltipSuffix}" ${disabledAttr} ${onclickAttr}
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-edit"></i>
             </button>
           `;
         } else if (itemType === 'sarf_malzeme') {
+          const onclickAttr = isAdmin ? `onclick="editIslem(${itemId}, 'sarf_malzeme')"` : '';
           editButtonHtml = `
-            <button class="action-btn edit" title="İşlemi Düzenle" onclick="editIslem(${itemId}, 'sarf_malzeme')"
+            <button class="action-btn edit${disabledClass}" title="İşlemi Düzenle${tooltipSuffix}" ${disabledAttr} ${onclickAttr}
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-edit"></i>
             </button>
           `;
         } else if (itemType === 'yari_mamul') {
+          const onclickAttr = isAdmin ? `onclick="editYariMamulIslem(${itemId})"` : '';
           editButtonHtml = `
-            <button class="action-btn edit" title="İşlemi Düzenle" onclick="editYariMamulIslem(${itemId})"
+            <button class="action-btn edit${disabledClass}" title="İşlemi Düzenle${tooltipSuffix}" ${disabledAttr} ${onclickAttr}
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-edit"></i>
             </button>
           `;
         } else if (itemType === 'plaka_grubu') {
           // Plaka grubu için sadece silme işlemi
+          const onclickAttr = isAdmin ? `onclick="deletePlakaGrubuIslem(${itemId})"` : '';
           editButtonHtml = `
-            <button class="action-btn delete" title="İşlemi Sil" onclick="deletePlakaGrubuIslem(${itemId})"
+            <button class="action-btn delete${disabledClass}" title="İşlemi Sil${tooltipSuffix}" ${disabledAttr} ${onclickAttr}
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-trash"></i>
             </button>
@@ -566,6 +581,10 @@ async function loadMakineIslemler() {
       // İşlemler
       const cell9 = row.insertCell(8);
       
+      // Kullanıcı rolünü kontrol et
+      const userData = window.currentUser || { rol: 'kullanici' };
+      const isAdmin = userData.rol === 'yonetici' || userData.rol === 'admin';
+      
       // İşlemin ID'sini ve türünü belirle
       const itemId = islem.islem_id;
       let itemType = islem.islem_turu;
@@ -605,39 +624,50 @@ async function loadMakineIslemler() {
           </button>
         `;
       } else {
+        // Butonun disabled durumunu ve tooltip'ini belirle
+        const isDisabled = !isAdmin;
+        const disabledAttr = isDisabled ? 'disabled' : '';
+        const disabledClass = isDisabled ? ' disabled' : '';
+        const tooltipSuffix = isDisabled ? ' (Yönetici yetkisi gereklidir)' : '';
+        
         // İşlem türüne göre normal düzenleme butonu
         if (itemType === 'hammadde') {
+          const onclickAttr = isAdmin ? `onclick="editIslem(${itemId}, 'hammadde')"` : '';
           editButtonHtml = `
-            <button class="action-btn edit" title="İşlemi Düzenle" onclick="editIslem(${itemId}, 'hammadde')"
+            <button class="action-btn edit${disabledClass}" title="İşlemi Düzenle${tooltipSuffix}" ${disabledAttr} ${onclickAttr}
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-edit"></i>
             </button>
           `;
         } else if (itemType === 'sarf_malzeme') {
+          const onclickAttr = isAdmin ? `onclick="editIslem(${itemId}, 'sarf_malzeme')"` : '';
           editButtonHtml = `
-            <button class="action-btn edit" title="İşlemi Düzenle" onclick="editIslem(${itemId}, 'sarf_malzeme')"
+            <button class="action-btn edit${disabledClass}" title="İşlemi Düzenle${tooltipSuffix}" ${disabledAttr} ${onclickAttr}
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-edit"></i>
             </button>
           `;
         } else if (itemType === 'yari_mamul') {
+          const onclickAttr = isAdmin ? `onclick="editYariMamulIslem(${itemId})"` : '';
           editButtonHtml = `
-            <button class="action-btn edit" title="İşlemi Düzenle" onclick="editYariMamulIslem(${itemId})"
+            <button class="action-btn edit${disabledClass}" title="İşlemi Düzenle${tooltipSuffix}" ${disabledAttr} ${onclickAttr}
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-edit"></i>
             </button>
           `;
         } else if (itemType === 'ikincil_stok') {
+          const onclickAttr = isAdmin ? `onclick="editIkincilStokIslem(${itemId})"` : '';
           editButtonHtml = `
-            <button class="action-btn edit" title="İşlemi Düzenle" onclick="editIkincilStokIslem(${itemId})"
+            <button class="action-btn edit${disabledClass}" title="İşlemi Düzenle${tooltipSuffix}" ${disabledAttr} ${onclickAttr}
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-edit"></i>
             </button>
           `;
         } else if (itemType === 'plaka_grubu') {
           // Plaka grubu için sadece silme işlemi
+          const onclickAttr = isAdmin ? `onclick="deletePlakaGrubuIslem(${itemId})"` : '';
           editButtonHtml = `
-            <button class="action-btn delete" title="İşlemi Sil" onclick="deletePlakaGrubuIslem(${itemId})"
+            <button class="action-btn delete${disabledClass}" title="İşlemi Sil${tooltipSuffix}" ${disabledAttr} ${onclickAttr}
               data-item-id="${itemId}" data-item-type="${itemType}">
               <i class="fas fa-trash"></i>
             </button>
