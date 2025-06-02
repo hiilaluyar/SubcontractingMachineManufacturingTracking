@@ -5276,3 +5276,347 @@ tr:has(.plaka-checkbox:checked) {
 #parcaIslemModal .parca-islem-form::-webkit-scrollbar-thumb:hover {
     background: var(--primary-color) !important;
 }
+
+
+/* Modern Raf Sistemi CSS Stilleri */
+
+/* Ana raf container */
+.raf-container {
+    width: 100%;
+    max-width: 350px;
+}
+
+/* Raf gösterim badge'i */
+.raf-display {
+    margin-bottom: 0;
+}
+
+.raf-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    position: relative;
+    min-height: 40px;
+    cursor: default;
+}
+
+/* Raf atanmış durumu */
+.raf-badge.raf-assigned {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.raf-badge.raf-assigned:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+/* Raf atanmamış durumu */
+.raf-badge.raf-empty {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    color: #6c757d;
+    border: 2px dashed #dee2e6;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.raf-badge.raf-empty:hover {
+    border-color: #007bff;
+    color: #007bff;
+    transform: translateY(-1px);
+}
+
+/* Raf ikonu */
+.raf-icon {
+    margin-right: 8px;
+    font-size: 16px;
+    opacity: 0.9;
+}
+
+/* Raf text */
+.raf-text {
+    flex: 1;
+    margin-right: 8px;
+}
+
+/* Raf düzenleme ikonu */
+.raf-edit-icon {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: currentColor;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+.raf-edit-icon:hover {
+    background: rgba(255, 255, 255, 0.3);
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.raf-badge.raf-empty .raf-edit-icon {
+    background: rgba(0, 123, 255, 0.1);
+    color: #007bff;
+}
+
+.raf-badge.raf-empty .raf-edit-icon:hover {
+    background: rgba(0, 123, 255, 0.2);
+}
+
+/* Raf düzenleme formu */
+.raf-edit-form {
+    margin-top: 12px;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Input grubu */
+.raf-input-group {
+    background: #fff;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: border-color 0.3s ease;
+}
+
+.raf-input-group:focus-within {
+    border-color: #007bff;
+    box-shadow: 0 4px 16px rgba(0, 123, 255, 0.15);
+}
+
+/* Input wrapper */
+.raf-input-wrapper {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+/* Raf input - ikon kaldırıldı, normal padding */
+.raf-input {
+    width: 100%;
+    padding: 12px 16px; /* Normal padding, ikon yok */
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.raf-input:focus {
+    border-color: #007bff;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.raf-input::placeholder {
+    color: #adb5bd;
+    font-weight: 400;
+}
+
+/* Action buttons */
+.raf-action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* Save button */
+.raf-save-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+}
+
+.raf-save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    background: linear-gradient(135deg, #218838, #1abc9c);
+}
+
+.raf-save-btn:active {
+    transform: translateY(0);
+}
+
+/* Cancel button */
+.raf-cancel-btn {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+}
+
+.raf-cancel-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+    background: linear-gradient(135deg, #5a6268, #495057);
+}
+
+.raf-cancel-btn:active {
+    transform: translateY(0);
+}
+
+/* Help text */
+.raf-help-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+.raf-help-text i {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+/* Loading state */
+.raf-container.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.raf-container.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive tasarım */
+@media (max-width: 768px) {
+    .raf-container {
+        max-width: 100%;
+    }
+    
+    .raf-badge {
+        padding: 6px 10px;
+        font-size: 13px;
+        min-height: 36px;
+    }
+    
+    .raf-input-group {
+        padding: 12px;
+    }
+    
+    .raf-input {
+        padding: 10px 14px; /* Mobilde de normal padding */
+        font-size: 13px;
+    }
+    
+    .raf-action-buttons {
+        justify-content: center;
+    }
+    
+    .raf-save-btn,
+    .raf-cancel-btn {
+        min-width: 50px;
+        height: 40px;
+        padding: 8px 14px;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .raf-badge.raf-empty {
+        background: linear-gradient(135deg, #2d3748, #4a5568);
+        color: #a0aec0;
+        border-color: #4a5568;
+    }
+    
+    .raf-input-group {
+        background: #2d3748;
+        border-color: #4a5568;
+    }
+    
+    .raf-input {
+        background: #1a202c;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .raf-input:focus {
+        background: #2d3748;
+    }
+}
+
+/* Hover effects için smooth transitions */
+* {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar for input if needed */
+.raf-input::-webkit-scrollbar {
+    height: 4px;
+}
+
+.raf-input::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+}
+
+.raf-input::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+}
+
+.raf-input::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

@@ -825,3 +825,23 @@ ipcMain.handle('database:getStockMovementsBetweenDates', async (event, startDate
     return { success: false, message: error.message };
   }
 });
+
+
+ipcMain.handle('database:getSarfMalzemeByIdWithRaf', async (event, id) => {
+  try {
+    return await DatabaseService.getSarfMalzemeByIdWithRaf(id);
+  } catch (error) {
+    console.error('Raf silme hatası:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+
+ipcMain.handle('database:updateSarfMalzemeRaf', async (event, sarfMalzemeId, rafBilgisi) => {
+  try {
+    return await DatabaseService.updateSarfMalzemeRaf(sarfMalzemeId, rafBilgisi);
+  } catch (error) {s
+    console.error('Raf guncelleme hatası:', error);
+    return { success: false, message: error.message };
+  }
+});

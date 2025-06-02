@@ -1128,7 +1128,8 @@ async function viewSarfMalzemeDetail(id) {
             const sarfMalzeme = result.sarfMalzeme;
             const ekleyen = result.ekleyen;
             
-            // Detay alanını doldur
+            // Detay alanını doldur - RAF BİLGİSİ EKLENDİ
+            const sarfMalzemeDetay = document.getElementById('sarfMalzemeDetay');
             sarfMalzemeDetay.innerHTML = `
                 <div class="detay-row">
                     <div class="detay-label">Stok Kodu:</div>
@@ -1158,25 +1159,63 @@ async function viewSarfMalzemeDetail(id) {
                     <div class="detay-label">Kritik Seviye:</div>
                     <div class="detay-value">${Number(sarfMalzeme.kritik_seviye).toFixed(2)} ${sarfMalzeme.birim}</div>
                 </div>
-                
+                <div class="detay-row">
+                    <div class="detay-label">Raf Konumu:</div>
+                    <div class="detay-value">
+                        <div class="raf-container">
+                            <div class="raf-display" id="rafGosterAlani">
+                                <div class="raf-badge ${sarfMalzeme.raf ? 'raf-assigned' : 'raf-empty'}">
+                                    <i class="fas fa-warehouse raf-icon"></i>
+                                    <span class="raf-text">${sarfMalzeme.raf || 'Raf atanmamış'}</span>
+                                    ${isUserAdmin ? `
+                                    <button type="button" id="rafDuzenleBtn" class="raf-edit-icon">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <div class="raf-edit-form" id="rafDuzenleAlani" style="display: none;">
+                                <div class="raf-input-group">
+                                    <div class="raf-input-wrapper">
+                                        <input type="text" id="rafInput" value="${sarfMalzeme.raf || ''}" 
+                                               placeholder="Raf kodu (örn: A-01, B-15)" maxlength="50" class="raf-input">
+                                    </div>
+                                    <div class="raf-action-buttons">
+                                        <button type="button" id="rafKaydetBtn" class="raf-save-btn">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button type="button" id="rafIptalBtn" class="raf-cancel-btn">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="raf-help-text">
+                                    <i class="fas fa-info-circle"></i>
+                                    Raf kodunu girin veya boş bırakın
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="detay-row">
                     <div class="detay-label">Ekleme Tarihi:</div>
                     <div class="detay-value">${new Date(sarfMalzeme.ekleme_tarihi).toLocaleString('tr-TR')}</div>
                 </div>
             `;
             
+            // Raf düzenleme event listener'larını ekle
+            setupRafEventListeners();
+            
             // Yeni Giriş Ekle butonunu yetki kontrolü ile güncelle
             const yeniSarfMalzemeGirisBtn = document.getElementById('yeniSarfMalzemeGirisBtn');
             if (yeniSarfMalzemeGirisBtn) {
                 if (isUserAdmin) {
-                    // Yönetici ise butonu aktif tut
                     yeniSarfMalzemeGirisBtn.disabled = false;
                     yeniSarfMalzemeGirisBtn.classList.remove('disabled');
                     yeniSarfMalzemeGirisBtn.style.opacity = '1';
                     yeniSarfMalzemeGirisBtn.style.cursor = 'pointer';
                     yeniSarfMalzemeGirisBtn.title = 'Yeni giriş ekle';
                 } else {
-                    // Normal kullanıcı ise butonu deaktif yap
                     yeniSarfMalzemeGirisBtn.disabled = true;
                     yeniSarfMalzemeGirisBtn.classList.add('disabled');
                     yeniSarfMalzemeGirisBtn.style.opacity = '0.5';
@@ -1188,7 +1227,7 @@ async function viewSarfMalzemeDetail(id) {
             // Giriş geçmişini yükle
             loadSarfMalzemeGirisGecmisi(id);
             
-            // Stoğa Geri Dönenler tabını yükle - YENİ
+            // Stoğa Geri Dönenler tabını yükle
             loadSarfMalzemeStokGeriDonenler(id);
             
             // İşlem geçmişini doldur
@@ -1201,9 +1240,8 @@ async function viewSarfMalzemeDetail(id) {
             } else {
                 result.islemler.forEach(islem => {
                     // Eğer işlem "İade" ve kullanım alanı "StokGeriYukleme" ise, bu işlemi gösterme
-                    // Bu işlemler artık ayrı bir tabda gösterilecek
                     if (islem.islem_turu === 'İade' && islem.kullanim_alani === 'StokGeriYukleme') {
-                        return; // bu işlemi atla
+                        return;
                     }
                     
                     const row = islemGecmisiTable.insertRow();
@@ -1237,7 +1275,7 @@ async function viewSarfMalzemeDetail(id) {
                             cell4.textContent = islem.kullanim_alani;
                     }
                     
-                    // Proje - Sadece proje adını göster
+                    // Proje
                     const cell5 = row.insertCell(4);
                     cell5.textContent = islem.proje_id ? `${islem.proje_adi}` : 'Belirtilmemiş';
                     
@@ -1260,6 +1298,162 @@ async function viewSarfMalzemeDetail(id) {
         document.getElementById('sarfMalzemeDetay').innerHTML = '<div class="error">Beklenmeyen bir hata oluştu</div>';
     }
 }
+
+// Raf event listener'larını kurma fonksiyonu
+function setupRafEventListeners() {
+    const rafDuzenleBtn = document.getElementById('rafDuzenleBtn');
+    const rafKaydetBtn = document.getElementById('rafKaydetBtn');
+    const rafIptalBtn = document.getElementById('rafIptalBtn');
+    const rafInput = document.getElementById('rafInput');
+    
+    // Raf düzenle butonu
+    if (rafDuzenleBtn) {
+        rafDuzenleBtn.addEventListener('click', function() {
+            document.getElementById('rafGosterAlani').style.display = 'none';
+            document.getElementById('rafDuzenleAlani').style.display = 'block';
+            rafDuzenleBtn.style.display = 'none';
+            rafInput.focus();
+        });
+    }
+    
+    // Raf kaydet butonu
+    if (rafKaydetBtn) {
+        rafKaydetBtn.addEventListener('click', function() {
+            kaydetSarfMalzemeRaf();
+        });
+    }
+    
+    // Raf iptal butonu
+    if (rafIptalBtn) {
+        rafIptalBtn.addEventListener('click', function() {
+            iptalRafDuzenleme();
+        });
+    }
+    
+    // Enter tuşu ile kaydet
+    if (rafInput) {
+        rafInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                kaydetSarfMalzemeRaf();
+            } else if (e.key === 'Escape') {
+                iptalRafDuzenleme();
+            }
+        });
+    }
+}
+
+// Raf bilgisini kaydetme fonksiyonu
+async function kaydetSarfMalzemeRaf() {
+    try {
+        const rafInput = document.getElementById('rafInput');
+        const rafContainer = document.querySelector('.raf-container');
+        const rafKaydetBtn = document.getElementById('rafKaydetBtn');
+        
+        if (!rafInput) return;
+        
+        const rafBilgisi = rafInput.value.trim();
+        
+        // Loading state
+        rafContainer.classList.add('loading');
+        rafKaydetBtn.disabled = true;
+        rafKaydetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        
+        // API kontrolü
+        if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+            console.error('Database invoke metodu bulunamadı');
+            showToast('Raf bilgisi kaydedilemedi. API erişimi yok.', 'error');
+            return;
+        }
+        
+        // Raf bilgisini kaydet
+        const result = await window.electronAPI.invoke.database.updateSarfMalzemeRaf(
+            currentSarfMalzemeId, 
+            rafBilgisi
+        );
+        
+        if (result.success) {
+            // Başarılı mesajı
+            showToast(
+                rafBilgisi ? 
+                `Raf konumu "${rafBilgisi}" olarak güncellendi.` : 
+                'Raf konumu temizlendi.', 
+                'success'
+            );
+            
+            // Görünümü güncelle
+            updateRafDisplay(rafBilgisi);
+            
+            // Düzenleme modundan çık
+            iptalRafDuzenleme();
+            
+            // Sarf malzeme listesini güncelle
+            await loadSarfMalzemeListesi();
+        } else {
+            showToast('Hata: ' + result.message, 'error');
+        }
+    } catch (error) {
+        console.error('Raf bilgisi kaydetme hatası:', error);
+        showToast('Raf bilgisi kaydedilirken bir hata oluştu.', 'error');
+    } finally {
+        // Loading state'i kaldır
+        const rafContainer = document.querySelector('.raf-container');
+        const rafKaydetBtn = document.getElementById('rafKaydetBtn');
+        
+        if (rafContainer) rafContainer.classList.remove('loading');
+        if (rafKaydetBtn) {
+            rafKaydetBtn.disabled = false;
+            rafKaydetBtn.innerHTML = '<i class="fas fa-check"></i>';
+        }
+    }
+}
+
+// Raf görünümünü güncelleme fonksiyonu
+function updateRafDisplay(rafBilgisi) {
+    const rafBadge = document.querySelector('.raf-badge');
+    const rafText = document.querySelector('.raf-text');
+    
+    if (rafBadge && rafText) {
+        // Badge class'ını güncelle
+        rafBadge.classList.remove('raf-assigned', 'raf-empty');
+        rafBadge.classList.add(rafBilgisi ? 'raf-assigned' : 'raf-empty');
+        
+        // Text'i güncelle
+        rafText.textContent = rafBilgisi || 'Raf atanmamış';
+    }
+}
+
+// Raf düzenlemeyi iptal etme fonksiyonu
+function iptalRafDuzenleme() {
+    const rafGosterAlani = document.getElementById('rafGosterAlani');
+    const rafDuzenleAlani = document.getElementById('rafDuzenleAlani');
+    const rafInput = document.getElementById('rafInput');
+    
+    if (rafGosterAlani && rafDuzenleAlani) {
+        // Smooth transition
+        rafDuzenleAlani.style.display = 'none';
+        rafGosterAlani.style.display = 'block';
+    }
+    
+    // Reset input to original value if needed
+    if (rafInput) {
+        // Get current raf value from display
+        const currentRaf = document.querySelector('.raf-text')?.textContent;
+        if (currentRaf && currentRaf !== 'Raf atanmamış') {
+            rafInput.value = currentRaf;
+        } else {
+            rafInput.value = '';
+        }
+    }
+}
+
+// Global fonksiyonları window objesine ekle
+
+window.setupRafEventListeners = setupRafEventListeners;
+window.kaydetSarfMalzemeRaf = kaydetSarfMalzemeRaf;
+window.updateRafDisplay = updateRafDisplay;
+window.iptalRafDuzenleme = iptalRafDuzenleme;
+
+
 
   // 4. Sarf malzeme işlemini silme
   async function deleteSarfMalzemeIslem(islemId) {

@@ -7216,6 +7216,95 @@ async function getStockMovementsBetweenDates(startDate, endDate) {
   }
 }
 
+
+
+async function updateSarfMalzemeRaf(sarfMalzemeId, rafBilgisi) {
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Sarf malzeme var mı kontrol et
+    const [sarfMalzemeRows] = await connection.execute(
+      'SELECT * FROM sarf_malzemeler WHERE id = ?',
+      [sarfMalzemeId]
+    );
+    
+    if (sarfMalzemeRows.length === 0) {
+      throw new Error('Sarf malzeme bulunamadı.');
+    }
+    
+    // Raf bilgisini güncelle
+    await connection.execute(
+      'UPDATE sarf_malzemeler SET raf = ? WHERE id = ?',
+      [rafBilgisi || null, sarfMalzemeId]
+    );
+    
+    await connection.commit();
+    
+    return { 
+      success: true, 
+      message: 'Raf bilgisi başarıyla güncellendi.',
+      raf: rafBilgisi
+    };
+  } catch (error) {
+    await connection.rollback();
+    console.error('Sarf malzeme raf güncelleme hatası:', error);
+    return { 
+      success: false, 
+      message: 'Raf bilgisi güncellenirken bir hata oluştu: ' + error.message 
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+// Sarf malzeme detayını getirme fonksiyonunu güncelle (getSarfMalzemeById)
+// Mevcut fonksiyonun sonuna raf bilgisini de dahil etmek için sorguyu güncelle
+async function getSarfMalzemeByIdWithRaf(id) {
+  try {
+    const [sarfMalzemeRows] = await pool.execute(
+      'SELECT * FROM sarf_malzemeler WHERE id = ?',
+      [id]
+    );
+    
+    if (sarfMalzemeRows.length === 0) {
+      return { success: false, message: 'Sarf malzeme bulunamadı.' };
+    }
+    
+    const sarfMalzeme = sarfMalzemeRows[0];
+    
+    // Kullanıcı bilgilerini getir
+    const [userRows] = await pool.execute(
+      'SELECT ad, soyad, kullanici_adi FROM kullanicilar WHERE id = ?',
+      [sarfMalzeme.ekleyen_id]
+    );
+    
+    // İşlem geçmişini getir
+    const [islemRows] = await pool.execute(`
+      SELECT 
+        si.*,
+        u.ad AS kullanici_ad, u.soyad AS kullanici_soyad,
+        p.proje_kodu, p.proje_adi
+      FROM sarf_malzeme_islemleri si
+      LEFT JOIN kullanicilar u ON si.kullanici_id = u.id
+      LEFT JOIN projeler p ON si.proje_id = p.id
+      WHERE si.sarf_malzeme_id = ?
+      ORDER BY si.islem_tarihi DESC
+    `, [id]);
+    
+    return { 
+      success: true, 
+      sarfMalzeme: sarfMalzeme, // Bu artık raf bilgisini de içerecek
+      ekleyen: userRows.length > 0 ? userRows[0] : null,
+      islemler: islemRows
+    };
+  } catch (error) {
+    console.error('Sarf malzeme detayı getirme hatası:', error);
+    return { success: false, message: 'Sarf malzeme detayı getirilirken bir hata oluştu.' };
+  }
+}
+
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
   loginUser,
@@ -7329,6 +7418,8 @@ addPlakaGrubuToIslemde,
   calculateYariMamulStockAtDate,
   getAllYariMamulAtDate,
   getAllStockAtDate,
-  getStockMovementsBetweenDates
+  getStockMovementsBetweenDates,
+   updateSarfMalzemeRaf,
+  getSarfMalzemeByIdWithRaf
 
 };
