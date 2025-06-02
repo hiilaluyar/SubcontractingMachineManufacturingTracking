@@ -540,7 +540,7 @@ async function loadPlakaGrubuParcalar(grubuId) {
         });
         
         // Detay modalını aç/güncelle
-        openModal('detayModssal');
+        openModal('detayModal');
         
         // Parçalar tabına geç
         const parcalarTab = document.querySelector('.tab-button[data-tab="parcalar-tab"]');
