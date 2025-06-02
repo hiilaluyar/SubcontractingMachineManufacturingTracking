@@ -2550,11 +2550,23 @@ async function addYariMamul(yariMamulData) {
 
 async function getAllYariMamuller() {
   try {
+    // Fotoğrafları ÇIKARDIK - sadece ID, ad, miktar vs. temel bilgileri al
+    // has_photo alanını da ekledik
     const [rows] = await pool.execute(`
       SELECT 
-        ym.*,
+        ym.id,
+        ym.stok_kodu,
+        ym.malzeme_adi,
+        ym.birim,
+        ym.barkod,
+        ym.raf_konumu,
+        ym.ekleme_tarihi,
+        ym.kritik_seviye,
+        ym.ekleyen_id,
         CAST(ym.toplam_miktar AS DECIMAL(10,2)) AS toplam_miktar,
         CAST(ym.kalan_miktar AS DECIMAL(10,2)) AS kalan_miktar,
+        -- Fotoğraf olup olmadığını kontrol et (BLOB boyutu)
+        CASE WHEN ym.fotograf IS NOT NULL THEN 1 ELSE 0 END AS has_photo,
         CASE 
           WHEN CAST(ym.kalan_miktar AS DECIMAL) <= 0 THEN 'STOKTA_YOK'
           WHEN CAST(ym.kalan_miktar AS DECIMAL) <= ym.kritik_seviye THEN 'AZ_KALDI'
@@ -2572,8 +2584,9 @@ async function getAllYariMamuller() {
 
 async function getYariMamulById(id) {
   try {
+    // Fotoğrafı ÇIKARDIK - sadece temel bilgileri al
     const [yariMamulRows] = await pool.execute(
-      'SELECT * FROM yari_mamuller WHERE id = ?',
+      'SELECT id, stok_kodu, malzeme_adi, birim, barkod, raf_konumu, ekleme_tarihi, kritik_seviye, ekleyen_id, toplam_miktar, kalan_miktar FROM yari_mamuller WHERE id = ?',
       [id]
     );
     
@@ -2582,14 +2595,6 @@ async function getYariMamulById(id) {
     }
     
     const yariMamul = yariMamulRows[0];
-    
-    // Eğer fotograf varsa ve buffer formatında ise, base64'e çevir
-    if (yariMamul.fotograf) {
-      // MySQL'den gelen buffer formatını base64'e çevir
-      if (Buffer.isBuffer(yariMamul.fotograf)) {
-        yariMamul.fotograf = yariMamul.fotograf.toString('base64');
-      }
-    }
     
     // Kullanıcı bilgilerini getir
     const [userRows] = await pool.execute(
@@ -2621,7 +2626,6 @@ async function getYariMamulById(id) {
     return { success: false, message: 'Yarı mamül detayı getirilirken bir hata oluştu.' };
   }
 }
-
 
 // Yarı mamül işlemi kaydetme
 async function addYariMamulIslemi(islemData) {
@@ -7347,6 +7351,34 @@ async function updateYariMamulRaf(yariMamulId, rafKonumu) {
   }
 }
 
+async function getYariMamulFotograf(id) {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT fotograf FROM yari_mamuller WHERE id = ?',
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      return { success: false, message: 'Yarı mamül bulunamadı.' };
+    }
+    
+    let fotograf = null;
+    if (rows[0].fotograf) {
+      // Buffer'ı base64'e çevir
+      if (Buffer.isBuffer(rows[0].fotograf)) {
+        fotograf = rows[0].fotograf.toString('base64');
+      } else {
+        fotograf = rows[0].fotograf;
+      }
+    }
+    
+    return { success: true, fotograf };
+  } catch (error) {
+    console.error('Fotoğraf getirme hatası:', error);
+    return { success: false, message: 'Fotoğraf getirilirken hata oluştu.' };
+  }
+}
+
 
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
@@ -7464,6 +7496,7 @@ addPlakaGrubuToIslemde,
   getStockMovementsBetweenDates,
    updateSarfMalzemeRaf,
   getSarfMalzemeByIdWithRaf,
-  updateYariMamulRaf
+  updateYariMamulRaf,
+  getYariMamulFotograf
 
 };

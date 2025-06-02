@@ -855,3 +855,13 @@ ipcMain.handle('database:updateYariMamulRaf', async (event, yariMamulId, rafKonu
     return { success: false, message: error.message };
   }
 });
+
+
+ipcMain.handle('database:getYariMamulFotograf', async (event, id) => {
+  try {
+    return await DatabaseService.getYariMamulFotograf(id);
+  } catch (error) {
+    console.error('Error in getYariMamulFotograf:', error);
+    return { success: false, message: error.message };
+  }
+});

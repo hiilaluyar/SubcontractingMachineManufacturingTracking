@@ -1,3 +1,34 @@
+// Fotoğraf cache sistemi
+const photoCache = new Map();
+
+// Fotoğraf lazy loading fonksiyonu
+async function loadPhotoOnDemand(yariMamulId) {
+  // Cache kontrolü
+  if (photoCache.has(yariMamulId)) {
+    return photoCache.get(yariMamulId);
+  }
+  
+  try {
+    const result = await window.electronAPI.invoke.database.getYariMamulFotograf(yariMamulId);
+    
+    if (result.success && result.fotograf) {
+      const imgSrc = result.fotograf.startsWith('data:image') ? 
+        result.fotograf : 
+        `data:image/jpeg;base64,${result.fotograf}`;
+      
+      // Cache'e kaydet
+      photoCache.set(yariMamulId, imgSrc);
+      return imgSrc;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Fotoğraf yükleme hatası:', error);
+    return null;
+  }
+}
+
+
 async function editYariMamulIslem(islemId) {
     try {
       // Check if the item has already been edited
@@ -148,8 +179,7 @@ async function editYariMamulIslem(islemId) {
   }
 }
 
-
-  // Yarı mamul listesi yükleme
+// 1. Güncellenmiş loadYariMamulListesi - has_photo kontrolü ile
 async function loadYariMamulListesi() {
   try {
       console.log('Yarı mamul listesi yükleniyor...');
@@ -163,7 +193,7 @@ async function loadYariMamulListesi() {
           return;
       }
 
-      // Yarı mamülleri al
+      // Yarı mamülleri al - FOTOĞRAFLAR OLMADAN
       const result = await window.electronAPI.invoke.database.getAllYariMamuller();
       
       // Tabloyu doldur
@@ -242,10 +272,19 @@ async function loadYariMamulListesi() {
               `;
           }
 
-          // Fotoğraf butonu - herkes kullanabilir (sadece görüntüleme)
+          // Fotoğraf butonu - has_photo kontrolü ile renk değişimi
+          const photoButtonStyle = yariMamul.has_photo ? 
+            'background-color: #28a745; border: 1px solid #1e7e34;' : // Yeşil: fotoğraf var
+            'background-color: #607D8B; border: 1px solid #455A64;';   // Gri: fotoğraf yok
+          
+          const photoIcon = yariMamul.has_photo ? 'fas fa-image' : 'fas fa-image-slash';
+          const photoTitle = yariMamul.has_photo ? 'Fotoğraf mevcut - görüntülemek için tıklayın' : 'Fotoğraf yok - eklemek için tıklayın';
+          
           islemlerHtml += `
-              <button class="action-btn photo" onclick="handleYariMamulPhoto(${yariMamul.id})" style="background-color: #607D8B; border: 1px solid #455A64; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
-                  <i class="fas fa-file-image" style="color: white;"></i>
+              <button class="action-btn photo" onclick="handleYariMamulPhoto(${yariMamul.id})" 
+                      style="${photoButtonStyle} box-shadow: 0 2px 4px rgba(0,0,0,0.15);"
+                      title="${photoTitle}">
+                  <i class="${photoIcon}" style="color: white;"></i>
               </button>
           `;
 
@@ -267,6 +306,15 @@ async function loadYariMamulListesi() {
           islemlerHtml += `</div>`;
           islemlerCell.innerHTML = islemlerHtml;
       });
+
+      // Arka planda fotoğrafları yükle (ilk 10 tane)
+      setTimeout(() => {
+          const visibleIds = result.yariMamuller.slice(0, 10).map(item => item.id);
+          if (visibleIds.length > 0) {
+              preloadPhotosInBackground(visibleIds);
+          }
+      }, 1000);
+
   } catch (error) {
       console.error('Yarı mamul listesi yükleme hatası:', error);
       
@@ -275,6 +323,7 @@ async function loadYariMamulListesi() {
   }
 }
 
+// 2. Güncellenmiş viewYariMamulDetail - fotoğrafı ayrı yükle
 async function viewYariMamulDetail(id) {
   try {
       // API kontrolü
@@ -285,7 +334,7 @@ async function viewYariMamulDetail(id) {
 
       currentYariMamulId = id;
 
-      // Detay bilgilerini al
+      // Detay bilgilerini al - FOTOĞRAF OLMADAN
       const result = await window.electronAPI.invoke.database.getYariMamulById(id);
       
       if (!result.success) {
@@ -300,7 +349,7 @@ async function viewYariMamulDetail(id) {
       // Detay bilgilerini doldur
       const detayContainer = document.getElementById('yariMamulDetay');
       
-      // HTML içeriğini oluştur - fotoğraf kısmı tamamen kaldırıldı
+      // HTML içeriğini oluştur - fotoğraf container'ı da ekleyebiliriz
       let detayHTML = `
           <div class="detay-row">
               <div class="detay-label">Stok Kodu:</div>
@@ -331,6 +380,10 @@ async function viewYariMamulDetail(id) {
               <div class="detay-value">${Number(yariMamul.kritik_seviye || 0).toFixed(2)} ${yariMamul.birim}</div>
           </div>
           <div class="detay-row">
+              <div class="detay-label">Raf Konumu:</div>
+              <div class="detay-value">${yariMamul.raf_konumu || 'Belirtilmemiş'}</div>
+          </div>
+          <div class="detay-row">
               <div class="detay-label">Ekleyen:</div>
               <div class="detay-value">${ekleyen ? `${ekleyen.ad} ${ekleyen.soyad}` : 'Bilinmiyor'}</div>
           </div>
@@ -338,10 +391,23 @@ async function viewYariMamulDetail(id) {
               <div class="detay-label">Ekleme Tarihi:</div>
               <div class="detay-value">${new Date(yariMamul.ekleme_tarihi).toLocaleString('tr-TR')}</div>
           </div>
+          <div class="detay-row">
+              <div class="detay-label">Fotoğraf:</div>
+              <div class="detay-value">
+                  <div id="detayFotoContainer" style="margin-top: 10px;">
+                      <div style="text-align: center; padding: 10px; color: #666;">
+                          <i class="fas fa-spinner fa-spin"></i> Fotoğraf yükleniyor...
+                      </div>
+                  </div>
+              </div>
+          </div>
       `;
       
       // HTML içeriğini detay konteynerine ekle
       detayContainer.innerHTML = detayHTML;
+
+      // Fotoğrafı arka planda yükle
+      loadDetailPhoto(id);
 
       // İşlem geçmişi tablosunu doldur
       const islemGecmisiTable = document.getElementById('yariMamulIslemGecmisiTable').getElementsByTagName('tbody')[0];
@@ -353,7 +419,6 @@ async function viewYariMamulDetail(id) {
       } else {
           islemler.forEach(islem => {
               // Eğer işlem "İade" ve kullanım alanı "StokGeriYukleme" ise, bu işlemi gösterme
-              // Bu işlemler artık ayrı bir tabda gösterilecek
               if (islem.islem_turu === 'İade' && islem.kullanim_alani === 'StokGeriYukleme') {
                   return; // bu işlemi atla
               }
@@ -426,6 +491,94 @@ async function viewYariMamulDetail(id) {
       console.error('Yarı mamul detayı görüntüleme hatası:', error);
   }
 }
+
+// 3. Güncelle: Detay fotoğraf yükleme fonksiyonu
+async function loadDetailPhoto(yariMamulId) {
+  const photoContainer = document.getElementById('detayFotoContainer');
+  if (!photoContainer) return;
+  
+  try {
+    // Fotoğrafı cache'den veya API'den yükle
+    const photo = await loadPhotoOnDemand(yariMamulId);
+    
+    if (photo) {
+      photoContainer.innerHTML = `
+        <img src="${photo}" 
+             style="max-width: 200px; max-height: 150px; cursor: pointer; border: 1px solid #ddd; border-radius: 4px;"
+             onclick="openFullSizeImage('${encodeURIComponent(photo)}')" 
+             title="Büyütmek için tıklayın" />
+      `;
+    } else {
+      photoContainer.innerHTML = `
+        <div style="color: #666; font-style: italic; text-align: center; padding: 10px; border: 1px dashed #ccc; border-radius: 4px;">
+          <i class="fas fa-image-slash" style="margin-right: 5px;"></i>
+          Fotoğraf bulunmuyor
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Detay fotoğraf yükleme hatası:', error);
+    photoContainer.innerHTML = `
+      <div style="color: #dc3545; font-style: italic; text-align: center; padding: 10px;">
+        <i class="fas fa-exclamation-triangle" style="margin-right: 5px;"></i>
+        Fotoğraf yüklenirken hata oluştu
+      </div>
+    `;
+  }
+}
+
+// Toplu fotoğraf yükleme (arka planda)
+async function preloadPhotosInBackground(yariMamulIds) {
+  const batchSize = 3; // Aynı anda maksimum 3 fotoğraf yükle
+  
+  for (let i = 0; i < yariMamulIds.length; i += batchSize) {
+    const batch = yariMamulIds.slice(i, i + batchSize);
+    
+    const promises = batch.map(async (id) => {
+      try {
+        await loadPhotoOnDemand(id);
+      } catch (error) {
+        console.warn(`Fotoğraf yüklenemedi: ${id}`, error);
+      }
+    });
+    
+    await Promise.all(promises);
+    
+    // Batch'ler arası kısa bekle
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
+// Sayfa yüklendiğinde arka planda fotoğrafları yükle
+document.addEventListener('DOMContentLoaded', function() {
+  // Yarı mamul listesi yüklendikten sonra fotoğrafları arka planda yükle
+  const originalLoadFunction = window.loadYariMamulListesi;
+  
+  window.loadYariMamulListesi = async function() {
+    await originalLoadFunction();
+    
+    // Görünen yarı mamüllerin ID'lerini al
+    const rows = document.querySelectorAll('#yariMamulTable tbody tr');
+    const visibleIds = Array.from(rows)
+      .slice(0, 10) // İlk 10 tane
+      .map(row => {
+        const button = row.querySelector('button[onclick*="handleYariMamulPhoto"]');
+        if (button) {
+          const match = button.onclick.toString().match(/handleYariMamulPhoto\((\d+)\)/);
+          return match ? parseInt(match[1]) : null;
+        }
+        return null;
+      })
+      .filter(id => id !== null);
+    
+    // Arka planda yükle
+    if (visibleIds.length > 0) {
+      setTimeout(() => {
+        preloadPhotosInBackground(visibleIds);
+      }, 1000); // 1 saniye sonra başla
+    }
+  };
+});
 
 function openFullSizeImage(base64Image) {
   try {
@@ -1352,7 +1505,7 @@ async function handleYariMamulPhoto(yariMamulId) {
     // Kullanıcı yetki kontrolü
     const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
     
-    // Yarı mamul bilgilerini al
+    // Yarı mamul bilgilerini al (fotoğraf olmadan)
     const result = await window.electronAPI.invoke.database.getYariMamulById(yariMamulId);
     
     if (!result.success) {
@@ -1369,17 +1522,103 @@ async function handleYariMamulPhoto(yariMamulId) {
     // Raf bilgisini göster
     updateRafBilgisiDisplay(yariMamul.raf_konumu, isUserAdmin);
     
-    // Fotoğraf bölümünü güncelle
-    updateFotografDisplay(yariMamul, isUserAdmin);
+    // Loading göster
+    showPhotoLoading();
     
     // Modalı aç
     openModal('yariMamulFotoModal');
+    
+    // Fotoğrafı ayrı olarak yükle
+    await loadYariMamulPhoto(yariMamulId, isUserAdmin);
     
   } catch (error) {
     console.error('Modal açma sırasında hata:', error);
     showErrorMessage('Hata', 'Modal açılırken bir hata oluştu: ' + error.message);
   }
 }
+
+
+async function loadYariMamulPhoto(yariMamulId, isUserAdmin) {
+  try {
+    // Ayrı API call ile sadece fotoğrafı al
+    const photoResult = await window.electronAPI.invoke.database.getYariMamulFotograf(yariMamulId);
+    
+    // Loading'i gizle
+    hidePhotoLoading();
+    
+    if (photoResult.success && photoResult.fotograf) {
+      const fotograf = photoResult.fotograf;
+      const imgSrc = fotograf.startsWith('data:image') ? 
+        fotograf : 
+        `data:image/jpeg;base64,${fotograf}`;
+        
+      // Fotoğrafı göster
+      const imgElement = document.getElementById('fotografPreview');
+      imgElement.src = imgSrc;
+      imgElement.onload = function() {
+        document.getElementById('fotografPreviewContainer').style.display = 'block';
+        
+        if (isUserAdmin) {
+          document.getElementById('fotografSilBtn').style.display = 'inline-block';
+        }
+      };
+    } else {
+      // Fotoğraf yoksa
+      document.getElementById('fotografPreviewContainer').style.display = 'none';
+      document.getElementById('fotografSilBtn').style.display = 'none';
+      
+      if (!isUserAdmin) {
+        document.getElementById('fotografError').textContent = 'Bu ürün için henüz fotoğraf eklenmemiş.';
+        document.getElementById('fotografError').style.display = 'block';
+        document.getElementById('fotografError').style.backgroundColor = '#d1ecf1';
+        document.getElementById('fotografError').style.color = '#0c5460';
+      }
+    }
+    
+    // Upload container'ını göster/gizle
+    const fotografUploadContainer = document.getElementById('fotografUploadContainer');
+    if (isUserAdmin) {
+      fotografUploadContainer.style.display = 'block';
+      document.getElementById('fotografKaydetBtn').style.display = 'inline-block';
+    } else {
+      fotografUploadContainer.style.display = 'none';
+      document.getElementById('fotografKaydetBtn').style.display = 'none';
+    }
+    
+  } catch (error) {
+    hidePhotoLoading();
+    console.error('Fotoğraf yükleme hatası:', error);
+    document.getElementById('fotografError').textContent = 'Fotoğraf yüklenirken hata oluştu.';
+    document.getElementById('fotografError').style.display = 'block';
+  }
+}
+
+// 5. Loading fonksiyonları
+function showPhotoLoading() {
+  const loadingHTML = `
+    <div id="photoLoading" style="text-align: center; padding: 20px;">
+      <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #007bff;"></i>
+      <p>Fotoğraf yükleniyor...</p>
+    </div>
+  `;
+  
+  // Mevcut içeriği gizle
+  document.getElementById('fotografPreviewContainer').style.display = 'none';
+  document.getElementById('fotografUploadContainer').style.display = 'none';
+  document.getElementById('fotografError').style.display = 'none';
+  
+  // Loading'i ekle
+  const modalBody = document.querySelector('#yariMamulFotoModal .modal-body');
+  modalBody.insertAdjacentHTML('beforeend', loadingHTML);
+}
+
+function hidePhotoLoading() {
+  const loading = document.getElementById('photoLoading');
+  if (loading) {
+    loading.remove();
+  }
+}
+
 
 function updateRafBilgisiDisplay(rafKonumu, isUserAdmin) {
   const rafBilgisiText = document.getElementById('rafBilgisiText');
