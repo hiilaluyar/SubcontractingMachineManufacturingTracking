@@ -1,4 +1,25 @@
 //pdf-print-code.js
+function deferPDFButtonInit() {
+    // PDF buton eklemeyi defer et
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(addPDFButtons, 100);
+        });
+    } else {
+        setTimeout(addPDFButtons, 100);
+    }
+}
+
+// BONUS: Memory optimization
+function optimizeTableMemory() {
+    // Büyük tablolarda garbage collection'ı tetikle
+    if (performance.memory && performance.memory.usedJSHeapSize > 50000000) { // 50MB
+        console.log('Memory cleanup yapılıyor...');
+        // Force garbage collection (dev tools'da çalışır)
+        if (window.gc) window.gc();
+    }
+}
+
 
 // Tüm liste sayfaları için PDF önizleme butonu ekleyen ana fonksiyon
 function initPrintButtons() {

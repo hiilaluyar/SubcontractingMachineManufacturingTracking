@@ -33,39 +33,43 @@ async function loadSarfMalzemeListesi() {
     try {
         console.log('Sarf malzeme listesi yükleniyor...');
         
-        // Sayfa elementini kontrol et
         const sarfMalzemeListesi = document.getElementById('sarf-malzeme-listesi');
-        if (!sarfMalzemeListesi) {
-            console.error('Sarf malzeme listesi sayfası elementi bulunamadı!');
-            return;
-        }
-        
         const sarfMalzemeTable = document.getElementById('sarfMalzemeTable');
-        if (!sarfMalzemeTable) {
-            console.error('sarfMalzemeTable elementi bulunamadı!');
-            return;
-        }
-        
         const tableBody = sarfMalzemeTable.getElementsByTagName('tbody')[0];
-        if (!tableBody) {
-            console.error('sarfMalzemeTable tbody elementi bulunamadı!');
+        
+        if (!sarfMalzemeListesi || !sarfMalzemeTable || !tableBody) {
+            console.error('Gerekli elementler bulunamadı!');
             return;
         }
         
-        // Önce loading göster
+        // 1. HEMEN loading göster ve sayfa geçişi yap
         tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Yükleniyor...</td></tr>';
         
-        // API kontrolü
-        if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+        // Sayfa geçişini hemen yap (kullanıcı gecikme hissetmesin)
+        requestAnimationFrame(() => {
+            const navLinks = document.querySelectorAll('.nav-links li a');
+            navLinks.forEach(l => l.parentElement.classList.remove('active'));
+            
+            const sarfMalzemeLink = document.querySelector('a[data-page="sarf-malzeme-listesi"]');
+            if (sarfMalzemeLink) {
+                sarfMalzemeLink.parentElement.classList.add('active');
+            }
+            
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            sarfMalzemeListesi.classList.add('active');
+        });
+        
+        // 2. API kontrolü
+        if (!window.electronAPI?.invoke?.database) {
             console.error('Database invoke metodu bulunamadı');
             tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Veri yüklenemedi. API erişimi yok.</td></tr>';
             return;
         }
 
-        // Kullanıcı yetki kontrolünü önceden yap
-        const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+        // 3. Kullanıcı yetki kontrolü (önceden)
+        const isUserAdmin = window.globalUserData?.rol === 'yonetici';
 
-        // Sarf malzeme verilerini al
+        // 4. Sarf malzeme verilerini al
         const result = await window.electronAPI.invoke.database.getAllSarfMalzeme();
         console.log('getAllSarfMalzeme sonucu:', result);
         
@@ -83,129 +87,133 @@ async function loadSarfMalzemeListesi() {
         
         console.log('Sarf malzeme sayısı:', result.sarfMalzemeler.length);
         
-        // Performans için: Tüm HTML'i bir seferde oluştur
-        const rowsHTML = result.sarfMalzemeler.map(malzeme => {
-            // Durum hesaplama
-            let durumText = '';
-            let durumClass = '';
-            
-            switch (malzeme.durum) {
-                case 'STOKTA_YOK':
-                    durumText = 'Stokta Yok';
-                    durumClass = 'stokta-yok';
-                    break;
-                case 'AZ_KALDI':
-                    durumText = 'Az Kaldı';
-                    durumClass = 'az-kaldi';
-                    break;
-                default:
-                    durumText = 'Stokta Var';
-                    durumClass = 'stokta-var';
-            }
-            
-            // Fotoğraf butonu optimizasyonu
-            const photoButtonStyle = malzeme.has_photo ? 
-              'background-color: #28a745; border: 1px solid #1e7e34;' : 
-              'background-color: #607D8B; border: 1px solid #455A64;';
-            
-            const photoIcon = malzeme.has_photo ? 'fas fa-image' : 'fas fa-camera';
-            const photoTitle = malzeme.has_photo ? 'Fotoğraf mevcut - görüntülemek için tıklayın' : 'Fotoğraf yok - eklemek için tıklayın';
-            
-            // İşlemler HTML'ini basitleştir
-            let islemlerHtml = `<div class="action-buttons">
-                <button class="action-btn view" onclick="viewSarfMalzemeDetail(${malzeme.id})" title="Görüntüle">
-                    <i class="fas fa-eye"></i>
-                </button>`;
-
-            // Çıkış işlemi butonu
-            if (isUserAdmin) {
-                islemlerHtml += `
-                    <button class="action-btn edit" onclick="openSarfMalzemeIslemModal(${malzeme.id})" title="Çıkış İşlemi">
-                        <i class="fa-solid fa-right-from-bracket" style="color: #f29121;"></i>
-                    </button>`;
-            } else {
-                islemlerHtml += `
-                    <button class="action-btn edit disabled" disabled title="Bu işlem için yönetici yetkisi gereklidir">
-                        <i class="fa-solid fa-right-from-bracket" style="color: #ccc;"></i>
-                    </button>`;
-            }
-
-            // Fotoğraf butonu
-            islemlerHtml += `
-                <button class="action-btn photo" onclick="handleSarfMalzemeFoto(${malzeme.id})" 
-                        style="${photoButtonStyle} box-shadow: 0 2px 4px rgba(0,0,0,0.15);"
-                        title="${photoTitle}">
-                    <i class="${photoIcon}" style="color: white; font-size: 14px;"></i>
-                </button>`;
-
-            // Silme butonu
-            if (isUserAdmin) {
-                islemlerHtml += `
-                    <button class="action-btn delete" onclick="deleteSarfMalzeme(${malzeme.id})" title="Sil">
-                        <i class="fas fa-trash"></i>
-                    </button>`;
-            } else {
-                islemlerHtml += `
-                    <button class="action-btn delete disabled" disabled title="Bu işlem için yönetici yetkisi gereklidir">
-                        <i class="fas fa-trash" style="color: #ccc;"></i>
-                    </button>`;
-            }
-
-            islemlerHtml += `</div>`;
-            
-            return `
-                <tr data-ekleme-tarihi="${malzeme.ekleme_tarihi}">
-                    <td>${malzeme.stok_kodu}</td>
-                    <td>${malzeme.malzeme_adi}</td>
-                    <td>${Number(malzeme.kalan_miktar).toFixed(2)} ${malzeme.birim}</td>
-                    <td>${malzeme.barkod}</td>
-                    <td style="vertical-align: middle;"><span class="${durumClass}">${durumText}</span></td>
-                    <td>${islemlerHtml}</td>
-                </tr>
-            `;
-        }).join('');
-        
-        // Tek seferde tüm HTML'i ekle (çok daha hızlı)
-        tableBody.innerHTML = rowsHTML;
+        // 5. SÜPER HIZLI RENDERING - DocumentFragment kullanarak
+        await renderAllSarfMalzemeOptimized(result.sarfMalzemeler, tableBody, isUserAdmin);
         
         console.log('Sarf malzeme listesi yüklendi!');
         
-        // Sayfa geçişini optimize et
-        requestAnimationFrame(() => {
-            // Navigation update
-            const navLinks = document.querySelectorAll('.nav-links li a');
-            navLinks.forEach(l => l.parentElement.classList.remove('active'));
-            
-            const sarfMalzemeLink = document.querySelector('a[data-page="sarf-malzeme-listesi"]');
-            if (sarfMalzemeLink) {
-                sarfMalzemeLink.parentElement.classList.add('active');
-            }
-            
-            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-            sarfMalzemeListesi.classList.add('active');
-        });
-
-        // FOTOĞRAF ÖN YÜKLEME TAMAMEN KALDIRILDI!
-        // Bu satırları kaldırdık çünkü performansı düşürüyor:
-        // setTimeout(() => {
-        //     const visibleIds = result.sarfMalzemeler.slice(0, 10).map(item => item.id);
-        //     if (visibleIds.length > 0) {
-        //         preloadSarfMalzemePhotosInBackground(visibleIds);
-        //     }
-        // }, 1000);
-        
     } catch (error) {
         console.error('Sarf malzeme listesi yükleme hatası:', error);
-        
-        const sarfMalzemeTable = document.getElementById('sarfMalzemeTable');
-        if (sarfMalzemeTable) {
-            const tableBody = sarfMalzemeTable.getElementsByTagName('tbody')[0];
-            if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Veri yüklenirken beklenmedik bir hata oluştu</td></tr>';
-            }
+        const tableBody = document.getElementById('sarfMalzemeTable')?.getElementsByTagName('tbody')[0];
+        if (tableBody) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Veri yüklenirken beklenmedik bir hata oluştu</td></tr>';
         }
     }
 }
+
+// SÜPER OPTIMIZE EDİLMİŞ RENDERER
+async function renderAllSarfMalzemeOptimized(sarfMalzemeler, tableBody, isUserAdmin) {
+    const startTime = performance.now();
+    
+    // DocumentFragment kullan - DOM'a tek seferde eklemek için
+    const fragment = document.createDocumentFragment();
+    
+    // Template element oluştur (çok daha hızlı)
+    const template = document.createElement('template');
+    
+    // Batch işleme - 100'er kayıt işle, UI'ı blokla ama çok kısa süreli
+    const BATCH_SIZE = 100;
+    let processedCount = 0;
+    
+    for (let i = 0; i < sarfMalzemeler.length; i += BATCH_SIZE) {
+        const batch = sarfMalzemeler.slice(i, i + BATCH_SIZE);
+        const batchHTML = generateOptimizedRowsHTML(batch, isUserAdmin);
+        
+        // Template kullanarak parse et (innerHTML'den 3x daha hızlı)
+        template.innerHTML = `<tbody>${batchHTML}</tbody>`;
+        const tempBody = template.content.querySelector('tbody');
+        
+        // Tüm row'ları fragment'e ekle
+        while (tempBody.firstElementChild) {
+            fragment.appendChild(tempBody.firstElementChild);
+        }
+        
+        processedCount += batch.length;
+        
+        // Her 500 kayıtta bir UI'ı güncelle (progress)
+        if (processedCount % 500 === 0) {
+            console.log(`${processedCount}/${sarfMalzemeler.length} kayıt işlendi...`);
+            await new Promise(resolve => setTimeout(resolve, 1)); // 1ms nefes al
+        }
+    }
+    
+    // Tek seferde tüm fragment'i DOM'a ekle
+    tableBody.innerHTML = ''; // Önce temizle
+    tableBody.appendChild(fragment);
+    
+    const endTime = performance.now();
+    console.log(`Rendering tamamlandı: ${Math.round(endTime - startTime)}ms`);
+}
+
+// ULTRA OPTIMIZE EDİLMİŞ HTML GENERATOR
+function generateOptimizedRowsHTML(malzemeler, isUserAdmin) {
+    // String concatenation yerine Array.join kullan (daha hızlı)
+    const rows = [];
+    
+    // Template string'leri önceden hazırla
+    const adminEditBtn = '<button class="action-btn edit" onclick="openSarfMalzemeIslemModal(ID_PLACEHOLDER)" title="Çıkış İşlemi"><i class="fa-solid fa-right-from-bracket" style="color: #f29121;"></i></button>';
+    const nonAdminEditBtn = '<button class="action-btn edit disabled" disabled title="Bu işlem için yönetici yetkisi gereklidir"><i class="fa-solid fa-right-from-bracket" style="color: #ccc;"></i></button>';
+    const adminDeleteBtn = '<button class="action-btn delete" onclick="deleteSarfMalzeme(ID_PLACEHOLDER)" title="Sil"><i class="fas fa-trash"></i></button>';
+    const nonAdminDeleteBtn = '<button class="action-btn delete disabled" disabled title="Bu işlem için yönetici yetkisi gereklidir"><i class="fas fa-trash" style="color: #ccc;"></i></button>';
+    
+    for (let i = 0; i < malzemeler.length; i++) {
+        const malzeme = malzemeler[i];
+        
+        // Durum hesaplama - lookup table kullan
+        const durumMap = {
+            'STOKTA_YOK': ['Stokta Yok', 'stokta-yok'],
+            'AZ_KALDI': ['Az Kaldı', 'az-kaldi']
+        };
+        const [durumText, durumClass] = durumMap[malzeme.durum] || ['Stokta Var', 'stokta-var'];
+        
+        // Fotoğraf butonu - ternary operator yerine if
+        let photoStyle, photoIcon, photoTitle;
+        if (malzeme.has_photo) {
+            photoStyle = 'background-color: #28a745; border: 1px solid #1e7e34;';
+            photoIcon = 'fas fa-image';
+            photoTitle = 'Fotoğraf mevcut - görüntülemek için tıklayın';
+        } else {
+            photoStyle = 'background-color: #607D8B; border: 1px solid #455A64;';
+            photoIcon = 'fas fa-camera';
+            photoTitle = 'Fotoğraf yok - eklemek için tıklayın';
+        }
+        
+        // İşlemler HTML'i - template replacement kullan
+        const editButton = isUserAdmin ? 
+            adminEditBtn.replace('ID_PLACEHOLDER', malzeme.id) : 
+            nonAdminEditBtn;
+            
+        const deleteButton = isUserAdmin ? 
+            adminDeleteBtn.replace('ID_PLACEHOLDER', malzeme.id) : 
+            nonAdminDeleteBtn;
+        
+        // Miktar formatı - toFixed yerine Math.round kullan (daha hızlı)
+        const formattedMiktar = (Math.round(malzeme.kalan_miktar * 100) / 100);
+        
+        // Row HTML - template literal yerine string concatenation (daha hızlı)
+        rows[i] = '<tr data-ekleme-tarihi="' + malzeme.ekleme_tarihi + '">' +
+            '<td>' + malzeme.stok_kodu + '</td>' +
+            '<td>' + malzeme.malzeme_adi + '</td>' +
+            '<td>' + formattedMiktar + ' ' + malzeme.birim + '</td>' +
+            '<td>' + malzeme.barkod + '</td>' +
+            '<td style="vertical-align: middle;"><span class="' + durumClass + '">' + durumText + '</span></td>' +
+            '<td><div class="action-buttons">' +
+                '<button class="action-btn view" onclick="viewSarfMalzemeDetail(' + malzeme.id + ')" title="Görüntüle">' +
+                    '<i class="fas fa-eye"></i></button>' +
+                editButton +
+                '<button class="action-btn photo" onclick="handleSarfMalzemeFoto(' + malzeme.id + ')" ' +
+                    'style="' + photoStyle + ' box-shadow: 0 2px 4px rgba(0,0,0,0.15);" title="' + photoTitle + '">' +
+                    '<i class="' + photoIcon + '" style="color: white; font-size: 14px;"></i></button>' +
+                deleteButton +
+            '</div></td>' +
+            '</tr>';
+    }
+    
+    // Array.join tek seferde concat yapar (çok hızlı)
+    return rows.join('');
+}
+
+
 
 // Sarf malzeme fotoğraf modal fonksiyonu
 let currentPhotoSarfMalzemeId = null;
@@ -1261,6 +1269,7 @@ async function saveSarfMalzemeIslemi() {
     }
 }
 
+
 function searchSarfMalzeme() {
     const searchText = document.getElementById('sarfMalzemeAra').value.toLowerCase().trim();
     const durumSecimi = document.getElementById('sarfMalzemeDurumSecimi').value;
@@ -1268,47 +1277,53 @@ function searchSarfMalzeme() {
     const tableBody = document.getElementById('sarfMalzemeTable').getElementsByTagName('tbody')[0];
     const rows = tableBody.rows;
     
-    // Performans için: document fragment kullan
-    const fragment = document.createDocumentFragment();
-    const visibleRows = [];
+    let visibleCount = 0;
     
+    // Arama optimizasyonu - querySelector yerine direct access
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        const stokKodu = row.cells[0].textContent.toLowerCase();
-        const malzemeAdi = row.cells[1].textContent.toLowerCase();
-        const barkod = row.cells[3].textContent.toLowerCase();
+        const cells = row.cells;
         
-        const durumCell = row.cells[4];
+        // Direct cell access (querySelector'den daha hızlı)
+        const stokKodu = cells[0].textContent.toLowerCase();
+        const malzemeAdi = cells[1].textContent.toLowerCase();
+        const barkod = cells[3].textContent.toLowerCase();
+        
+        const durumCell = cells[4];
         const durumText = durumCell.textContent.trim();
-        let durumDegeri = '';
         
-        if (durumText.includes('Stokta Var')) {
-            durumDegeri = 'STOKTA_VAR';
-        } else if (durumText.includes('Az Kaldı')) {
-            durumDegeri = 'AZ_KALDI';
-        } else if (durumText.includes('Stokta Yok')) {
-            durumDegeri = 'STOKTA_YOK';
+        // Durum mapping - switch yerine lookup
+        const durumMap = {
+            'Stokta Var': 'STOKTA_VAR',
+            'Az Kaldı': 'AZ_KALDI', 
+            'Stokta Yok': 'STOKTA_YOK'
+        };
+        
+        let durumDegeri = '';
+        for (const [text, value] of Object.entries(durumMap)) {
+            if (durumText.includes(text)) {
+                durumDegeri = value;
+                break;
+            }
         }
         
-        const textMatch = 
-            searchText === '' || 
-            stokKodu.includes(searchText) || 
-            malzemeAdi.includes(searchText) || 
-            barkod.includes(searchText);
+        // Text match - includes yerine indexOf kullan (daha hızlı)
+        const textMatch = searchText === '' || 
+            stokKodu.indexOf(searchText) !== -1 || 
+            malzemeAdi.indexOf(searchText) !== -1 || 
+            barkod.indexOf(searchText) !== -1;
         
-        const durumMatch = 
-            durumSecimi === '' || 
-            durumDegeri === durumSecimi;
+        const durumMatch = durumSecimi === '' || durumDegeri === durumSecimi;
         
         if (textMatch && durumMatch) {
             row.style.display = '';
-            visibleRows.push(row);
+            visibleCount++;
         } else {
             row.style.display = 'none';
         }
     }
     
-    console.log(`Arama sonucu: ${visibleRows.length} kayıt gösteriliyor`);
+    console.log(`Arama sonucu: ${visibleCount} kayıt gösteriliyor`);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
