@@ -7305,6 +7305,49 @@ async function getSarfMalzemeByIdWithRaf(id) {
   }
 }
 
+
+async function updateYariMamulRaf(yariMamulId, rafKonumu) {
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Raf konumunu güncelle
+    const [result] = await connection.execute(
+      `UPDATE yari_mamuller SET raf_konumu = ? WHERE id = ?`,
+      [rafKonumu, yariMamulId]
+    );
+    
+    if (result.affectedRows === 0) {
+      await connection.rollback();
+      return {
+        success: false,
+        message: 'Yarı mamul bulunamadı.'
+      };
+    }
+    
+    await connection.commit();
+    
+    console.log(`Yarı mamul ${yariMamulId} raf bilgisi güncellendi: ${rafKonumu || 'NULL'}`);
+    
+    return {
+      success: true,
+      message: 'Raf bilgisi başarıyla güncellendi'
+    };
+    
+  } catch (error) {
+    await connection.rollback();
+    console.error('Raf güncelleme hatası:', error);
+    return {
+      success: false,
+      message: 'Raf bilgisi güncellenirken bir hata oluştu: ' + error.message
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
   loginUser,
@@ -7420,6 +7463,7 @@ addPlakaGrubuToIslemde,
   getAllStockAtDate,
   getStockMovementsBetweenDates,
    updateSarfMalzemeRaf,
-  getSarfMalzemeByIdWithRaf
+  getSarfMalzemeByIdWithRaf,
+  updateYariMamulRaf
 
 };

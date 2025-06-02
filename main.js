@@ -845,3 +845,13 @@ ipcMain.handle('database:updateSarfMalzemeRaf', async (event, sarfMalzemeId, raf
     return { success: false, message: error.message };
   }
 });
+
+
+ipcMain.handle('database:updateYariMamulRaf', async (event, yariMamulId, rafKonumu) => {
+  try {
+    return await DatabaseService.updateYariMamulRaf(yariMamulId, rafKonumu);
+  } catch (error) {s
+    console.error('Raf guncelleme hatası:', error);
+    return { success: false, message: error.message };
+  }
+});

@@ -1345,7 +1345,6 @@ async function loadYariMamulStokGeriDonenler(yariMamulId) {
 // Global değişken - mevcut yarı mamul ID'si
 let currentPhotoYariMamulId = null;
 
-// handleYariMamulPhoto fonksiyonunda düzeltme
 async function handleYariMamulPhoto(yariMamulId) {
   try {
     currentPhotoYariMamulId = yariMamulId;
@@ -1365,113 +1364,251 @@ async function handleYariMamulPhoto(yariMamulId) {
     const yariMamul = result.yariMamul;
     
     // Modal başlığını güncelle
-    document.getElementById('yariMamulFotoHeader').textContent = `${yariMamul.malzeme_adi} Fotoğrafı`;
+    document.getElementById('yariMamulFotoHeader').textContent = `${yariMamul.malzeme_adi}`;
     
-    // Önce fotoğraf input alanını sıfırla
-    document.getElementById('fotografInput').value = '';
-    document.getElementById('fotografError').style.display = 'none';
+    // Raf bilgisini göster
+    updateRafBilgisiDisplay(yariMamul.raf_konumu, isUserAdmin);
     
-    // Fotoğraf upload container'ını yetki durumuna göre göster/gizle
-    const fotografUploadContainer = document.getElementById('fotografUploadContainer');
-    if (isUserAdmin) {
-      fotografUploadContainer.style.display = 'block';
-    } else {
-      fotografUploadContainer.style.display = 'none';
-    }
-    
-    // Butonları yetki durumuna göre göster/gizle
-    const fotografKaydetBtn = document.getElementById('fotografKaydetBtn');
-    const fotografSilBtn = document.getElementById('fotografSilBtn');
-    
-    if (isUserAdmin) {
-      // Yönetici ise butonları göster
-      fotografKaydetBtn.style.display = 'inline-block';
-      fotografKaydetBtn.disabled = false;
-      fotografKaydetBtn.style.opacity = '1';
-      fotografKaydetBtn.style.cursor = 'pointer';
-    } else {
-      // Normal kullanıcı ise butonları gizle/deaktif yap
-      fotografKaydetBtn.style.display = 'none';
-    }
-    
-    try {
-      // Fotoğraf var mı kontrol et
-      if (yariMamul.fotograf) {
-        // ÖNEMLİ DEĞİŞİKLİK: Base64 kontrolü yap
-        const fotograf = yariMamul.fotograf;
-        // Eğer base64 string zaten "data:image" ile başlıyorsa doğrudan kullan
-        // Aksi takdirde data:image/jpeg;base64, prefixi ekle
-        const imgSrc = fotograf.startsWith('data:image') ? 
-          fotograf : 
-          `data:image/jpeg;base64,${fotograf}`;
-          
-        // Mevcut fotoğrafı göster
-        const imgElement = document.getElementById('fotografPreview');
-        imgElement.src = imgSrc;
-        imgElement.onload = function() {
-          // Resim başarıyla yüklendi
-          document.getElementById('fotografPreviewContainer').style.display = 'block';
-          
-          // Sil butonu sadece yöneticiler için gösterilsin
-          if (isUserAdmin) {
-            fotografSilBtn.style.display = 'inline-block';
-            fotografSilBtn.disabled = false;
-            fotografSilBtn.style.opacity = '1';
-            fotografSilBtn.style.cursor = 'pointer';
-          } else {
-            fotografSilBtn.style.display = 'none';
-          }
-        };
-        imgElement.onerror = function() {
-          // Resim yüklenemedi - hata mesajı ekle
-          console.error('Resim görüntülenemiyor. Hatalı URL:', imgSrc);
-          document.getElementById('fotografPreviewContainer').style.display = 'none';
-          document.getElementById('fotografError').textContent = 'Resim görüntülenemedi. Yeni resim ekleyebilirsiniz.';
-          
-          if (isUserAdmin) {
-            document.getElementById('fotografError').style.display = 'block';
-            fotografSilBtn.style.display = 'inline-block';
-          } else {
-            document.getElementById('fotografError').style.display = 'none';
-            fotografSilBtn.style.display = 'none';
-          }
-        };
-      } else {
-        // Fotoğraf yoksa gizle
-        document.getElementById('fotografPreviewContainer').style.display = 'none';
-        fotografSilBtn.style.display = 'none';
-        
-        // Eğer yönetici değilse ve fotoğraf yoksa bilgi mesajı göster
-        if (!isUserAdmin) {
-          document.getElementById('fotografError').textContent = 'Bu ürün için henüz fotoğraf eklenmemiş.';
-          document.getElementById('fotografError').style.display = 'block';
-          document.getElementById('fotografError').style.backgroundColor = '#d1ecf1';
-          document.getElementById('fotografError').style.color = '#0c5460';
-        }
-      }
-    } catch (imgError) {
-      console.error('Resim gösterme hatası:', imgError);
-      document.getElementById('fotografPreviewContainer').style.display = 'none';
-      
-      if (isUserAdmin) {
-        document.getElementById('fotografError').textContent = 'Resim görüntülenemiyor. Yeni resim ekleyebilirsiniz.';
-        document.getElementById('fotografError').style.display = 'block';
-      } else {
-        document.getElementById('fotografError').textContent = 'Resim görüntülenemiyor.';
-        document.getElementById('fotografError').style.display = 'block';
-        document.getElementById('fotografError').style.backgroundColor = '#f8d7da';
-        document.getElementById('fotografError').style.color = '#721c24';
-      }
-    }
+    // Fotoğraf bölümünü güncelle
+    updateFotografDisplay(yariMamul, isUserAdmin);
     
     // Modalı aç
     openModal('yariMamulFotoModal');
     
   } catch (error) {
-    console.error('Fotoğraf işlemi sırasında hata:', error);
-    showErrorMessage('Hata', 'Fotoğraf işlemi sırasında bir hata oluştu: ' + error.message);
+    console.error('Modal açma sırasında hata:', error);
+    showErrorMessage('Hata', 'Modal açılırken bir hata oluştu: ' + error.message);
   }
 }
+
+function updateRafBilgisiDisplay(rafKonumu, isUserAdmin) {
+  const rafBilgisiText = document.getElementById('rafBilgisiText');
+  const rafDuzenleBtn = document.getElementById('rafDuzenleBtn');
+  const rafDuzenleFormu = document.getElementById('rafDuzenleFormu');
+  
+  // Raf bilgisini göster
+  rafBilgisiText.textContent = rafKonumu ? `Raf: ${rafKonumu}` : 'Raf: Belirtilmemiş';
+  
+  // Düzenleme formunu gizle
+  rafDuzenleFormu.style.display = 'none';
+  
+  // Yetki kontrolü
+  if (isUserAdmin) {
+    rafDuzenleBtn.style.display = 'inline-block';
+  } else {
+    rafDuzenleBtn.style.display = 'none';
+  }
+}
+
+// Fotoğraf görüntüleme güncelleme
+function updateFotografDisplay(yariMamul, isUserAdmin) {
+  // Önce fotoğraf input alanını sıfırla
+  document.getElementById('fotografInput').value = '';
+  document.getElementById('fotografError').style.display = 'none';
+  
+  // Fotoğraf upload container'ını yetki durumuna göre göster/gizle
+  const fotografUploadContainer = document.getElementById('fotografUploadContainer');
+  if (isUserAdmin) {
+    fotografUploadContainer.style.display = 'block';
+  } else {
+    fotografUploadContainer.style.display = 'none';
+  }
+  
+  // Butonları yetki durumuna göre göster/gizle
+  const fotografKaydetBtn = document.getElementById('fotografKaydetBtn');
+  const fotografSilBtn = document.getElementById('fotografSilBtn');
+  
+  if (isUserAdmin) {
+    fotografKaydetBtn.style.display = 'inline-block';
+  } else {
+    fotografKaydetBtn.style.display = 'none';
+  }
+  
+  try {
+    // Fotoğraf var mı kontrol et
+    if (yariMamul.fotograf) {
+      const fotograf = yariMamul.fotograf;
+      const imgSrc = fotograf.startsWith('data:image') ? 
+        fotograf : 
+        `data:image/jpeg;base64,${fotograf}`;
+        
+      // Mevcut fotoğrafı göster
+      const imgElement = document.getElementById('fotografPreview');
+      imgElement.src = imgSrc;
+      imgElement.onload = function() {
+        document.getElementById('fotografPreviewContainer').style.display = 'block';
+        
+        if (isUserAdmin) {
+          fotografSilBtn.style.display = 'inline-block';
+        } else {
+          fotografSilBtn.style.display = 'none';
+        }
+      };
+      imgElement.onerror = function() {
+        console.error('Resim görüntülenemiyor.');
+        document.getElementById('fotografPreviewContainer').style.display = 'none';
+        
+        if (isUserAdmin) {
+          document.getElementById('fotografError').textContent = 'Resim görüntülenemedi.';
+          document.getElementById('fotografError').style.display = 'block';
+          fotografSilBtn.style.display = 'inline-block';
+        }
+      };
+    } else {
+      // Fotoğraf yoksa gizle
+      document.getElementById('fotografPreviewContainer').style.display = 'none';
+      fotografSilBtn.style.display = 'none';
+      
+      if (!isUserAdmin) {
+        document.getElementById('fotografError').textContent = 'Bu ürün için henüz fotoğraf eklenmemiş.';
+        document.getElementById('fotografError').style.display = 'block';
+        document.getElementById('fotografError').style.backgroundColor = '#d1ecf1';
+        document.getElementById('fotografError').style.color = '#0c5460';
+      }
+    }
+  } catch (imgError) {
+    console.error('Resim gösterme hatası:', imgError);
+    document.getElementById('fotografPreviewContainer').style.display = 'none';
+    
+    if (isUserAdmin) {
+      document.getElementById('fotografError').textContent = 'Resim görüntülenemiyor.';
+      document.getElementById('fotografError').style.display = 'block';
+    }
+  }
+}
+
+// Raf düzenleme formunu göster
+function showRafDuzenleFormu() {
+  const rafInput = document.getElementById('rafInput');
+  const rafBilgisiText = document.getElementById('rafBilgisiText');
+  const rafDuzenleFormu = document.getElementById('rafDuzenleFormu');
+  const rafError = document.getElementById('rafError');
+  
+  // Mevcut raf bilgisini input'a yerleştir
+  const mevcutRaf = rafBilgisiText.textContent.replace('Raf: ', '');
+  if (mevcutRaf !== 'Belirtilmemiş') {
+    rafInput.value = mevcutRaf;
+  } else {
+    rafInput.value = '';
+  }
+  
+  // Formu göster
+  rafDuzenleFormu.style.display = 'block';
+  rafError.style.display = 'none';
+  
+  // Input'a odaklan
+  setTimeout(() => {
+    rafInput.focus();
+    rafInput.select();
+  }, 100);
+}
+
+// Raf düzenleme formunu gizle
+function hideRafDuzenleFormu() {
+  document.getElementById('rafDuzenleFormu').style.display = 'none';
+  document.getElementById('rafError').style.display = 'none';
+  document.getElementById('rafInput').value = '';
+}
+
+// Raf bilgisini kaydet
+async function kaydetRafBilgisi() {
+  try {
+    if (!currentPhotoYariMamulId) {
+      showErrorMessage('Hata', 'Yarı mamul ID bulunamadı.');
+      return;
+    }
+    
+    const rafKonumu = document.getElementById('rafInput').value.trim();
+    const rafError = document.getElementById('rafError');
+    
+    // Validation (boş olabilir)
+    if (rafKonumu.length > 50) {
+      rafError.textContent = 'Raf konumu en fazla 50 karakter olabilir.';
+      rafError.style.display = 'block';
+      return;
+    }
+    
+    // API kontrolü
+    if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+      console.error('Database invoke metodu bulunamadı');
+      showErrorMessage('Hata', 'Raf bilgisi kaydedilemedi. API erişimi yok.');
+      return;
+    }
+    
+    // Raf bilgisini güncelle
+    const result = await window.electronAPI.invoke.database.updateYariMamulRaf(
+      currentPhotoYariMamulId, 
+      rafKonumu || null
+    );
+    
+    if (result.success) {
+      showToast('Raf bilgisi başarıyla güncellendi.', 'success');
+      
+      // Görüntüyü güncelle
+      const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+      updateRafBilgisiDisplay(rafKonumu, isUserAdmin);
+      
+      // Yarı mamul listesini güncelle
+      if (typeof loadYariMamulListesi === 'function') {
+        loadYariMamulListesi();
+      }
+      
+      // Detay sayfası açıksa güncelle
+      if (typeof viewYariMamulDetail === 'function' && currentPhotoYariMamulId) {
+        // Modal kapatılmadan önce detayı güncelle
+        setTimeout(() => {
+          viewYariMamulDetail(currentPhotoYariMamulId);
+        }, 500);
+      }
+    } else {
+      rafError.textContent = 'Raf bilgisi güncellenirken bir hata oluştu: ' + result.message;
+      rafError.style.display = 'block';
+    }
+  } catch (error) {
+    console.error('Raf bilgisi kaydetme hatası:', error);
+    document.getElementById('rafError').textContent = 'Raf bilgisi kaydedilirken bir hata oluştu.';
+    document.getElementById('rafError').style.display = 'block';
+  }
+}
+
+// Event listener'ları ekle
+document.addEventListener('DOMContentLoaded', function() {
+  // Raf düzenle butonu
+  const rafDuzenleBtn = document.getElementById('rafDuzenleBtn');
+  if (rafDuzenleBtn) {
+    rafDuzenleBtn.addEventListener('click', showRafDuzenleFormu);
+  }
+  
+  // Raf kaydet butonu
+  const rafKaydetBtn = document.getElementById('rafKaydetBtn');
+  if (rafKaydetBtn) {
+    rafKaydetBtn.addEventListener('click', kaydetRafBilgisi);
+  }
+  
+  // Raf iptal butonu
+  const rafIptalBtn = document.getElementById('rafIptalBtn');
+  if (rafIptalBtn) {
+    rafIptalBtn.addEventListener('click', hideRafDuzenleFormu);
+  }
+  
+  // Raf input Enter tuşu
+  const rafInput = document.getElementById('rafInput');
+  if (rafInput) {
+    rafInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        kaydetRafBilgisi();
+      } else if (e.key === 'Escape') {
+        hideRafDuzenleFormu();
+      }
+    });
+  }
+});
+
+// Global fonksiyonlar
+window.showRafDuzenleFormu = showRafDuzenleFormu;
+window.hideRafDuzenleFormu = hideRafDuzenleFormu;
+window.kaydetRafBilgisi = kaydetRafBilgisi;
+
 
 // Fotoğraf önizleme
 document.getElementById('fotografInput').addEventListener('change', function(event) {

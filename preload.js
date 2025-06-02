@@ -175,7 +175,8 @@ getAllSarfMalzemeAtDate: (targetDate) => ipcRenderer.invoke('database:getAllSarf
 getAllYariMamulAtDate: (targetDate) => ipcRenderer.invoke('database:getAllYariMamulAtDate', targetDate),
 getStockMovementsBetweenDates: (startDate, endDate) => ipcRenderer.invoke('database:getStockMovementsBetweenDates', startDate, endDate),
 updateSarfMalzemeRaf: (sarfMalzemeId, rafBilgisi) => ipcRenderer.invoke('database:updateSarfMalzemeRaf', sarfMalzemeId, rafBilgisi),
-getSarfMalzemeByIdWithRaf: (id) => ipcRenderer.invoke('database:getSarfMalzemeByIdWithRaf', id)
+getSarfMalzemeByIdWithRaf: (id) => ipcRenderer.invoke('database:getSarfMalzemeByIdWithRaf', id),
+updateYariMamulRaf: (yariMamulId, rafKonumu) => ipcRenderer.invoke('database:updateYariMamulRaf', yariMamulId, rafKonumu)
         }
     }
 });
