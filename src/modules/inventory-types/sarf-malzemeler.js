@@ -1,4 +1,32 @@
+// Sarf malzeme fotoğraf cache sistemi
+const sarfMalzemePhotoCache = new Map();
 
+// Sarf malzeme fotoğraf lazy loading
+async function loadSarfMalzemePhotoOnDemand(sarfMalzemeId) {
+  // Cache kontrolü
+  if (sarfMalzemePhotoCache.has(sarfMalzemeId)) {
+    return sarfMalzemePhotoCache.get(sarfMalzemeId);
+  }
+  
+  try {
+    const result = await window.electronAPI.invoke.database.getSarfMalzemeFotograf(sarfMalzemeId);
+    
+    if (result.success && result.fotograf) {
+      const imgSrc = result.fotograf.startsWith('data:image') ? 
+        result.fotograf : 
+        `data:image/jpeg;base64,${result.fotograf}`;
+      
+      // Cache'e kaydet
+      sarfMalzemePhotoCache.set(sarfMalzemeId, imgSrc);
+      return imgSrc;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Sarf malzeme fotoğraf yükleme hatası:', error);
+    return null;
+  }
+}
 
 async function loadSarfMalzemeListesi() {
     try {
@@ -11,7 +39,6 @@ async function loadSarfMalzemeListesi() {
             return;
         }
         
-        // Tablo elementini kontrol et
         const sarfMalzemeTable = document.getElementById('sarfMalzemeTable');
         if (!sarfMalzemeTable) {
             console.error('sarfMalzemeTable elementi bulunamadı!');
@@ -24,30 +51,28 @@ async function loadSarfMalzemeListesi() {
             return;
         }
         
-        // Tabloyu temizle
         tableBody.innerHTML = '';
         
         // API kontrolü
         if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
             console.error('Database invoke metodu bulunamadı');
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Veri yüklenemedi. API erişimi yok.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Veri yüklenemedi. API erişimi yok.</td></tr>';
             return;
         }
 
-        // Sarf malzeme verilerini al
+        // Sarf malzeme verilerini al - FOTOĞRAF OLMADAN
         const result = await window.electronAPI.invoke.database.getAllSarfMalzeme();
         console.log('getAllSarfMalzeme sonucu:', result);
         
-        // Sonuç kontrolü
         if (!result.success) {
             console.error('Sarf malzeme verisi alınamadı:', result.message);
-            tableBody.innerHTML = `<tr><td colspan="6" class="text-center">Veri alınamadı: ${result.message}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="7" class="text-center">Veri alınamadı: ${result.message}</td></tr>`;
             return;
         }
         
         if (!result.sarfMalzemeler || result.sarfMalzemeler.length === 0) {
             console.log('Sarf malzeme bulunamadı');
-            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Sarf malzeme kaydı bulunamadı</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Sarf malzeme kaydı bulunamadı</td></tr>';
             return;
         }
         
@@ -60,7 +85,6 @@ async function loadSarfMalzemeListesi() {
         result.sarfMalzemeler.forEach(malzeme => {
             const row = tableBody.insertRow();
             
-            // Her satıra ekleme tarihini data attribute olarak ekle
             row.setAttribute('data-ekleme-tarihi', malzeme.ekleme_tarihi);
             
             // Stok Kodu
@@ -68,8 +92,6 @@ async function loadSarfMalzemeListesi() {
             
             // Malzeme Adı
             row.insertCell(1).textContent = malzeme.malzeme_adi;
-            
-            // Birim ve Toplam Miktar sütunları kaldırıldı
             
             // Kalan Miktar
             row.insertCell(2).textContent = `${Number(malzeme.kalan_miktar).toFixed(2)} ${malzeme.birim}`;
@@ -99,19 +121,19 @@ async function loadSarfMalzemeListesi() {
             durumCell.innerHTML = `<span class="${durumClass}">${durumText}</span>`;
             durumCell.style.verticalAlign = 'middle';
             
-            // İşlemler - Yetki kontrolü ile birlikte
+            // İşlemler - YENİ FOTOĞRAF BUTONU EKLENDİ
             const islemlerCell = row.insertCell(5);
             
             let islemlerHtml = `<div class="action-buttons">`;
 
-            // Görüntüleme butonu - herkes kullanabilir
+            // Görüntüleme butonu
             islemlerHtml += `
                 <button class="action-btn view" onclick="viewSarfMalzemeDetail(${malzeme.id})">
                     <i class="fas fa-eye"></i>
                 </button>
             `;
 
-            // Çıkış işlemi butonu - sadece yöneticiler kullanabilir
+            // Çıkış işlemi butonu
             if (isUserAdmin) {
                 islemlerHtml += `
                     <button class="action-btn edit" onclick="openSarfMalzemeIslemModal(${malzeme.id})">
@@ -126,7 +148,24 @@ async function loadSarfMalzemeListesi() {
                 `;
             }
 
-            // Silme butonu - sadece yöneticiler kullanabilir
+            // FOTOĞRAF BUTONU - İkon ve renk düzeltmesi
+            const photoButtonStyle = malzeme.has_photo ? 
+              'background-color: #28a745; border: 1px solid #1e7e34;' : // Yeşil: fotoğraf var
+              'background-color: #607D8B; border: 1px solid #455A64;';   // Gri: fotoğraf yok
+            
+            // İkon düzeltmesi - Gri olduğunda daha görünür ikon
+            const photoIcon = malzeme.has_photo ? 'fas fa-image' : 'fas fa-camera';
+            const photoTitle = malzeme.has_photo ? 'Fotoğraf mevcut - görüntülemek için tıklayın' : 'Fotoğraf yok - eklemek için tıklayın';
+            
+            islemlerHtml += `
+                <button class="action-btn photo" onclick="handleSarfMalzemeFoto(${malzeme.id})" 
+                        style="${photoButtonStyle} box-shadow: 0 2px 4px rgba(0,0,0,0.15);"
+                        title="${photoTitle}">
+                    <i class="${photoIcon}" style="color: white; font-size: 14px;"></i>
+                </button>
+            `;
+
+            // Silme butonu
             if (isUserAdmin) {
                 islemlerHtml += `
                     <button class="action-btn delete" onclick="deleteSarfMalzeme(${malzeme.id})">
@@ -156,11 +195,16 @@ async function loadSarfMalzemeListesi() {
             sarfMalzemeLink.parentElement.classList.add('active');
         }
         
-        // Tüm sayfaları gizle
         document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-        
-        // Sarf malzeme listesi sayfasını göster
         sarfMalzemeListesi.classList.add('active');
+
+        // Arka planda fotoğrafları yükle (ilk 10 tane)
+        setTimeout(() => {
+            const visibleIds = result.sarfMalzemeler.slice(0, 10).map(item => item.id);
+            if (visibleIds.length > 0) {
+                preloadSarfMalzemePhotosInBackground(visibleIds);
+            }
+        }, 1000);
         
     } catch (error) {
         console.error('Sarf malzeme listesi yükleme hatası:', error);
@@ -169,12 +213,171 @@ async function loadSarfMalzemeListesi() {
         if (sarfMalzemeTable) {
             const tableBody = sarfMalzemeTable.getElementsByTagName('tbody')[0];
             if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Veri yüklenirken beklenmedik bir hata oluştu</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Veri yüklenirken beklenmedik bir hata oluştu</td></tr>';
             }
         }
     }
 }
 
+// Sarf malzeme fotoğraf modal fonksiyonu
+let currentPhotoSarfMalzemeId = null;
+
+async function handleSarfMalzemeFoto(sarfMalzemeId) {
+  try {
+    currentPhotoSarfMalzemeId = sarfMalzemeId;
+    
+    // Kullanıcı yetki kontrolü
+    const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+    
+    // Sarf malzeme bilgilerini al (fotoğraf olmadan)
+    const result = await window.electronAPI.invoke.database.getSarfMalzemeById(sarfMalzemeId);
+    
+    if (!result.success) {
+      console.error('Sarf malzeme bilgileri alınamadı:', result.message);
+      showErrorMessage('Hata', 'Sarf malzeme bilgileri alınamadı: ' + result.message);
+      return;
+    }
+    
+    const sarfMalzeme = result.sarfMalzeme;
+    
+    // Modal başlığını güncelle
+    document.getElementById('sarfMalzemeFotoHeader').textContent = `${sarfMalzeme.malzeme_adi}`;
+    
+    // Raf bilgisini göster
+    updateSarfMalzemeRafDisplay(sarfMalzeme.raf, isUserAdmin);
+    
+    // Loading göster
+    showSarfMalzemePhotoLoading();
+    
+    // Modalı aç
+    openModal('sarfMalzemeFotoModal');
+    
+    // Fotoğrafı ayrı olarak yükle
+    await loadSarfMalzemePhoto(sarfMalzemeId, isUserAdmin);
+    
+  } catch (error) {
+    console.error('Sarf malzeme fotoğraf modal açma hatası:', error);
+    showErrorMessage('Hata', 'Modal açılırken bir hata oluştu: ' + error.message);
+  }
+}
+
+// Sarf malzeme fotoğraf yükleme
+async function loadSarfMalzemePhoto(sarfMalzemeId, isUserAdmin) {
+  try {
+    const photoResult = await window.electronAPI.invoke.database.getSarfMalzemeFotograf(sarfMalzemeId);
+    
+    hideSarfMalzemePhotoLoading();
+    
+    if (photoResult.success && photoResult.fotograf) {
+      const fotograf = photoResult.fotograf;
+      const imgSrc = fotograf.startsWith('data:image') ? 
+        fotograf : 
+        `data:image/jpeg;base64,${fotograf}`;
+        
+      const imgElement = document.getElementById('sarfMalzemeFotografPreview');
+      imgElement.src = imgSrc;
+      imgElement.onload = function() {
+        document.getElementById('sarfMalzemeFotografPreviewContainer').style.display = 'block';
+        
+        if (isUserAdmin) {
+          document.getElementById('sarfMalzemeFotografSilBtn').style.display = 'inline-block';
+        }
+      };
+    } else {
+      document.getElementById('sarfMalzemeFotografPreviewContainer').style.display = 'none';
+      document.getElementById('sarfMalzemeFotografSilBtn').style.display = 'none';
+      
+      if (!isUserAdmin) {
+        document.getElementById('sarfMalzemeFotografError').textContent = 'Bu ürün için henüz fotoğraf eklenmemiş.';
+        document.getElementById('sarfMalzemeFotografError').style.display = 'block';
+        document.getElementById('sarfMalzemeFotografError').style.backgroundColor = '#d1ecf1';
+        document.getElementById('sarfMalzemeFotografError').style.color = '#0c5460';
+      }
+    }
+    
+    const fotografUploadContainer = document.getElementById('sarfMalzemeFotografUploadContainer');
+    if (isUserAdmin) {
+      fotografUploadContainer.style.display = 'block';
+      document.getElementById('sarfMalzemeFotografKaydetBtn').style.display = 'inline-block';
+    } else {
+      fotografUploadContainer.style.display = 'none';
+      document.getElementById('sarfMalzemeFotografKaydetBtn').style.display = 'none';
+    }
+    
+  } catch (error) {
+    hideSarfMalzemePhotoLoading();
+    console.error('Sarf malzeme fotoğraf yükleme hatası:', error);
+    document.getElementById('sarfMalzemeFotografError').textContent = 'Fotoğraf yüklenirken hata oluştu.';
+    document.getElementById('sarfMalzemeFotografError').style.display = 'block';
+  }
+}
+
+// Loading fonksiyonları
+function showSarfMalzemePhotoLoading() {
+  const loadingHTML = `
+    <div id="sarfMalzemePhotoLoading" style="text-align: center; padding: 20px;">
+      <i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #007bff;"></i>
+      <p>Fotoğraf yükleniyor...</p>
+    </div>
+  `;
+  
+  document.getElementById('sarfMalzemeFotografPreviewContainer').style.display = 'none';
+  document.getElementById('sarfMalzemeFotografUploadContainer').style.display = 'none';
+  document.getElementById('sarfMalzemeFotografError').style.display = 'none';
+  
+  const modalBody = document.querySelector('#sarfMalzemeFotoModal .modal-body');
+  modalBody.insertAdjacentHTML('beforeend', loadingHTML);
+}
+
+function hideSarfMalzemePhotoLoading() {
+  const loading = document.getElementById('sarfMalzemePhotoLoading');
+  if (loading) {
+    loading.remove();
+  }
+}
+
+// Raf bilgisi gösterme
+function updateSarfMalzemeRafDisplay(rafKonumu, isUserAdmin) {
+  const rafBilgisiText = document.getElementById('sarfMalzemeRafBilgisiText');
+  const rafDuzenleBtn = document.getElementById('sarfMalzemeRafDuzenleBtn');
+  const rafDuzenleFormu = document.getElementById('sarfMalzemeRafDuzenleFormu');
+  
+  if (rafBilgisiText) {
+    rafBilgisiText.textContent = rafKonumu ? `Raf: ${rafKonumu}` : 'Raf: Belirtilmemiş';
+  }
+  
+  if (rafDuzenleFormu) {
+    rafDuzenleFormu.style.display = 'none';
+  }
+  
+  if (rafDuzenleBtn) {
+    rafDuzenleBtn.style.display = isUserAdmin ? 'inline-block' : 'none';
+  }
+}
+
+// Arka planda fotoğraf yükleme
+async function preloadSarfMalzemePhotosInBackground(sarfMalzemeIds) {
+  const batchSize = 3;
+  
+  for (let i = 0; i < sarfMalzemeIds.length; i += batchSize) {
+    const batch = sarfMalzemeIds.slice(i, i + batchSize);
+    
+    const promises = batch.map(async (id) => {
+      try {
+        await loadSarfMalzemePhotoOnDemand(id);
+      } catch (error) {
+        console.warn(`Sarf malzeme fotoğrafı yüklenemedi: ${id}`, error);
+      }
+    });
+    
+    await Promise.all(promises);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
+// Global fonksiyonları window'a ekle
+window.handleSarfMalzemeFoto = handleSarfMalzemeFoto;
+window.loadSarfMalzemePhoto = loadSarfMalzemePhoto;
 
 async function saveSarfMalzeme(e) {
     e.preventDefault();
@@ -297,6 +500,162 @@ async function saveSarfMalzeme(e) {
     }
 }
 
+// viewSarfMalzemeDetail fonksiyonunu güncelle - RAF VE FOTOĞRAF ALANLARI KALDIRILDI
+async function viewSarfMalzemeDetail(id) {
+    try {
+        // Modalı önce açalım ki kullanıcı bir şeylerin yüklendiğini görsün
+        openModal('sarfMalzemeDetayModal');
+        
+        // Veri yükleniyor mesajı göster
+        document.getElementById('sarfMalzemeDetay').innerHTML = '<div class="loading">Veriler yükleniyor...</div>';
+        
+        if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+            console.error('Database invoke metodu bulunamadı');
+            document.getElementById('sarfMalzemeDetay').innerHTML = '<div class="error">Veri kaynağına erişilemiyor</div>';
+            return;
+        }
+
+        currentSarfMalzemeId = id;
+        
+        // Kullanıcı yetki kontrolü
+        const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+        
+        // Veri çekme işlemini başlat - FOTOĞRAF OLMADAN
+        const result = await window.electronAPI.invoke.database.getSarfMalzemeById(id);
+        
+        if (result.success) {
+            const sarfMalzeme = result.sarfMalzeme;
+            const ekleyen = result.ekleyen;
+            
+            // Detay alanını doldur - RAF VE FOTOĞRAF ALANLARI KALDIRILDI
+            const sarfMalzemeDetay = document.getElementById('sarfMalzemeDetay');
+            sarfMalzemeDetay.innerHTML = `
+                <div class="detay-row">
+                    <div class="detay-label">Stok Kodu:</div>
+                    <div class="detay-value">${sarfMalzeme.stok_kodu}</div>
+                </div>
+                <div class="detay-row">
+                    <div class="detay-label">Malzeme Adı:</div>
+                    <div class="detay-value">${sarfMalzeme.malzeme_adi}</div>
+                </div>
+                <div class="detay-row">
+                    <div class="detay-label">Birim:</div>
+                    <div class="detay-value">${sarfMalzeme.birim}</div>
+                </div>
+                <div class="detay-row">
+                    <div class="detay-label">Barkod:</div>
+                    <div class="detay-value">${sarfMalzeme.barkod}</div>
+                </div>
+                <div class="detay-row">
+                    <div class="detay-label">Toplam Miktar:</div>
+                    <div class="detay-value">${Number(sarfMalzeme.toplam_miktar).toFixed(2)} ${sarfMalzeme.birim}</div>
+                </div>
+                <div class="detay-row">
+                    <div class="detay-label">Kalan Miktar:</div>
+                    <div class="detay-value">${Number(sarfMalzeme.kalan_miktar).toFixed(2)} ${sarfMalzeme.birim}</div>
+                </div>
+                <div class="detay-row">
+                    <div class="detay-label">Kritik Seviye:</div>
+                    <div class="detay-value">${Number(sarfMalzeme.kritik_seviye).toFixed(2)} ${sarfMalzeme.birim}</div>
+                </div>
+                <div class="detay-row">
+                    <div class="detay-label">Ekleme Tarihi:</div>
+                    <div class="detay-value">${new Date(sarfMalzeme.ekleme_tarihi).toLocaleString('tr-TR')}</div>
+                </div>
+            `;
+            
+            // Yeni Giriş Ekle butonunu yetki kontrolü ile güncelle
+            const yeniSarfMalzemeGirisBtn = document.getElementById('yeniSarfMalzemeGirisBtn');
+            if (yeniSarfMalzemeGirisBtn) {
+                if (isUserAdmin) {
+                    yeniSarfMalzemeGirisBtn.disabled = false;
+                    yeniSarfMalzemeGirisBtn.classList.remove('disabled');
+                    yeniSarfMalzemeGirisBtn.style.opacity = '1';
+                    yeniSarfMalzemeGirisBtn.style.cursor = 'pointer';
+                    yeniSarfMalzemeGirisBtn.title = 'Yeni giriş ekle';
+                } else {
+                    yeniSarfMalzemeGirisBtn.disabled = true;
+                    yeniSarfMalzemeGirisBtn.classList.add('disabled');
+                    yeniSarfMalzemeGirisBtn.style.opacity = '0.5';
+                    yeniSarfMalzemeGirisBtn.style.cursor = 'not-allowed';
+                    yeniSarfMalzemeGirisBtn.title = 'Bu işlem için yönetici yetkisi gereklidir';
+                }
+            }
+            
+            // Giriş geçmişini yükle
+            loadSarfMalzemeGirisGecmisi(id);
+            
+            // Stoğa Geri Dönenler tabını yükle
+            loadSarfMalzemeStokGeriDonenler(id);
+            
+            // İşlem geçmişini doldur
+            const islemGecmisiTable = document.getElementById('sarfMalzemeIslemGecmisiTable').getElementsByTagName('tbody')[0];
+            islemGecmisiTable.innerHTML = '';
+            
+            if (!result.islemler || result.islemler.length === 0) {
+                const row = islemGecmisiTable.insertRow();
+                row.innerHTML = '<td colspan="6" class="text-center">İşlem geçmişi bulunamadı</td>';
+            } else {
+                result.islemler.forEach(islem => {
+                    // Eğer işlem "İade" ve kullanım alanı "StokGeriYukleme" ise, bu işlemi gösterme
+                    if (islem.islem_turu === 'İade' && islem.kullanim_alani === 'StokGeriYukleme') {
+                        return;
+                    }
+                    
+                    const row = islemGecmisiTable.insertRow();
+                    
+                    // Tarih
+                    const cell1 = row.insertCell(0);
+                    const date = new Date(islem.islem_tarihi);
+                    cell1.textContent = date.toLocaleString('tr-TR');
+                    
+                    // İşlem Türü
+                    const cell2 = row.insertCell(1);
+                    cell2.textContent = islem.islem_turu;
+                    
+                    // Miktar - Birim eklenmiş
+                    const cell3 = row.insertCell(2);
+                    cell3.textContent = `${Number(islem.miktar).toFixed(2)} ${sarfMalzeme.birim}`;
+                    
+                    // Kullanım Alanı
+                    const cell4 = row.insertCell(3);
+                    switch(islem.kullanim_alani) {
+                        case 'FasonImalat':
+                            cell4.textContent = 'Fason İmalat';
+                            break;
+                        case 'MakineImalat':
+                            cell4.textContent = 'Makine İmalat';
+                            break;
+                        case 'StokGeriYukleme':
+                            cell4.textContent = 'Stok Geri Yükleme';
+                            break;
+                        default:
+                            cell4.textContent = islem.kullanim_alani;
+                    }
+                    
+                    // Proje
+                    const cell5 = row.insertCell(4);
+                    cell5.textContent = islem.proje_id ? `${islem.proje_adi}` : 'Belirtilmemiş';
+                    
+                    // Kullanıcı
+                    const cell6 = row.insertCell(5);
+                    cell6.textContent = `${islem.kullanici_ad} ${islem.kullanici_soyad}`;
+                });
+            }
+            
+            // İlk tab'ı aktif et ve diğerlerini deaktif et
+            resetTabSystem();
+            
+            // Tab sistemini kur
+            setupTabSystem();
+        } else {
+            document.getElementById('sarfMalzemeDetay').innerHTML = `<div class="error">Hata: ${result.message}</div>`;
+        }
+    } catch (error) {
+        console.error('Sarf malzeme detayı getirme hatası:', error);
+        document.getElementById('sarfMalzemeDetay').innerHTML = '<div class="error">Beklenmeyen bir hata oluştu</div>';
+    }
+}
 
 // Update the loadSarfMalzemeGirisGecmisi function to remove the description field
 async function loadSarfMalzemeGirisGecmisi(sarfMalzemeId) {
@@ -467,7 +826,6 @@ async function loadSarfMalzemeGirisGecmisi(sarfMalzemeId) {
     }
 }
 
-
 // Güncellenmiş openSarfMalzemeGirisGuncelleModal fonksiyonu
 async function openSarfMalzemeGirisGuncelleModal(girisId, sarfMalzemeId, mevcutMiktar, birim) {
     try {
@@ -626,41 +984,7 @@ async function guncelleSarfMalzemeGirisi() {
     }
 }
 
-
-
-
-// Event listener'lar için yardımcı fonksiyon
-function setupSarfMalzemeGirisUpdateEvents() {
-    document.addEventListener('DOMContentLoaded', function() {
-        // Sarf malzeme giriş güncelle kaydet butonu
-        const sarfMalzemeGirisGuncelleKaydetBtn = document.getElementById('sarfMalzemeGirisGuncelleKaydetBtn');
-        if (sarfMalzemeGirisGuncelleKaydetBtn) {
-            // Önceki event listener'ları temizle
-            const newBtn = sarfMalzemeGirisGuncelleKaydetBtn.cloneNode(true);
-            sarfMalzemeGirisGuncelleKaydetBtn.parentNode.replaceChild(newBtn, sarfMalzemeGirisGuncelleKaydetBtn);
-            
-            // Yeni event listener ekle
-            newBtn.addEventListener('click', guncelleSarfMalzemeGirisi);
-        }
-    });
-}
-
-
-// setupSarfMalzemeGirisUpdateEvents();
-
-
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Sarf malzeme giriş güncelle kaydet butonu
-    const sarfMalzemeGirisGuncelleKaydetBtn = document.getElementById('sarfMalzemeGirisGuncelleKaydetBtn');
-    if (sarfMalzemeGirisGuncelleKaydetBtn) {
-        sarfMalzemeGirisGuncelleKaydetBtn.addEventListener('click', guncelleSarfMalzemeGirisi);
-    }
-});
-
-
-
-
+// Diğer fonksiyonlar (devam...)
 async function kaydetSarfMalzemeGirisi() {
     try {
         // Form elemanlarını kontrol et
@@ -675,7 +999,7 @@ async function kaydetSarfMalzemeGirisi() {
         const sarfMalzemeId = sarfMalzemeIdElement.value;
         const miktar = parseFloat(miktarElement.value);
         const birimFiyat = parseFloat(birimFiyatElement.value);
-        const birimFiyatTuru = birimFiyatTuruElement.value; // Para birimi (TRY, USD, EUR)
+        const birimFiyatTuru = birimFiyatTuruElement.value;
         const tedarikci = tedarikciElement.value.trim();
         const kritikSeviye = parseFloat(kritikSeviyeElement.value);
         
@@ -695,13 +1019,11 @@ async function kaydetSarfMalzemeGirisi() {
             return;
         }
         
-        // Tedarikçi zorunlu
         if (!tedarikci) {
             showModalError('sarfMalzemeGirisModal', 'Lütfen tedarikçi bilgisi girin.');
             return;
         }
         
-        // Kritik seviye zorunlu
         if (!kritikSeviye || kritikSeviye <= 0) {
             showModalError('sarfMalzemeGirisModal', 'Lütfen geçerli bir kritik seviye girin.');
             return;
@@ -712,35 +1034,29 @@ async function kaydetSarfMalzemeGirisi() {
             sarf_malzeme_id: sarfMalzemeId,
             miktar: miktar,
             birim_fiyat: birimFiyat,
-            birim_fiyat_turu: birimFiyatTuru, // Para birimi ekle
-            tedarikci: tedarikci, // Frontend'den tedarikçi değerini al
-            kritik_seviye: kritikSeviye, // Kritik seviye eklendi
+            birim_fiyat_turu: birimFiyatTuru,
+            tedarikci: tedarikci,
+            kritik_seviye: kritikSeviye,
             ekleyen_id: currentUser ? currentUser.id : 1
         };
         
         // İşlem kaydediliyor mesajını göster
         showModalSuccess('sarfMalzemeGirisModal', 'Giriş kaydediliyor...');
         
-        // API üzerinden kaydet - invoke kullanıyoruz, pool'a doğrudan erişmiyoruz
+        // API üzerinden kaydet
         const result = await window.electronAPI.invoke.database.kaydetSarfMalzemeGirisi(girisData);
         
         if (result.success) {
             showToast('Sarf malzeme girişi başarıyla kaydedildi.', 'success');
             
-            // Giriş modalını kapat
             closeModal('sarfMalzemeGirisModal');
             
-            // Formu sıfırla
             const form = document.getElementById('sarfMalzemeGirisForm');
             if (form) form.reset();
             
-            // Dashboard'ı güncelle
             updateDashboard();
-            
-            // Sarf malzeme listesini güncelle
             await loadSarfMalzemeListesi();
             
-            // Sarf malzeme detayını yeniden yükle
             if (currentSarfMalzemeId) {
                 await viewSarfMalzemeDetail(currentSarfMalzemeId);
             }
@@ -751,74 +1067,45 @@ async function kaydetSarfMalzemeGirisi() {
         console.error('Sarf malzeme girişi kaydetme hatası:', error);
         showErrorMessage('İşlem Hatası', 'Sarf malzeme girişi kaydedilirken bir hata oluştu: ' + error.message);
     }
-  }
+}
 
-
-
-  
-// Setup for sarf malzeme giriş event handlers
 function setupSarfMalzemeGirisButtons() {
-    // Yeni sarf malzeme girişi butonu
     const yeniSarfMalzemeGirisBtn = document.getElementById('yeniSarfMalzemeGirisBtn');
     if (yeniSarfMalzemeGirisBtn) {
         yeniSarfMalzemeGirisBtn.addEventListener('click', async function() {
-            console.log('Yeni sarf malzeme girişi butonu tıklandı');
-            
             try {
-                // Formu sıfırla
                 const sarfMalzemeGirisForm = document.getElementById('sarfMalzemeGirisForm');
                 if (sarfMalzemeGirisForm) {
                     sarfMalzemeGirisForm.reset();
-                    console.log('Sarf malzeme giriş formu sıfırlandı');
-                } else {
-                    console.error('sarfMalzemeGirisForm bulunamadı');
                 }
                 
-                // Sarf malzeme ID'sini ayarla
                 const sarfMalzemeGirisSarfMalzemeId = document.getElementById('sarfMalzemeGirisSarfMalzemeId');
                 if (sarfMalzemeGirisSarfMalzemeId) {
                     sarfMalzemeGirisSarfMalzemeId.value = currentSarfMalzemeId;
-                    console.log('Sarf malzeme ID ayarlandı:', currentSarfMalzemeId);
-                } else {
-                    console.error('sarfMalzemeGirisSarfMalzemeId bulunamadı');
                 }
                 
-                // Detay modalını kapat
                 closeModal('sarfMalzemeDetayModal');
-                
-                // Sarf malzeme giriş modalını aç
                 openModal('sarfMalzemeGirisModal');
             } catch (error) {
                 console.error('Yeni sarf malzeme girişi açılırken hata:', error);
                 showErrorMessage('Hata', 'Sarf malzeme giriş formu açılırken bir hata oluştu.');
             }
         });
-        console.log('Yeni sarf malzeme girişi butonu için olay dinleyicisi eklendi');
-    } else {
-        console.error('yeniSarfMalzemeGirisBtn bulunamadı');
     }
     
-    // Sarf malzeme giriş kaydet butonu
     const sarfMalzemeGirisKaydetBtn = document.getElementById('sarfMalzemeGirisKaydetBtn');
     if (sarfMalzemeGirisKaydetBtn) {
-        // Önceki olay dinleyicisini kaldır
         const newBtn = sarfMalzemeGirisKaydetBtn.cloneNode(true);
         sarfMalzemeGirisKaydetBtn.parentNode.replaceChild(newBtn, sarfMalzemeGirisKaydetBtn);
         
-        // Yeni olay dinleyicisi ekle
         newBtn.addEventListener('click', function() {
-            console.log('Sarf malzeme giriş kaydet butonu tıklandı');
             kaydetSarfMalzemeGirisi();
         });
-        console.log('Sarf malzeme giriş kaydet butonu için olay dinleyicisi eklendi');
-    } else {
-        console.error('sarfMalzemeGirisKaydetBtn bulunamadı');
     }
 }
 
 async function deleteSarfMalzeme(id) {
     try {
-        // Sarf malzeme bilgilerini al
         const result = await window.electronAPI.invoke.database.getSarfMalzemeById(id);
         
         if (!result.success) {
@@ -828,22 +1115,18 @@ async function deleteSarfMalzeme(id) {
         
         const sarfMalzeme = result.sarfMalzeme;
         
-        // Şu anki kullanıcı bilgisini al (global değişkenden)
         if (!window.globalUserData) {
             alert('Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.');
             return;
         }
         
-        // Yönetici kontrolü
         if (window.globalUserData.rol !== 'yonetici') {
             showToast('Bu işlem için yönetici yetkisi gereklidir.', 'error');
             return;
         }
         
-        // Silme mesajını oluştur
         let deleteMessage = `"${sarfMalzeme.malzeme_adi} (${sarfMalzeme.stok_kodu})" sarf malzemesini silmek istediğinizden emin misiniz?`;
         
-        // Silme modalını göster
         window.showDeleteConfirmationModal({
             title: 'Sarf Malzeme Silme İşlemi',
             message: deleteMessage,
@@ -852,7 +1135,6 @@ async function deleteSarfMalzeme(id) {
             itemId: id,
             userData: window.globalUserData,
             onConfirm: async (reason) => {
-                // Silme işlemini gerçekleştir
                 const result = await window.electronAPI.invoke.database.deleteSarfMalzemeWithNotification(
                     id, 
                     reason,
@@ -860,7 +1142,6 @@ async function deleteSarfMalzeme(id) {
                 );
                 
                 if (result.success) {
-                    // Başarılı ise listeyi güncelle
                     loadSarfMalzemeListesi();
                     if (typeof updateDashboard === 'function') {
                         updateDashboard();
@@ -877,33 +1158,24 @@ async function deleteSarfMalzeme(id) {
     }
 }
 
-
-
-// Sarf malzeme işlemi kaydetme
 async function saveSarfMalzemeIslemi() {
-    // Form değerlerini al
     const miktar = parseFloat(document.getElementById('sarfMalzemeKullanilanMiktar').value);
     const islemTuru = document.getElementById('sarfMalzemeIslemTuru').value;
     const kullanimAlani = document.getElementById('sarfMalzemeKullanimAlani').value;
     const projeId = document.getElementById('sarfMalzemeProjeSecimi').value;
-    
-    // Yeni alanlar
     const makineId = document.getElementById('sarfMalzemeMakineSecimi').value;
     const calisanId = document.getElementById('sarfMalzemeCalisanSecimi').value;
     
-    // Doğrulama
     if (!miktar || miktar <= 0) {
         showModalError('sarfMalzemeIslemModal', 'Lütfen geçerli bir miktar girin.');
         return;
     }
     
-    // Eğer kullanım alanı FasonImalat veya MakineImalat ise proje zorunlu
     if ((kullanimAlani === 'FasonImalat' || kullanimAlani === 'MakineImalat') && !projeId) {
         showModalError('sarfMalzemeIslemModal', 'Lütfen bir proje seçin veya yeni bir proje oluşturun.');
         return;
     }
     
-    // Fason İmalat için makine ve çalışan seçimi zorunlu
     if (kullanimAlani === 'FasonImalat') {
         if (!makineId) {
             showModalError('sarfMalzemeIslemModal', 'Lütfen makine seçin.');
@@ -915,21 +1187,18 @@ async function saveSarfMalzemeIslemi() {
         }
     }
     
-    // Makine İmalat için çalışan seçimi zorunlu
     if (kullanimAlani === 'MakineImalat' && !calisanId) {
         showModalError('sarfMalzemeIslemModal', 'Lütfen alan kişi seçin.');
         return;
     }
     
     try {
-        // API kontrolü
         if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
             console.error('Database invoke metodu bulunamadı');
             showErrorMessage('Hata', 'İşlem kaydedilemedi. API erişimi yok.');
             return;
         }
         
-        // Sarf malzeme bilgilerini al ve kalan miktarı kontrol et
         const sarfMalzemeResult = await window.electronAPI.invoke.database.getSarfMalzemeById(currentSarfMalzemeId);
         
         if (!sarfMalzemeResult.success) {
@@ -939,7 +1208,6 @@ async function saveSarfMalzemeIslemi() {
         
         const sarfMalzeme = sarfMalzemeResult.sarfMalzeme;
         
-        // Kullanım veya fire işlemi için miktar kontrolü
         if (islemTuru === 'Kullanım' || islemTuru === 'Fire') {
             const kalanMiktar = parseFloat(sarfMalzeme.kalan_miktar);
             
@@ -952,7 +1220,6 @@ async function saveSarfMalzemeIslemi() {
             }
         }
 
-        // İşlem verisi - yeni alanları içerecek şekilde güncellendi
         const islemData = {
             sarf_malzeme_id: currentSarfMalzemeId,
             islem_turu: islemTuru,
@@ -964,56 +1231,38 @@ async function saveSarfMalzemeIslemi() {
             calisan_id: (kullanimAlani === 'FasonImalat' || kullanimAlani === 'MakineImalat') ? calisanId : null
         };
         
-        // İşlem kaydediliyor mesajını göster
         showModalSuccess('sarfMalzemeIslemModal', 'İşlem kaydediliyor...');
         
-        console.log('Gönderilen işlem verisi:', islemData);
-        
-        // İşlemi kaydet
         const result = await window.electronAPI.invoke.database.addSarfMalzemeIslemi(islemData);
         
         if (result.success) {
             showToast('Sarf malzeme çıkış işlemi yapıldı.', 'success');
             
-            // İşlem modalını kapat
             closeModal('sarfMalzemeIslemModal');
-            
-            // Formu sıfırla
             document.getElementById('sarfMalzemeKullanilanMiktar').value = '';
             
-            // Dashboard'ı güncelle
-          updateDashboard();
-            
-            // Sarf malzeme listesini güncelle
+            updateDashboard();
             await loadSarfMalzemeListesi();
             
-            // Sarf malzeme detayını yeniden yükle (eğer açıksa)
             if (currentSarfMalzemeId) {
                 viewSarfMalzemeDetail(currentSarfMalzemeId);
             }
             
-            // Kullanım alanına göre ilgili sayfaya geçiş yap
             if (kullanimAlani === 'FasonImalat' || kullanimAlani === 'MakineImalat') {
-                // Tüm sayfaları gizle
                 document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
                 
-                // Kullanım alanına göre ilgili sayfayı göster
                 const targetPage = kullanimAlani === 'FasonImalat' ? 'fason-imalat' : 'makine-imalat';
                 document.getElementById(targetPage).classList.add('active');
                 
-                // Yan menüdeki aktif linki de güncelle
                 const navLinks = document.querySelectorAll('.nav-links li a');
                 navLinks.forEach(l => l.parentElement.classList.remove('active'));
                 document.querySelector(`a[data-page="${targetPage}"]`).parentElement.classList.add('active');
                 
-                // İlgili sayfanın verilerini güncelle
                 if (kullanimAlani === 'FasonImalat') {
                     loadFasonIslemler();
                 } else {
                     loadMakineIslemler();
                 }
-                
-                console.log(`Sayfa geçişi yapıldı: ${targetPage}`);
             }
         } else {
             showErrorMessage('İşlem Hatası', 'Hata: ' + result.message);
@@ -1024,23 +1273,17 @@ async function saveSarfMalzemeIslemi() {
     }
 }
 
-
-// Sarf malzeme arama fonksiyonu - güncellenmiş
 function searchSarfMalzeme() {
-    // Arama değerlerini al
     const searchText = document.getElementById('sarfMalzemeAra').value.toLowerCase().trim();
     const durumSecimi = document.getElementById('sarfMalzemeDurumSecimi').value;
     
-    // Tablo satırlarını al
     const rows = document.getElementById('sarfMalzemeTable').getElementsByTagName('tbody')[0].rows;
     
-    // Her satırı kontrol et
     for (let i = 0; i < rows.length; i++) {
         const stokKodu = rows[i].cells[0].textContent.toLowerCase();
         const malzemeAdi = rows[i].cells[1].textContent.toLowerCase();
-        const barkod = rows[i].cells[3].textContent.toLowerCase(); // Artık 3. hücre Barkod
+        const barkod = rows[i].cells[3].textContent.toLowerCase();
         
-        // Durumu al - Şimdi 4. hücrede
         const durumCell = rows[i].cells[4];
         const durumText = durumCell.textContent.trim();
         let durumDegeri = '';
@@ -1053,7 +1296,6 @@ function searchSarfMalzeme() {
             durumDegeri = 'STOKTA_YOK';
         }
         
-        // Arama koşullarını kontrol et
         const textMatch = 
             searchText === '' || 
             stokKodu.includes(searchText) || 
@@ -1064,437 +1306,66 @@ function searchSarfMalzeme() {
             durumSecimi === '' || 
             durumDegeri === durumSecimi;
         
-        // Tüm kriterlere uyuyorsa satırı göster, uymuyorsa gizle
         rows[i].style.display = (textMatch && durumMatch) ? '' : 'none';
     }
 }
 
-
-// Sayfa yüklendiğinde event listener'ları ekle
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Basitleştirilmiş sarf malzeme arama event listener\'ları ekleniyor...');
-    
     const aramaAlani = document.getElementById('sarfMalzemeAra');
     const durumSecimi = document.getElementById('sarfMalzemeDurumSecimi');
     const aramaButonu = document.getElementById('sarfMalzemeAraBtn');
 
-    // Event listener'ları ekle
     if (aramaAlani) {
         aramaAlani.addEventListener('input', searchSarfMalzeme);
-        console.log('Arama alanı input event listener\'ı eklendi');
-    } else {
-        console.error('Sarf malzeme arama alanı bulunamadı');
     }
 
     if (durumSecimi) {
         durumSecimi.addEventListener('change', searchSarfMalzeme);
-        console.log('Durum seçimi change event listener\'ı eklendi');
-    } else {
-        console.error('Sarf malzeme durum seçimi bulunamadı');
     }
 
     if (aramaButonu) {
         aramaButonu.addEventListener('click', searchSarfMalzeme);
-        console.log('Arama butonu click event listener\'ı eklendi');
-    } else {
-        console.error('Arama butonu bulunamadı');
+    }
+    
+    // Sarf malzeme giriş güncelle kaydet butonu
+    const sarfMalzemeGirisGuncelleKaydetBtn = document.getElementById('sarfMalzemeGirisGuncelleKaydetBtn');
+    if (sarfMalzemeGirisGuncelleKaydetBtn) {
+        sarfMalzemeGirisGuncelleKaydetBtn.addEventListener('click', guncelleSarfMalzemeGirisi);
     }
 });
 
-
-async function viewSarfMalzemeDetail(id) {
+async function deleteSarfMalzemeIslem(islemId) {
     try {
-        // Modalı önce açalım ki kullanıcı bir şeylerin yüklendiğini görsün
-        openModal('sarfMalzemeDetayModal');
+        const islemResult = await window.electronAPI.invoke.database.getSarfMalzemeIslemById(islemId);
         
-        // Veri yükleniyor mesajı göster
-        document.getElementById('sarfMalzemeDetay').innerHTML = '<div class="loading">Veriler yükleniyor...</div>';
-        
-        if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
-            console.error('Database invoke metodu bulunamadı');
-            document.getElementById('sarfMalzemeDetay').innerHTML = '<div class="error">Veri kaynağına erişilemiyor</div>';
-            return;
+        if (!islemResult.success) {
+            throw new Error('İşlem bilgileri alınamadı: ' + islemResult.message);
         }
-
-        currentSarfMalzemeId = id;
         
-        // Kullanıcı yetki kontrolü
-        const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+        const islem = islemResult.islem;
+        const sarfMalzemeId = islem.sarf_malzeme_id;
         
-        // Veri çekme işlemini başlat
-        const result = await window.electronAPI.invoke.database.getSarfMalzemeById(id);
+        const deleteData = {
+            islemId: islemId,
+            sarfMalzemeId: sarfMalzemeId,
+            miktar: islem.miktar
+        };
         
-        if (result.success) {
-            const sarfMalzeme = result.sarfMalzeme;
-            const ekleyen = result.ekleyen;
-            
-            // Detay alanını doldur - RAF BİLGİSİ EKLENDİ
-            const sarfMalzemeDetay = document.getElementById('sarfMalzemeDetay');
-            sarfMalzemeDetay.innerHTML = `
-                <div class="detay-row">
-                    <div class="detay-label">Stok Kodu:</div>
-                    <div class="detay-value">${sarfMalzeme.stok_kodu}</div>
-                </div>
-                <div class="detay-row">
-                    <div class="detay-label">Malzeme Adı:</div>
-                    <div class="detay-value">${sarfMalzeme.malzeme_adi}</div>
-                </div>
-                <div class="detay-row">
-                    <div class="detay-label">Birim:</div>
-                    <div class="detay-value">${sarfMalzeme.birim}</div>
-                </div>
-                <div class="detay-row">
-                    <div class="detay-label">Barkod:</div>
-                    <div class="detay-value">${sarfMalzeme.barkod}</div>
-                </div>
-                <div class="detay-row">
-                    <div class="detay-label">Toplam Miktar:</div>
-                    <div class="detay-value">${Number(sarfMalzeme.toplam_miktar).toFixed(2)} ${sarfMalzeme.birim}</div>
-                </div>
-                <div class="detay-row">
-                    <div class="detay-label">Kalan Miktar:</div>
-                    <div class="detay-value">${Number(sarfMalzeme.kalan_miktar).toFixed(2)} ${sarfMalzeme.birim}</div>
-                </div>
-                <div class="detay-row">
-                    <div class="detay-label">Kritik Seviye:</div>
-                    <div class="detay-value">${Number(sarfMalzeme.kritik_seviye).toFixed(2)} ${sarfMalzeme.birim}</div>
-                </div>
-                <div class="detay-row">
-                    <div class="detay-label">Raf Konumu:</div>
-                    <div class="detay-value">
-                        <div class="raf-container">
-                            <div class="raf-display" id="rafGosterAlani">
-                                <div class="raf-badge ${sarfMalzeme.raf ? 'raf-assigned' : 'raf-empty'}">
-                                    <i class="fas fa-warehouse raf-icon"></i>
-                                    <span class="raf-text">${sarfMalzeme.raf || 'Raf atanmamış'}</span>
-                                    ${isUserAdmin ? `
-                                    <button type="button" id="rafDuzenleBtn" class="raf-edit-icon">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    ` : ''}
-                                </div>
-                            </div>
-                            <div class="raf-edit-form" id="rafDuzenleAlani" style="display: none;">
-                                <div class="raf-input-group">
-                                    <div class="raf-input-wrapper">
-                                        <input type="text" id="rafInput" value="${sarfMalzeme.raf || ''}" 
-                                               placeholder="Raf kodu (örn: A-01, B-15)" maxlength="50" class="raf-input">
-                                    </div>
-                                    <div class="raf-action-buttons">
-                                        <button type="button" id="rafKaydetBtn" class="raf-save-btn">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        <button type="button" id="rafIptalBtn" class="raf-cancel-btn">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="raf-help-text">
-                                    <i class="fas fa-info-circle"></i>
-                                    Raf kodunu girin veya boş bırakın
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="detay-row">
-                    <div class="detay-label">Ekleme Tarihi:</div>
-                    <div class="detay-value">${new Date(sarfMalzeme.ekleme_tarihi).toLocaleString('tr-TR')}</div>
-                </div>
-            `;
-            
-            // Raf düzenleme event listener'larını ekle
-            setupRafEventListeners();
-            
-            // Yeni Giriş Ekle butonunu yetki kontrolü ile güncelle
-            const yeniSarfMalzemeGirisBtn = document.getElementById('yeniSarfMalzemeGirisBtn');
-            if (yeniSarfMalzemeGirisBtn) {
-                if (isUserAdmin) {
-                    yeniSarfMalzemeGirisBtn.disabled = false;
-                    yeniSarfMalzemeGirisBtn.classList.remove('disabled');
-                    yeniSarfMalzemeGirisBtn.style.opacity = '1';
-                    yeniSarfMalzemeGirisBtn.style.cursor = 'pointer';
-                    yeniSarfMalzemeGirisBtn.title = 'Yeni giriş ekle';
-                } else {
-                    yeniSarfMalzemeGirisBtn.disabled = true;
-                    yeniSarfMalzemeGirisBtn.classList.add('disabled');
-                    yeniSarfMalzemeGirisBtn.style.opacity = '0.5';
-                    yeniSarfMalzemeGirisBtn.style.cursor = 'not-allowed';
-                    yeniSarfMalzemeGirisBtn.title = 'Bu işlem için yönetici yetkisi gereklidir';
-                }
-            }
-            
-            // Giriş geçmişini yükle
-            loadSarfMalzemeGirisGecmisi(id);
-            
-            // Stoğa Geri Dönenler tabını yükle
-            loadSarfMalzemeStokGeriDonenler(id);
-            
-            // İşlem geçmişini doldur
-            const islemGecmisiTable = document.getElementById('sarfMalzemeIslemGecmisiTable').getElementsByTagName('tbody')[0];
-            islemGecmisiTable.innerHTML = '';
-            
-            if (!result.islemler || result.islemler.length === 0) {
-                const row = islemGecmisiTable.insertRow();
-                row.innerHTML = '<td colspan="6" class="text-center">İşlem geçmişi bulunamadı</td>';
-            } else {
-                result.islemler.forEach(islem => {
-                    // Eğer işlem "İade" ve kullanım alanı "StokGeriYukleme" ise, bu işlemi gösterme
-                    if (islem.islem_turu === 'İade' && islem.kullanim_alani === 'StokGeriYukleme') {
-                        return;
-                    }
-                    
-                    const row = islemGecmisiTable.insertRow();
-                    
-                    // Tarih
-                    const cell1 = row.insertCell(0);
-                    const date = new Date(islem.islem_tarihi);
-                    cell1.textContent = date.toLocaleString('tr-TR');
-                    
-                    // İşlem Türü
-                    const cell2 = row.insertCell(1);
-                    cell2.textContent = islem.islem_turu;
-                    
-                    // Miktar - Birim eklenmiş
-                    const cell3 = row.insertCell(2);
-                    cell3.textContent = `${Number(islem.miktar).toFixed(2)} ${sarfMalzeme.birim}`;
-                    
-                    // Kullanım Alanı
-                    const cell4 = row.insertCell(3);
-                    switch(islem.kullanim_alani) {
-                        case 'FasonImalat':
-                            cell4.textContent = 'Fason İmalat';
-                            break;
-                        case 'MakineImalat':
-                            cell4.textContent = 'Makine İmalat';
-                            break;
-                        case 'StokGeriYukleme':
-                            cell4.textContent = 'Stok Geri Yükleme';
-                            break;
-                        default:
-                            cell4.textContent = islem.kullanim_alani;
-                    }
-                    
-                    // Proje
-                    const cell5 = row.insertCell(4);
-                    cell5.textContent = islem.proje_id ? `${islem.proje_adi}` : 'Belirtilmemiş';
-                    
-                    // Kullanıcı
-                    const cell6 = row.insertCell(5);
-                    cell6.textContent = `${islem.kullanici_ad} ${islem.kullanici_soyad}`;
-                });
-            }
-            
-            // İlk tab'ı aktif et ve diğerlerini deaktif et
-            resetTabSystem();
-            
-            // Tab sistemini kur
-            setupTabSystem();
-        } else {
-            document.getElementById('sarfMalzemeDetay').innerHTML = `<div class="error">Hata: ${result.message}</div>`;
-        }
+        const result = await window.electronAPI.invoke.database.deleteSarfMalzemeIslemAndRestoreStock(deleteData);
+        
+        return result;
     } catch (error) {
-        console.error('Sarf malzeme detayı getirme hatası:', error);
-        document.getElementById('sarfMalzemeDetay').innerHTML = '<div class="error">Beklenmeyen bir hata oluştu</div>';
+        console.error('Sarf malzeme işlemi silme hatası:', error);
+        return { success: false, message: error.message };
     }
 }
 
-// Raf event listener'larını kurma fonksiyonu
-function setupRafEventListeners() {
-    const rafDuzenleBtn = document.getElementById('rafDuzenleBtn');
-    const rafKaydetBtn = document.getElementById('rafKaydetBtn');
-    const rafIptalBtn = document.getElementById('rafIptalBtn');
-    const rafInput = document.getElementById('rafInput');
-    
-    // Raf düzenle butonu
-    if (rafDuzenleBtn) {
-        rafDuzenleBtn.addEventListener('click', function() {
-            document.getElementById('rafGosterAlani').style.display = 'none';
-            document.getElementById('rafDuzenleAlani').style.display = 'block';
-            rafDuzenleBtn.style.display = 'none';
-            rafInput.focus();
-        });
-    }
-    
-    // Raf kaydet butonu
-    if (rafKaydetBtn) {
-        rafKaydetBtn.addEventListener('click', function() {
-            kaydetSarfMalzemeRaf();
-        });
-    }
-    
-    // Raf iptal butonu
-    if (rafIptalBtn) {
-        rafIptalBtn.addEventListener('click', function() {
-            iptalRafDuzenleme();
-        });
-    }
-    
-    // Enter tuşu ile kaydet
-    if (rafInput) {
-        rafInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                kaydetSarfMalzemeRaf();
-            } else if (e.key === 'Escape') {
-                iptalRafDuzenleme();
-            }
-        });
-    }
-}
-
-// Raf bilgisini kaydetme fonksiyonu
-async function kaydetSarfMalzemeRaf() {
-    try {
-        const rafInput = document.getElementById('rafInput');
-        const rafContainer = document.querySelector('.raf-container');
-        const rafKaydetBtn = document.getElementById('rafKaydetBtn');
-        
-        if (!rafInput) return;
-        
-        const rafBilgisi = rafInput.value.trim();
-        
-        // Loading state
-        rafContainer.classList.add('loading');
-        rafKaydetBtn.disabled = true;
-        rafKaydetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        
-        // API kontrolü
-        if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
-            console.error('Database invoke metodu bulunamadı');
-            showToast('Raf bilgisi kaydedilemedi. API erişimi yok.', 'error');
-            return;
-        }
-        
-        // Raf bilgisini kaydet
-        const result = await window.electronAPI.invoke.database.updateSarfMalzemeRaf(
-            currentSarfMalzemeId, 
-            rafBilgisi
-        );
-        
-        if (result.success) {
-            // Başarılı mesajı
-            showToast(
-                rafBilgisi ? 
-                `Raf konumu "${rafBilgisi}" olarak güncellendi.` : 
-                'Raf konumu temizlendi.', 
-                'success'
-            );
-            
-            // Görünümü güncelle
-            updateRafDisplay(rafBilgisi);
-            
-            // Düzenleme modundan çık
-            iptalRafDuzenleme();
-            
-            // Sarf malzeme listesini güncelle
-            await loadSarfMalzemeListesi();
-        } else {
-            showToast('Hata: ' + result.message, 'error');
-        }
-    } catch (error) {
-        console.error('Raf bilgisi kaydetme hatası:', error);
-        showToast('Raf bilgisi kaydedilirken bir hata oluştu.', 'error');
-    } finally {
-        // Loading state'i kaldır
-        const rafContainer = document.querySelector('.raf-container');
-        const rafKaydetBtn = document.getElementById('rafKaydetBtn');
-        
-        if (rafContainer) rafContainer.classList.remove('loading');
-        if (rafKaydetBtn) {
-            rafKaydetBtn.disabled = false;
-            rafKaydetBtn.innerHTML = '<i class="fas fa-check"></i>';
-        }
-    }
-}
-
-// Raf görünümünü güncelleme fonksiyonu
-function updateRafDisplay(rafBilgisi) {
-    const rafBadge = document.querySelector('.raf-badge');
-    const rafText = document.querySelector('.raf-text');
-    
-    if (rafBadge && rafText) {
-        // Badge class'ını güncelle
-        rafBadge.classList.remove('raf-assigned', 'raf-empty');
-        rafBadge.classList.add(rafBilgisi ? 'raf-assigned' : 'raf-empty');
-        
-        // Text'i güncelle
-        rafText.textContent = rafBilgisi || 'Raf atanmamış';
-    }
-}
-
-// Raf düzenlemeyi iptal etme fonksiyonu
-function iptalRafDuzenleme() {
-    const rafGosterAlani = document.getElementById('rafGosterAlani');
-    const rafDuzenleAlani = document.getElementById('rafDuzenleAlani');
-    const rafInput = document.getElementById('rafInput');
-    
-    if (rafGosterAlani && rafDuzenleAlani) {
-        // Smooth transition
-        rafDuzenleAlani.style.display = 'none';
-        rafGosterAlani.style.display = 'block';
-    }
-    
-    // Reset input to original value if needed
-    if (rafInput) {
-        // Get current raf value from display
-        const currentRaf = document.querySelector('.raf-text')?.textContent;
-        if (currentRaf && currentRaf !== 'Raf atanmamış') {
-            rafInput.value = currentRaf;
-        } else {
-            rafInput.value = '';
-        }
-    }
-}
-
-// Global fonksiyonları window objesine ekle
-
-window.setupRafEventListeners = setupRafEventListeners;
-window.kaydetSarfMalzemeRaf = kaydetSarfMalzemeRaf;
-window.updateRafDisplay = updateRafDisplay;
-window.iptalRafDuzenleme = iptalRafDuzenleme;
-
-
-
-  // 4. Sarf malzeme işlemini silme
-  async function deleteSarfMalzemeIslem(islemId) {
-    try {
-      // İşlem hakkında bilgi al
-      const islemResult = await window.electronAPI.invoke.database.getSarfMalzemeIslemById(islemId);
-      
-      if (!islemResult.success) {
-        throw new Error('İşlem bilgileri alınamadı: ' + islemResult.message);
-      }
-      
-      const islem = islemResult.islem;
-      const sarfMalzemeId = islem.sarf_malzeme_id;
-      
-      // Silme işlemi için gerekli verileri hazırla
-      const deleteData = {
-        islemId: islemId,
-        sarfMalzemeId: sarfMalzemeId,
-        miktar: islem.miktar
-      };
-      
-      // İşlemi sil ve sarf malzeme stoğunu güncelle
-      const result = await window.electronAPI.invoke.database.deleteSarfMalzemeIslemAndRestoreStock(deleteData);
-      
-      return result;
-    } catch (error) {
-      console.error('Sarf malzeme işlemi silme hatası:', error);
-      return { success: false, message: error.message };
-    }
-  }
-
-
-  
 function openSarfMalzemeIslemModal(id) {
     try {
         currentSarfMalzemeId = id;
         
-        // Sarf malzeme başlığını güncelle
         document.getElementById('sarfMalzemeHeader').textContent = 'Sarf Malzeme İşlemi';
         
-        // Sarf malzeme bilgilerini al
         window.electronAPI.invoke.database.getSarfMalzemeById(id)
             .then(result => {
                 if (!result.success) {
@@ -1505,7 +1376,6 @@ function openSarfMalzemeIslemModal(id) {
                 
                 const sarfMalzeme = result.sarfMalzeme;
                 
-                // Kalan miktar bilgisini form içinde göster
                 const bilgiAlani = document.getElementById('islemModalBilgi') || document.createElement('div');
                 bilgiAlani.id = 'islemModalBilgi';
                 bilgiAlani.className = 'form-info';
@@ -1514,20 +1384,16 @@ function openSarfMalzemeIslemModal(id) {
                     <p><i>Not: Kullanılabilir maksimum miktar yukarıdaki değerdir.</i></p>
                 `;
                 
-                // Bilgi alanını forma ekle (eğer zaten yoksa)
                 const sarfMalzemeIslemForm = document.querySelector('.sarf-malzeme-islem-form');
                 if (sarfMalzemeIslemForm && !document.getElementById('islemModalBilgi')) {
                     sarfMalzemeIslemForm.insertBefore(bilgiAlani, sarfMalzemeIslemForm.firstChild);
                 }
                 
-                // Proje listesini yükle
                 loadProjeler().then(() => {
-                    // Proje seçimi için dropdown'ı güncelle
                     const projeSecimi = document.getElementById('sarfMalzemeProjeSecimi');
                     if (projeSecimi) {
                         projeSecimi.innerHTML = '<option value="">-- Proje Seçin --</option>';
                         
-                        // Projeleri yükle
                         const projeler = document.getElementById('projeSecimi').options;
                         if (projeler) {
                             for (let i = 1; i < projeler.length; i++) {
@@ -1539,19 +1405,12 @@ function openSarfMalzemeIslemModal(id) {
                         }
                     }
                     
-                    // İlk kullanım alanı durumuna göre makine/çalışan seçimi göster/gizle
                     toggleMakineSection();
-                    
-                    // Çalışanları yükle
                     loadCalisanlarForSelect('sarfMalzemeCalisanSecimi');
                     
-                    // Modalı aç
                     openModal('sarfMalzemeIslemModal');
-                    
-                    // Eğer detay modalı açıksa kapat
                     closeModal('sarfMalzemeDetayModal');
                     
-                    // Miktar alanına odaklan
                     setTimeout(() => {
                         const miktarInput = document.getElementById('sarfMalzemeKullanilanMiktar');
                         if (miktarInput) miktarInput.focus();
@@ -1566,10 +1425,8 @@ function openSarfMalzemeIslemModal(id) {
         console.error('Sarf malzeme işlem modalı açma hatası:', error);
         showErrorMessage('Hata', 'Sarf malzeme işlem modalı açılırken bir hata oluştu.');
     }
-  }
+}
 
-
-  // Sarf Malzeme için Stoğa Geri Dönenler verilerini yükleme fonksiyonu
 async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
     try {
         if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
@@ -1577,7 +1434,6 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
             return;
         }
 
-        // API call to get data - Burada işlem geçmişini çekip filtreleyeceğiz
         const result = await window.electronAPI.invoke.database.getSarfMalzemeIslemleri(sarfMalzemeId);
 
         const stokGeriDonenlerTable = document.getElementById('sarfMalzemeStokGeriDonenlerTable');
@@ -1595,7 +1451,6 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
             return;
         }
         
-        // Sadece İade işlemlerini ve kullanım alanı "StokGeriYukleme" olanları filtrele
         const geriDonenler = result.islemler.filter(islem => 
             islem.islem_turu === 'İade' && islem.kullanim_alani === 'StokGeriYukleme'
         );
@@ -1606,31 +1461,26 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
             return;
         }
         
-        // Her bir geri dönen işlem için orijinal işlemi bul
-        const processedItems = []; // İşlenmiş işlemler
+        const processedItems = [];
         
         for (const geriDonen of geriDonenler) {
-            // Tüm işlemleri tarihe göre sırala
             const sortedIslemler = result.islemler
-                .filter(i => i.id !== geriDonen.id) // Kendisini hariç tut
-                .filter(i => i.islem_turu !== 'İade') // Diğer iadeleri hariç tut
-                .sort((a, b) => new Date(b.islem_tarihi) - new Date(a.islem_tarihi)); // Son yapılandan ilk yapılana sırala
+                .filter(i => i.id !== geriDonen.id)
+                .filter(i => i.islem_turu !== 'İade')
+                .sort((a, b) => new Date(b.islem_tarihi) - new Date(a.islem_tarihi));
             
-            // Geri dönen işlemden önce yapılmış en yakın işlemi bul
             const geriDonenTarih = new Date(geriDonen.islem_tarihi);
             const oncekiIslemler = sortedIslemler.filter(i => new Date(i.islem_tarihi) < geriDonenTarih);
             
             let originalIslem = null;
             if (oncekiIslemler.length > 0) {
-                originalIslem = oncekiIslemler[0]; // En yakın işlem
+                originalIslem = oncekiIslemler[0];
             }
             
-            // Eğer orijinal işlem bulunamazsa, bu işlemi atla
             if (!originalIslem) continue;
             
             const row = tableBody.insertRow();
             
-            // Tarih
             const cell1 = row.insertCell(0);
             const date = new Date(geriDonen.islem_tarihi);
             cell1.textContent = date.toLocaleString('tr-TR', {
@@ -1641,32 +1491,24 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
                 minute: '2-digit'
             });
             
-            // Alan Kişi - Orijinal işlemdeki kullanıcı bilgisini göster
             const cell2 = row.insertCell(1);
-            // Aynı getOriginalIslem'deki mantıkla - projeyi ve miktarı çektiğimiz gibi kullanıcıyı çekelim
             cell2.textContent = originalIslem.alan_kisi_adi || 'Belirtilmemiş';
             
-            // Alınan Miktar (Orijinal işlemin miktarı)
             const cell3 = row.insertCell(2);
             cell3.textContent = `${Number(originalIslem.miktar).toFixed(2)}`;
             
-            // Geri Dönen Miktar
             const cell4 = row.insertCell(3);
             cell4.textContent = `${Number(geriDonen.miktar).toFixed(2)}`;
             
-            // Proje
             const cell5 = row.insertCell(4);
             cell5.textContent = originalIslem.proje_adi || geriDonen.proje_adi || 'Belirtilmemiş';
             
-            // İşlemi Yapan (Geri dönüş işlemini yapan kişi)
             const cell6 = row.insertCell(5);
             cell6.textContent = `${geriDonen.kullanici_ad || ''} ${geriDonen.kullanici_soyad || ''}`.trim() || 'Bilinmiyor';
             
-            // Bu işlemi işlenmiş olarak işaretle
             processedItems.push(geriDonen.id);
         }
         
-        // Eğer hiçbir işlem bulunamazsa
         if (processedItems.length === 0) {
             const row = tableBody.insertRow();
             row.innerHTML = '<td colspan="6" class="text-center">Stoğa geri dönen malzeme bulunamadı</td>';
@@ -1684,13 +1526,291 @@ async function loadSarfMalzemeStokGeriDonenler(sarfMalzemeId) {
     }
 }
 
+// Sarf malzeme raf düzenleme fonksiyonları
+function showSarfMalzemeRafDuzenleFormu() {
+  const rafInput = document.getElementById('sarfMalzemeRafInput');
+  const rafBilgisiText = document.getElementById('sarfMalzemeRafBilgisiText');
+  const rafDuzenleFormu = document.getElementById('sarfMalzemeRafDuzenleFormu');
+  const rafError = document.getElementById('sarfMalzemeRafError');
+  
+  const mevcutRaf = rafBilgisiText.textContent.replace('Raf: ', '');
+  if (mevcutRaf !== 'Belirtilmemiş') {
+    rafInput.value = mevcutRaf;
+  } else {
+    rafInput.value = '';
+  }
+  
+  rafDuzenleFormu.style.display = 'block';
+  rafError.style.display = 'none';
+  
+  setTimeout(() => {
+    rafInput.focus();
+    rafInput.select();
+  }, 100);
+}
 
+function hideSarfMalzemeRafDuzenleFormu() {
+  document.getElementById('sarfMalzemeRafDuzenleFormu').style.display = 'none';
+  document.getElementById('sarfMalzemeRafError').style.display = 'none';
+  document.getElementById('sarfMalzemeRafInput').value = '';
+}
+
+async function kaydetSarfMalzemeRafBilgisi() {
+  try {
+    if (!currentPhotoSarfMalzemeId) {
+      showErrorMessage('Hata', 'Sarf malzeme ID bulunamadı.');
+      return;
+    }
+    
+    const rafKonumu = document.getElementById('sarfMalzemeRafInput').value.trim();
+    const rafError = document.getElementById('sarfMalzemeRafError');
+    
+    if (rafKonumu.length > 50) {
+      rafError.textContent = 'Raf konumu en fazla 50 karakter olabilir.';
+      rafError.style.display = 'block';
+      return;
+    }
+    
+    if (!window.electronAPI || !window.electronAPI.invoke || !window.electronAPI.invoke.database) {
+      console.error('Database invoke metodu bulunamadı');
+      showErrorMessage('Hata', 'Raf bilgisi kaydedilemedi. API erişimi yok.');
+      return;
+    }
+    
+    const result = await window.electronAPI.invoke.database.updateSarfMalzemeRaf(
+      currentPhotoSarfMalzemeId, 
+      rafKonumu || null
+    );
+    
+    if (result.success) {
+      showToast('Raf bilgisi başarıyla güncellendi.', 'success');
+      
+      const isUserAdmin = window.globalUserData && window.globalUserData.rol === 'yonetici';
+      updateSarfMalzemeRafDisplay(rafKonumu, isUserAdmin);
+      
+      if (typeof loadSarfMalzemeListesi === 'function') {
+        loadSarfMalzemeListesi();
+      }
+      
+      if (typeof viewSarfMalzemeDetail === 'function' && currentPhotoSarfMalzemeId) {
+        setTimeout(() => {
+          viewSarfMalzemeDetail(currentPhotoSarfMalzemeId);
+        }, 500);
+      }
+    } else {
+      rafError.textContent = 'Raf bilgisi güncellenirken bir hata oluştu: ' + result.message;
+      rafError.style.display = 'block';
+    }
+  } catch (error) {
+    console.error('Sarf malzeme raf bilgisi kaydetme hatası:', error);
+    document.getElementById('sarfMalzemeRafError').textContent = 'Raf bilgisi kaydedilirken bir hata oluştu.';
+    document.getElementById('sarfMalzemeRafError').style.display = 'block';
+  }
+}
+
+// Event listener kurulumu - Raf ve fotoğraf için
+document.addEventListener('DOMContentLoaded', function() {
+  // Raf düzenle butonu
+  const rafDuzenleBtn = document.getElementById('sarfMalzemeRafDuzenleBtn');
+  if (rafDuzenleBtn) {
+    rafDuzenleBtn.addEventListener('click', showSarfMalzemeRafDuzenleFormu);
+  }
+  
+  // Raf kaydet butonu
+  const rafKaydetBtn = document.getElementById('sarfMalzemeRafKaydetBtn');
+  if (rafKaydetBtn) {
+    rafKaydetBtn.addEventListener('click', kaydetSarfMalzemeRafBilgisi);
+  }
+  
+  // Raf iptal butonu
+  const rafIptalBtn = document.getElementById('sarfMalzemeRafIptalBtn');
+  if (rafIptalBtn) {
+    rafIptalBtn.addEventListener('click', hideSarfMalzemeRafDuzenleFormu);
+  }
+  
+  // Raf input Enter tuşu
+  const rafInput = document.getElementById('sarfMalzemeRafInput');
+  if (rafInput) {
+    rafInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        kaydetSarfMalzemeRafBilgisi();
+      } else if (e.key === 'Escape') {
+        hideSarfMalzemeRafDuzenleFormu();
+      }
+    });
+  }
+
+  // Fotoğraf önizleme
+  const fotografInput = document.getElementById('sarfMalzemeFotografInput');
+  if (fotografInput) {
+    fotografInput.addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      if (file.size > 5 * 1024 * 1024) {
+        document.getElementById('sarfMalzemeFotografError').textContent = 'Dosya boyutu 5MB\'dan küçük olmalıdır.';
+        document.getElementById('sarfMalzemeFotografError').style.display = 'block';
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        document.getElementById('sarfMalzemeFotografError').textContent = 'Lütfen geçerli bir resim dosyası seçin.';
+        document.getElementById('sarfMalzemeFotografError').style.display = 'block';
+        return;
+      }
+      
+      document.getElementById('sarfMalzemeFotografError').style.display = 'none';
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const imgElement = document.getElementById('sarfMalzemeFotografPreview');
+        imgElement.src = e.target.result;
+        document.getElementById('sarfMalzemeFotografPreviewContainer').style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Fotoğraf kaydet butonu
+  const fotografKaydetBtn = document.getElementById('sarfMalzemeFotografKaydetBtn');
+  if (fotografKaydetBtn) {
+    fotografKaydetBtn.addEventListener('click', async function() {
+      try {
+        if (!currentPhotoSarfMalzemeId) {
+          showErrorMessage('Hata', 'Sarf malzeme ID bulunamadı.');
+          return;
+        }
+        
+        const fileInput = document.getElementById('sarfMalzemeFotografInput');
+        const file = fileInput.files[0];
+        
+        let base64Image = null;
+        
+        if (file) {
+          if (file.size > 5 * 1024 * 1024) {
+            showErrorMessage('Hata', 'Dosya boyutu 5MB\'dan küçük olmalıdır.');
+            return;
+          }
+          
+          if (!file.type.startsWith('image/')) {
+            showErrorMessage('Hata', 'Lütfen geçerli bir resim dosyası seçin.');
+            return;
+          }
+          
+          base64Image = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              try {
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+              } catch (error) {
+                reject(error);
+              }
+            };
+            reader.onerror = (error) => reject(error);
+            reader.readAsDataURL(file);
+          });
+        } else if (document.getElementById('sarfMalzemeFotografPreviewContainer').style.display !== 'block') {
+          showErrorMessage('Hata', 'Lütfen bir fotoğraf seçin.');
+          return;
+        }
+        
+        const result = await window.electronAPI.invoke.database.updateSarfMalzemeFotograf(
+          currentPhotoSarfMalzemeId, 
+          base64Image
+        );
+        
+        if (result.success) {
+          showToast('Fotoğraf başarıyla kaydedildi.', 'success');
+          closeModal('sarfMalzemeFotoModal');
+          
+          // Cache'i temizle
+          sarfMalzemePhotoCache.delete(currentPhotoSarfMalzemeId);
+          
+          // Listeyi güncelle
+          if (typeof loadSarfMalzemeListesi === 'function') {
+            loadSarfMalzemeListesi();
+          }
+          
+          if (typeof viewSarfMalzemeDetail === 'function') {
+            viewSarfMalzemeDetail(currentPhotoSarfMalzemeId);
+          }
+        } else {
+          showErrorMessage('Hata', 'Fotoğraf kaydedilirken bir hata oluştu: ' + result.message);
+        }
+      } catch (error) {
+        console.error('Sarf malzeme fotoğraf kaydetme hatası:', error);
+        showErrorMessage('Hata', 'Fotoğraf kaydedilirken bir hata oluştu: ' + error.message);
+      }
+    });
+  }
+
+  // Fotoğraf silme butonu
+  const fotografSilBtn = document.getElementById('sarfMalzemeFotografSilBtn');
+  if (fotografSilBtn) {
+    fotografSilBtn.addEventListener('click', async function() {
+      try {
+        if (!currentPhotoSarfMalzemeId) {
+          showErrorMessage('Hata', 'Sarf malzeme ID bulunamadı.');
+          return;
+        }
+        
+        const onay = await new Promise((resolve) => {
+          Notiflix.Confirm.show(
+            'Fotoğraf Silme',
+            'Fotoğrafı silmek istediğinizden emin misiniz?',
+            'Evet, sil',
+            'İptal',
+            function() {
+              resolve(true);
+            },
+            function() {
+              resolve(false);
+            },
+            {
+              titleColor: '#6A0D0C',
+              buttonOkBackgroundColor: '#6A0D0C',
+              cssAnimationStyle: 'zoom'
+            }
+          );
+        });
+        
+        if (!onay) return;
+        
+        const result = await window.electronAPI.invoke.database.updateSarfMalzemeFotograf(
+          currentPhotoSarfMalzemeId, 
+          null
+        );
+        
+        if (result.success) {
+          showToast('Fotoğraf başarıyla silindi.', 'success');
+          
+          // Cache'i temizle
+          sarfMalzemePhotoCache.delete(currentPhotoSarfMalzemeId);
+          
+          closeModal('sarfMalzemeFotoModal');
+          
+          // Listeyi güncelle
+          if (typeof loadSarfMalzemeListesi === 'function') {
+            loadSarfMalzemeListesi();
+          }
+        } else {
+          showErrorMessage('Hata', 'Fotoğraf silinirken bir hata oluştu: ' + result.message);
+        }
+      } catch (error) {
+        console.error('Sarf malzeme fotoğraf silme hatası:', error);
+        showErrorMessage('Hata', 'Fotoğraf silinirken bir hata oluştu.');
+      }
+    });
+  }
+});
+
+// Global fonksiyonları window'a ekle
 window.loadSarfMalzemeListesi = loadSarfMalzemeListesi;
 window.saveSarfMalzeme = saveSarfMalzeme;
 window.loadSarfMalzemeGirisGecmisi = loadSarfMalzemeGirisGecmisi;
 window.openSarfMalzemeGirisGuncelleModal = openSarfMalzemeGirisGuncelleModal;
 window.guncelleSarfMalzemeGirisi = guncelleSarfMalzemeGirisi;
-window.setupSarfMalzemeGirisUpdateEvents = setupSarfMalzemeGirisUpdateEvents;
 window.kaydetSarfMalzemeGirisi = kaydetSarfMalzemeGirisi;
 window.setupSarfMalzemeGirisButtons = setupSarfMalzemeGirisButtons;
 window.deleteSarfMalzeme = deleteSarfMalzeme;
@@ -1699,4 +1819,7 @@ window.viewSarfMalzemeDetail = viewSarfMalzemeDetail;
 window.searchSarfMalzeme = searchSarfMalzeme;
 window.deleteSarfMalzemeIslem = deleteSarfMalzemeIslem;
 window.openSarfMalzemeIslemModal = openSarfMalzemeIslemModal;
-window.loadSarfMalzemeStokGeriDonenler=loadSarfMalzemeStokGeriDonenler;
+window.loadSarfMalzemeStokGeriDonenler = loadSarfMalzemeStokGeriDonenler;
+window.showSarfMalzemeRafDuzenleFormu = showSarfMalzemeRafDuzenleFormu;
+window.hideSarfMalzemeRafDuzenleFormu = hideSarfMalzemeRafDuzenleFormu;
+window.kaydetSarfMalzemeRafBilgisi = kaydetSarfMalzemeRafBilgisi;

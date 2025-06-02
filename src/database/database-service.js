@@ -1518,15 +1518,24 @@ async function checkSarfMalzemeExists(malzemeAdi, birim) {
   }
 }
 
-
-// Tüm sarf malzemeleri getir
 async function getAllSarfMalzeme() {
   try {
     const [rows] = await pool.execute(`
       SELECT 
-        s.*,
+        s.id,
+        s.stok_kodu,
+        s.malzeme_adi,
+        s.birim,
+        s.barkod,
+        s.raf,
+        s.ekleme_tarihi,
+        s.kritik_seviye,
+        s.ekleyen_id,
+        s.tedarikci,
         CAST(s.toplam_miktar AS DECIMAL(10,2)) AS toplam_miktar,
         CAST(s.kalan_miktar AS DECIMAL(10,2)) AS kalan_miktar,
+        -- Fotoğraf var mı kontrolü
+        CASE WHEN s.fotograf IS NOT NULL THEN 1 ELSE 0 END AS has_photo,
         CASE 
           WHEN CAST(s.kalan_miktar AS DECIMAL) <= 0 THEN 'STOKTA_YOK'
           WHEN CAST(s.kalan_miktar AS DECIMAL) <= s.kritik_seviye THEN 'AZ_KALDI'
@@ -1569,7 +1578,7 @@ async function getSarfMalzemeIslemById(islemId) {
 async function getSarfMalzemeById(id) {
   try {
     const [sarfMalzemeRows] = await pool.execute(
-      'SELECT * FROM sarf_malzemeler WHERE id = ?',
+      'SELECT id, stok_kodu, malzeme_adi, birim, barkod, raf, ekleme_tarihi, kritik_seviye, ekleyen_id, tedarikci, toplam_miktar, kalan_miktar FROM sarf_malzemeler WHERE id = ?',
       [id]
     );
     
@@ -7380,6 +7389,72 @@ async function getYariMamulFotograf(id) {
 }
 
 
+
+async function getSarfMalzemeFotograf(id) {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT fotograf FROM sarf_malzemeler WHERE id = ?',
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      return { success: false, message: 'Sarf malzeme bulunamadı.' };
+    }
+    
+    let fotograf = null;
+    if (rows[0].fotograf) {
+      if (Buffer.isBuffer(rows[0].fotograf)) {
+        fotograf = rows[0].fotograf.toString('base64');
+      } else {
+        fotograf = rows[0].fotograf;
+      }
+    }
+    
+    return { success: true, fotograf };
+  } catch (error) {
+    console.error('Sarf malzeme fotoğraf getirme hatası:', error);
+    return { success: false, message: 'Fotoğraf getirilirken hata oluştu.' };
+  }
+}
+
+// Sarf malzeme fotoğraf güncelleme fonksiyonu (YENİ)
+async function updateSarfMalzemeFotograf(id, base64Image) {
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    let query, params;
+    
+    if (base64Image !== null) {
+      query = 'UPDATE sarf_malzemeler SET fotograf = FROM_BASE64(?) WHERE id = ?';
+      params = [base64Image, id];
+    } else {
+      query = 'UPDATE sarf_malzemeler SET fotograf = NULL WHERE id = ?';
+      params = [id];
+    }
+    
+    await connection.execute(query, params);
+    await connection.commit();
+    
+    return { 
+      success: true, 
+      message: base64Image ? 'Fotoğraf başarıyla güncellendi.' : 'Fotoğraf başarıyla silindi.' 
+    };
+  } catch (error) {
+    await connection.rollback();
+    console.error('Sarf malzeme fotoğraf güncelleme hatası:', error);
+    return { 
+      success: false, 
+      message: 'Fotoğraf güncellenirken bir hata oluştu: ' + error.message 
+    };
+  } finally {
+    connection.release();
+  }
+}
+
+
+
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
   loginUser,
@@ -7497,6 +7572,9 @@ addPlakaGrubuToIslemde,
    updateSarfMalzemeRaf,
   getSarfMalzemeByIdWithRaf,
   updateYariMamulRaf,
-  getYariMamulFotograf
+  getYariMamulFotograf,
+  updateSarfMalzemeFotograf,
+ getSarfMalzemeFotograf 
+
 
 };

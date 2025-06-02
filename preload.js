@@ -177,7 +177,9 @@ getStockMovementsBetweenDates: (startDate, endDate) => ipcRenderer.invoke('datab
 updateSarfMalzemeRaf: (sarfMalzemeId, rafBilgisi) => ipcRenderer.invoke('database:updateSarfMalzemeRaf', sarfMalzemeId, rafBilgisi),
 getSarfMalzemeByIdWithRaf: (id) => ipcRenderer.invoke('database:getSarfMalzemeByIdWithRaf', id),
 updateYariMamulRaf: (yariMamulId, rafKonumu) => ipcRenderer.invoke('database:updateYariMamulRaf', yariMamulId, rafKonumu),
-getYariMamulFotograf: (id) => ipcRenderer.invoke('database', 'getYariMamulFotograf', id)
+getYariMamulFotograf: (id) => ipcRenderer.invoke('database', 'getYariMamulFotograf', id),
+getSarfMalzemeFotograf: (id) => ipcRenderer.invoke('database', 'getSarfMalzemeFotograf', id),
+updateSarfMalzemeFotograf: (id, base64Image) => ipcRenderer.invoke('database', 'updateSarfMalzemeFotograf', id, base64Image)
         }
     }
 });

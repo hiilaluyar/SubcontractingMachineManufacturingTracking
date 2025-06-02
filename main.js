@@ -865,3 +865,23 @@ ipcMain.handle('database:getYariMamulFotograf', async (event, id) => {
     return { success: false, message: error.message };
   }
 });
+
+
+ipcMain.handle('database:getSarfMalzemeFotograf', async (event, id) => {
+  try {
+    return await DatabaseService.getSarfMalzemeFotograf(id);
+  } catch (error) {
+    console.error('Error in getSarfMalzemeFotograf:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+
+ipcMain.handle('database:updateSarfMalzemeFotograf', async (event, id, base64Image) => {
+  try {
+    return await DatabaseService.updateSarfMalzemeFotograf(id, base64Image);
+  } catch (error) {
+    console.error('Error in updateSarfMalzemeFotograf:', error);
+    return { success: false, message: error.message };
+  }
+});
