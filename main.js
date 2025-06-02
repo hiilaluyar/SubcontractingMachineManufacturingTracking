@@ -885,3 +885,13 @@ ipcMain.handle('database:updateSarfMalzemeFotograf', async (event, id, base64Ima
     return { success: false, message: error.message };
   }
 });
+
+
+ipcMain.handle('database:getSarfMalzemeBasicInfo', async (event, id) => {
+  try {
+    return await DatabaseService.getSarfMalzemeBasicInfo(id);
+  } catch (error) {
+    console.error('Error in getSarfMalzemeBasicInfo:', error);
+    return { success: false, message: error.message };
+  }
+});

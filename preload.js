@@ -179,7 +179,8 @@ getSarfMalzemeByIdWithRaf: (id) => ipcRenderer.invoke('database:getSarfMalzemeBy
 updateYariMamulRaf: (yariMamulId, rafKonumu) => ipcRenderer.invoke('database:updateYariMamulRaf', yariMamulId, rafKonumu),
 getYariMamulFotograf: (id) => ipcRenderer.invoke('database', 'getYariMamulFotograf', id),
 getSarfMalzemeFotograf: (id) => ipcRenderer.invoke('database', 'getSarfMalzemeFotograf', id),
-updateSarfMalzemeFotograf: (id, base64Image) => ipcRenderer.invoke('database', 'updateSarfMalzemeFotograf', id, base64Image)
+updateSarfMalzemeFotograf: (id, base64Image) => ipcRenderer.invoke('database', 'updateSarfMalzemeFotograf', id, base64Image),
+getSarfMalzemeBasicInfo: (id) => ipcRenderer.invoke('database', 'getSarfMalzemeBasicInfo', id)
         }
     }
 });

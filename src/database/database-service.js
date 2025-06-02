@@ -1520,6 +1520,7 @@ async function checkSarfMalzemeExists(malzemeAdi, birim) {
 
 async function getAllSarfMalzeme() {
   try {
+    // Index kullanımını optimize et ve sadece gerekli alanları seç
     const [rows] = await pool.execute(`
       SELECT 
         s.id,
@@ -1527,27 +1528,50 @@ async function getAllSarfMalzeme() {
         s.malzeme_adi,
         s.birim,
         s.barkod,
-        s.raf,
         s.ekleme_tarihi,
         s.kritik_seviye,
-        s.ekleyen_id,
-        s.tedarikci,
         CAST(s.toplam_miktar AS DECIMAL(10,2)) AS toplam_miktar,
         CAST(s.kalan_miktar AS DECIMAL(10,2)) AS kalan_miktar,
-        -- Fotoğraf var mı kontrolü
+        -- Fotoğraf var mı kontrolü (NULL check daha hızlı)
         CASE WHEN s.fotograf IS NOT NULL THEN 1 ELSE 0 END AS has_photo,
+        -- Durum hesaplama optimizasyonu
         CASE 
           WHEN CAST(s.kalan_miktar AS DECIMAL) <= 0 THEN 'STOKTA_YOK'
           WHEN CAST(s.kalan_miktar AS DECIMAL) <= s.kritik_seviye THEN 'AZ_KALDI'
           ELSE 'STOKTA_VAR'
         END AS durum
       FROM sarf_malzemeler s
-      ORDER BY s.ekleme_tarihi DESC
+      WHERE s.id IS NOT NULL  -- Index kullanımını zorla
+      ORDER BY s.id DESC  -- id üzerinden sıralama daha hızlı
     `);
+    
     return { success: true, sarfMalzemeler: rows };
   } catch (error) {
     console.error('Sarf malzemeleri getirme hatası:', error);
     return { success: false, message: 'Sarf malzemeler getirilirken bir hata oluştu.' };
+  }
+}
+
+
+async function getSarfMalzemeBasicInfo(id) {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT 
+        id, stok_kodu, malzeme_adi, birim, barkod, 
+        kalan_miktar, kritik_seviye,
+        CASE WHEN fotograf IS NOT NULL THEN 1 ELSE 0 END AS has_photo
+      FROM sarf_malzemeler 
+      WHERE id = ?
+    `, [id]);
+    
+    if (rows.length === 0) {
+      return { success: false, message: 'Sarf malzeme bulunamadı.' };
+    }
+    
+    return { success: true, sarfMalzeme: rows[0] };
+  } catch (error) {
+    console.error('Sarf malzeme temel bilgi hatası:', error);
+    return { success: false, message: 'Temel bilgiler getirilirken hata oluştu.' };
   }
 }
 
@@ -7574,7 +7598,8 @@ addPlakaGrubuToIslemde,
   updateYariMamulRaf,
   getYariMamulFotograf,
   updateSarfMalzemeFotograf,
- getSarfMalzemeFotograf 
+ getSarfMalzemeFotograf,
+ getSarfMalzemeBasicInfo
 
 
 };
