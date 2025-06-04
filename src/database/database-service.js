@@ -4169,14 +4169,16 @@ async function deleteSarfMalzemeIslemAndRestoreStock(deleteData) {
 
 
 // Function to get all employees
+// Function to get all employees
 async function getAllCalisan() {
   try {
     // Make sure the table exists
     await createCalisanTableIfNotExists();
     
     // Use pool.execute to fetch employees, sorted by creation date
+    // SADECE AKTİF ÇALIŞANLARI GETİR
     const [calisanlar] = await pool.execute(
-      'SELECT * FROM calisanlar ORDER BY olusturma_tarihi DESC'
+      'SELECT * FROM calisanlar WHERE aktif = 1 OR aktif IS NULL ORDER BY olusturma_tarihi DESC'
     );
     
     return { success: true, calisanlar };
@@ -4234,6 +4236,7 @@ async function addCalisan(calisanData) {
 }
 
 // Function to delete an employee
+// Function to delete an employee
 async function deleteCalisan(id) {
   try {
     // Make sure the table exists
@@ -4249,9 +4252,9 @@ async function deleteCalisan(id) {
       return { success: false, message: 'Çalışan bulunamadı' };
     }
     
-    // Delete the employee
+    // Çalışanı pasif yap (DELETE yerine UPDATE)
     await pool.execute(
-      'DELETE FROM calisanlar WHERE id = ?',
+      'UPDATE calisanlar SET aktif = 0 WHERE id = ?',
       [id]
     );
     
