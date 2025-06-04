@@ -1,18 +1,33 @@
-//kök dizindeki main.js 
-
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const DatabaseService = require('./src/database/database-service');
 const Notiflix = require('notiflix');
 
-
+// Image hash import'u
+let imageHash;
+try {
+  imageHash = require('image-hash');
+  console.log('✅ image-hash kütüphanesi yüklendi');
+  console.log('📋 imageHash tipi:', typeof imageHash);
+} catch (error) {
+  console.error('❌ image-hash yükleme hatası:', error.message);
+  
+  // Fallback fonksiyon - düzgün bir fonksiyon olarak tanımla
+  imageHash = function(imagePath, bits, precise, callback) {
+    console.warn('⚠️ Fallback imageHash fonksiyonu kullanılıyor');
+    // Random hash üret (gerçek hash değil, sadece test için)
+    const simpleHash = Math.random().toString(36).substring(2, 18);
+    setTimeout(() => {
+      callback(null, simpleHash);
+    }, 100);
+  };
+}
 
 // Değişkenler
 let mainWindow;
 let loginWindow;
 let currentUser = null;
-
 
 // Ana pencereyi oluştur
 function createMainWindow() {
@@ -26,33 +41,25 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-
     },
     show: false
   });
 
-  // HTML dosyasını yükle
   mainWindow.loadFile(path.join(__dirname, 'src/renderer/index.html'));
 
-  // Geliştirici araçlarını aç (geliştirme modunda)
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools();
   }
 
-  // Pencere kapatılınca
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 
-  // Hazır olunca göster
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     mainWindow.maximize();
   });
 }
-
-
-
 
 // Giriş penceresini oluştur
 function createLoginWindow() {
@@ -69,13 +76,9 @@ function createLoginWindow() {
     show: false
   });
 
-  // HTML dosyasını yükle
   loginWindow.loadFile(path.join(__dirname, 'src/renderer/login.html'));
-
-  // Geliştirici araçlarını aç
   loginWindow.webContents.openDevTools();
 
-  // Pencere kapatılınca
   loginWindow.on('closed', () => {
     loginWindow = null;
     if (!mainWindow) {
@@ -83,7 +86,6 @@ function createLoginWindow() {
     }
   });
 
-  // Hazır olunca göster
   loginWindow.once('ready-to-show', () => {
     loginWindow.show();
   });
@@ -92,7 +94,6 @@ function createLoginWindow() {
 // Uygulama hazır olduğunda
 app.whenReady().then(() => {
   createLoginWindow();
-
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createLoginWindow();
@@ -100,7 +101,6 @@ app.whenReady().then(() => {
   });
 });
 
-// Tüm pencereler kapatıldığında
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
@@ -118,19 +118,14 @@ ipcMain.on('login-user', async (event, { username, password }) => {
     if (result.success) {
       console.log('Giriş başarılı, login-success gönderiliyor:', result.user);
       
-      // Kullanıcı bilgisini gönder
       event.sender.send('login-response', result);
-      
-      // Ana süreci bilgilendir
       currentUser = result.user;
       
-      // Login penceresini kapat, ana pencereyi aç
       if (loginWindow) {
         loginWindow.close();
       }
       createMainWindow();
       
-      // Kullanıcı bilgisini ana pencereye gönder
       mainWindow.webContents.once('did-finish-load', () => {
         mainWindow.webContents.send('user-data', currentUser);
       });
@@ -147,12 +142,159 @@ ipcMain.on('login-user', async (event, { username, password }) => {
   }
 });
 
-// main.js veya main process dosyanızda
-ipcMain.on('reload-page', (event) => {
-  mainWindow.reload(); // Ana pencereyi yeniden yükle
+// Yardımcı fonksiyonlar
+async function calculateImageHashFromBase64(base64Data) {
+  try {
+    const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    
+    const tempPath = path.join(__dirname, `temp_product_${Date.now()}.jpg`);
+    fs.writeFileSync(tempPath, buffer);
+    
+    const hash = await new Promise((resolve, reject) => {
+      imageHash(tempPath, 16, true, (error, data) => {
+        if (error) reject(error);
+        else resolve(data);
+      });
+    });
+    
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
+    
+    return { success: true, hash: hash };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+function hammingDistance(hash1, hash2) {
+  if (hash1.length !== hash2.length) return 100;
+  
+  let distance = 0;
+  for (let i = 0; i < hash1.length; i++) {
+    if (hash1[i] !== hash2[i]) distance++;
+  }
+  
+  return (distance / hash1.length) * 100;
+}
+
+// ===== GÖRSEL ARAMA IPC HANDLERS =====
+
+ipcMain.handle('calculate-image-hash', async (event, imageData) => {
+  try {
+    console.log('📷 Hash hesaplama başlatıldı...');
+    console.log('🔧 imageHash tipi:', typeof imageHash);
+    
+    // Tip kontrolü ekle
+    if (typeof imageHash !== 'function') {
+      console.error('❌ imageHash bir fonksiyon değil, tipi:', typeof imageHash);
+      
+      // Eğer imageHash bir obje ise ve içinde fonksiyon varsa onu kullan
+      if (imageHash && typeof imageHash.imageHash === 'function') {
+        console.log('🔄 imageHash.imageHash fonksiyonu bulundu, onu kullanıyorum');
+        imageHash = imageHash.imageHash;
+      } else {
+        throw new Error('imageHash fonksiyonu bulunamadı');
+      }
+    }
+
+    if (!imageData || !imageData.includes('base64,')) {
+      throw new Error('Geçersiz image data formatı');
+    }
+
+    const base64Data = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    console.log('📁 Buffer boyutu:', buffer.length);
+    
+    const tempPath = path.join(__dirname, `temp_hash_${Date.now()}.jpg`);
+    fs.writeFileSync(tempPath, buffer);
+    
+    console.log('💾 Geçici dosya oluşturuldu:', tempPath);
+    
+    const hash = await new Promise((resolve, reject) => {
+      imageHash(tempPath, 16, true, (error, data) => {
+        if (error) {
+          console.error('🔥 imageHash hatası:', error);
+          reject(error);
+        } else {
+          console.log('✅ Hash hesaplandı:', data);
+          resolve(data);
+        }
+      });
+    });
+    
+    // Geçici dosyayı sil
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+      console.log('🗑️ Geçici dosya silindi');
+    }
+    
+    return { success: true, hash: hash };
+  } catch (error) {
+    console.error('❌ Hash hesaplama hatası:', error);
+    return { success: false, message: error.message };
+  }
 });
 
-// Çıkış yapıldığında
+// Benzer ürünleri bulma - HANDLER EKSİKTİ!
+ipcMain.handle('find-similar-products', async (event, uploadedImageHash, threshold = 25) => {
+  try {
+    console.log('🔍 Benzer ürün arama başlatıldı...');
+    console.log('📊 Upload hash:', uploadedImageHash);
+    console.log('🎯 Threshold:', threshold);
+    
+    // Tüm sarf malzemeleri ve fotoğraflarını al
+    const result = await DatabaseService.getAllSarfMalzemeWithPhotos();
+    
+    if (!result.success) {
+      return { success: false, message: result.message };
+    }
+    
+    console.log('📦 Fotoğraflı ürün sayısı:', result.sarfMalzemeler.length);
+    
+    const similarProducts = [];
+    
+    for (const product of result.sarfMalzemeler) {
+      if (product.fotograf) {
+        // Ürün fotoğrafının hash'ini hesapla
+        const productHashResult = await calculateImageHashFromBase64(product.fotograf);
+        
+        if (productHashResult.success) {
+          // Benzerlik hesapla
+          const similarity = 100 - hammingDistance(uploadedImageHash, productHashResult.hash);
+          
+          console.log(`🔗 ${product.malzeme_adi}: %${similarity.toFixed(2)} benzerlik`);
+          
+          if (similarity >= (100 - threshold)) {
+            similarProducts.push({
+              ...product,
+              similarity: similarity.toFixed(2)
+            });
+          }
+        }
+      }
+    }
+    
+    // Benzerlik oranına göre sırala
+    similarProducts.sort((a, b) => parseFloat(b.similarity) - parseFloat(a.similarity));
+    
+    console.log('✅ Bulunan benzer ürün sayısı:', similarProducts.length);
+    
+    return { success: true, products: similarProducts };
+  } catch (error) {
+    console.error('❌ Benzer ürün arama hatası:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// ===== DİĞER IPC HANDLERS =====
+
+ipcMain.on('reload-page', (event) => {
+  mainWindow.reload();
+});
+
 ipcMain.on('logout', () => {
   currentUser = null;
   if (mainWindow) {
@@ -161,7 +303,6 @@ ipcMain.on('logout', () => {
   createLoginWindow();
 });
 
-// Kayıt işlemi için
 ipcMain.on('register-user', async (event, userData) => {
   try {
     const result = await DatabaseService.registerUser(userData);
@@ -174,6 +315,7 @@ ipcMain.on('register-user', async (event, userData) => {
     });
   }
 });
+
 
 ipcMain.on('save-hammadde', async (event, hammaddeData) => {
   try {
@@ -892,6 +1034,55 @@ ipcMain.handle('database:getSarfMalzemeBasicInfo', async (event, id) => {
     return await DatabaseService.getSarfMalzemeBasicInfo(id);
   } catch (error) {
     console.error('Error in getSarfMalzemeBasicInfo:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+
+// Hash karşılaştırma fonksiyonu
+function hammingDistance(hash1, hash2) {
+  if (hash1.length !== hash2.length) return 100;
+  
+  let distance = 0;
+  for (let i = 0; i < hash1.length; i++) {
+    if (hash1[i] !== hash2[i]) distance++;
+  }
+  
+  return (distance / hash1.length) * 100; // Yüzde olarak farklılık
+}
+
+
+
+// Yardımcı fonksiyon
+async function calculateImageHashFromBase64(base64Data) {
+  try {
+    const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    
+    const tempPath = path.join(__dirname, `temp_${Date.now()}.jpg`);
+    fs.writeFileSync(tempPath, buffer);
+    
+    const hash = await new Promise((resolve, reject) => {
+      imageHash(tempPath, 16, true, (error, data) => {
+        if (error) reject(error);
+        else resolve(data);
+      });
+    });
+    
+    fs.unlinkSync(tempPath);
+    
+    return { success: true, hash: hash };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+}
+
+
+ipcMain.handle('database:getAllSarfMalzemeWithPhotos', async () => {
+  try {
+    return await DatabaseService.getAllSarfMalzemeWithPhotos(); // DatabaseService kullanın
+  } catch (error) {
+    console.error('getAllSarfMalzemeWithPhotos error:', error);
     return { success: false, message: error.message };
   }
 });

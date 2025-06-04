@@ -38,6 +38,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         }
     },
     invoke: {
+        // Görsel arama için yeni fonksiyonlar
+        calculateImageHash: (imageData) => ipcRenderer.invoke('calculate-image-hash', imageData),
+        findSimilarProducts: (hash, threshold) => ipcRenderer.invoke('find-similar-products', hash, threshold),
+        
         database: {
             getAllHammadde: () => ipcRenderer.invoke('database', 'getAllHammadde'),
             getHammaddeById: (id) => ipcRenderer.invoke('database', 'getHammaddeById', id),
@@ -93,94 +97,81 @@ contextBridge.exposeInMainWorld('electronAPI', {
             getYariMamulIslemleri: (yariMamulId) => ipcRenderer.invoke('database:getYariMamulIslemleri', yariMamulId),
             getYariMamulIslemById: (islemId) => ipcRenderer.invoke('database:getYariMamulIslemById', islemId),
             updateYariMamulIslem: (islemId, islemData) => ipcRenderer.invoke('database:updateYariMamulIslem', islemId, islemData),
-            getYariMamulIslemleri: (yariMamulId) => ipcRenderer.invoke('database:getYariMamulIslemleri', yariMamulId),
-updateYariMamulIslem: (islemId, islemData) => ipcRenderer.invoke('database:updateYariMamulIslem', islemId, islemData),
-getAllTedarikci: () => ipcRenderer.invoke('database:getAllTedarikci'),
-      addTedarikci: (tedarikciData) => ipcRenderer.invoke('database:addTedarikci', tedarikciData),
-      deleteTedarikci: (id) => ipcRenderer.invoke('database:deleteTedarikci', id),
-      checkYariMamulExists: (malzemeAdi, birim) => ipcRenderer.invoke('database:checkYariMamulExists', malzemeAdi, birim),
-      getYariMamulGirisGecmisi: (yariMamulId) => ipcRenderer.invoke('database:getYariMamulGirisGecmisi', yariMamulId),
-      kaydetYariMamulGirisi: (girisData) => ipcRenderer.invoke('database:kaydetYariMamulGirisi', girisData),
-      updateSarfMalzemeGirisi: (guncelleData) => ipcRenderer.invoke('database:updateSarfMalzemeGirisi', guncelleData),
-      updateHammaddeMalzemeGirisi: (guncelleData) => ipcRenderer.invoke('database:updateHammaddeMalzemeGirisi', guncelleData),
-      getParcaById: (parcaId) => ipcRenderer.invoke('database', 'getParcaById', parcaId),
-      deleteHammaddeIslemAndRestoreStock: (deleteData) => ipcRenderer.invoke('database', 'deleteHammaddeIslemAndRestoreStock', deleteData),
-      deleteSarfMalzemeIslemAndRestoreStock: (deleteData) => ipcRenderer.invoke('database', 'deleteSarfMalzemeIslemAndRestoreStock', deleteData),
-      deleteYariMamulIslemAndRestoreStock: (deleteData) => ipcRenderer.invoke('database', 'deleteYariMamulIslemAndRestoreStock', deleteData),
-      getYariMamulByIslemId: (islemId) => ipcRenderer.invoke('database', 'getYariMamulByIslemId', islemId),
-      getYariMamulByCreationIslemId: (islemId) => ipcRenderer.invoke('database', 'getYariMamulByCreationIslemId', islemId),
-      getYariMamulByIslemData: (islemId) => ipcRenderer.invoke('database', 'getYariMamulByIslemData', islemId),
-      getAllCalisan: () => ipcRenderer.invoke('database', 'getAllCalisan'),
-      getCalisanById: (id) => ipcRenderer.invoke('database:getCalisanById', id),
-     addCalisan: (calisanData) => ipcRenderer.invoke('database:addCalisan', calisanData),
-     deleteCalisan: (id) => ipcRenderer.invoke('database:deleteCalisan', id),
-     getIslemlerByPlakaId: (plakaId) => ipcRenderer.invoke('database:getIslemlerByPlakaId', plakaId),
-     addParcaIslem: (islemData) => ipcRenderer.invoke('database:addParcaIslem', islemData),
-     addMusteri: (musteriData) => ipcRenderer.invoke('database:addMusteri', musteriData),
-     getAllMusteriler: () => ipcRenderer.invoke('database', 'getAllMusteriler'),
-     getIslemlerByHammaddeId: (hammaddeId) => ipcRenderer.invoke('database:getIslemlerByHammaddeId', hammaddeId),
-     addTopluHammaddeGiris: (girisData) => ipcRenderer.invoke('database:addTopluHammaddeGiris', girisData),
+            getAllTedarikci: () => ipcRenderer.invoke('database:getAllTedarikci'),
+            addTedarikci: (tedarikciData) => ipcRenderer.invoke('database:addTedarikci', tedarikciData),
+            deleteTedarikci: (id) => ipcRenderer.invoke('database:deleteTedarikci', id),
+            checkYariMamulExists: (malzemeAdi, birim) => ipcRenderer.invoke('database:checkYariMamulExists', malzemeAdi, birim),
+            getYariMamulGirisGecmisi: (yariMamulId) => ipcRenderer.invoke('database:getYariMamulGirisGecmisi', yariMamulId),
+            kaydetYariMamulGirisi: (girisData) => ipcRenderer.invoke('database:kaydetYariMamulGirisi', girisData),
+            updateSarfMalzemeGirisi: (guncelleData) => ipcRenderer.invoke('database:updateSarfMalzemeGirisi', guncelleData),
+            updateHammaddeMalzemeGirisi: (guncelleData) => ipcRenderer.invoke('database:updateHammaddeMalzemeGirisi', guncelleData),
+            getParcaById: (parcaId) => ipcRenderer.invoke('database', 'getParcaById', parcaId),
+            deleteHammaddeIslemAndRestoreStock: (deleteData) => ipcRenderer.invoke('database', 'deleteHammaddeIslemAndRestoreStock', deleteData),
+            deleteSarfMalzemeIslemAndRestoreStock: (deleteData) => ipcRenderer.invoke('database', 'deleteSarfMalzemeIslemAndRestoreStock', deleteData),
+            deleteYariMamulIslemAndRestoreStock: (deleteData) => ipcRenderer.invoke('database', 'deleteYariMamulIslemAndRestoreStock', deleteData),
+            getYariMamulByIslemId: (islemId) => ipcRenderer.invoke('database', 'getYariMamulByIslemId', islemId),
+            getYariMamulByCreationIslemId: (islemId) => ipcRenderer.invoke('database', 'getYariMamulByCreationIslemId', islemId),
+            getYariMamulByIslemData: (islemId) => ipcRenderer.invoke('database', 'getYariMamulByIslemData', islemId),
+            getAllCalisan: () => ipcRenderer.invoke('database', 'getAllCalisan'),
+            getCalisanById: (id) => ipcRenderer.invoke('database:getCalisanById', id),
+            addCalisan: (calisanData) => ipcRenderer.invoke('database:addCalisan', calisanData),
+            deleteCalisan: (id) => ipcRenderer.invoke('database:deleteCalisan', id),
+            getIslemlerByPlakaId: (plakaId) => ipcRenderer.invoke('database:getIslemlerByPlakaId', plakaId),
+            addParcaIslem: (islemData) => ipcRenderer.invoke('database:addParcaIslem', islemData),
+            addMusteri: (musteriData) => ipcRenderer.invoke('database:addMusteri', musteriData),
+            getAllMusteriler: () => ipcRenderer.invoke('database', 'getAllMusteriler'),
+            getIslemlerByHammaddeId: (hammaddeId) => ipcRenderer.invoke('database:getIslemlerByHammaddeId', hammaddeId),
+            addTopluHammaddeGiris: (girisData) => ipcRenderer.invoke('database:addTopluHammaddeGiris', girisData),
 
-
-
-
-  loadHammaddeFasonIslemlerById: (parcaId) => ipcRenderer.invoke('database', 'loadHammaddeFasonIslemlerById', parcaId),
-  loadHammaddeMakineIslemlerById: (parcaId) => ipcRenderer.invoke('database', 'loadHammaddeMakineIslemlerById', parcaId),
-  getFasonIslemlerHepsiBirlikte: () => ipcRenderer.invoke('database:getFasonIslemlerHepsiBirlikte'),
-  getMakineIslemlerHepsiBirlikte: () => ipcRenderer.invoke('database:getMakineIslemlerHepsiBirlikte'),
-  getIskartaUrunlerHepsiBirlikte: () => ipcRenderer.invoke('database:getIskartaUrunlerHepsiBirlikte'),
-  updateYariMamulFotograf: (id, base64Image) => ipcRenderer.invoke('database', 'updateYariMamulFotograf', id, base64Image),
-getIslemlerByMultiplePlakaIds: (plakaIds) => ipcRenderer.invoke('database', 'getIslemlerByMultiplePlakaIds', plakaIds),
-addPlakaGrubuIslem: (islemData) => ipcRenderer.invoke('database:addPlakaGrubuIslem', islemData),
-getParcalarByPlakaGrubuId: (grubuId) => ipcRenderer.invoke('database:getParcalarByPlakaGrubuId', grubuId),
-getPlakaGrubuById: (grubuId) => ipcRenderer.invoke('database:getPlakaGrubuById', grubuId),
-getPlakaGruplariByHammaddeId: (hammaddeId) => ipcRenderer.invoke('database:getPlakaGruplariByHammaddeId', hammaddeId),
-addPlakaGrubu: (grubuData) => ipcRenderer.invoke('database:addPlakaGrubu', grubuData),
-getIslemlerByMultiplePlakaGrubuIds: (plakaGrubuIds) => ipcRenderer.invoke('database:getIslemlerByMultiplePlakaGrubuIds', plakaGrubuIds),
- addPlakaGrubuToIslemde: (plakaGrubuId, adet, userId) => 
-    ipcRenderer.invoke('database:addPlakaGrubuToIslemde', plakaGrubuId, adet, userId),
-    
-  getAllIslemdekiPlakaGruplari: () => 
-    ipcRenderer.invoke('database:getAllIslemdekiPlakaGruplari'),
-    
-  removePlakaGrubuFromIslemde: (plakaGrubuId) => 
-    ipcRenderer.invoke('database:removePlakaGrubuFromIslemde', plakaGrubuId),
-    
-  removePlakaGruplarıFromIslemdeByHammadde: (hammaddeId) => 
-    ipcRenderer.invoke('database:removePlakaGruplarıFromIslemdeByHammadde', hammaddeId),
-    
-  isPlakaGrubuIslemde: (plakaGrubuId) => 
-    ipcRenderer.invoke('database:isPlakaGrubuIslemde', plakaGrubuId),
-
-  getPlakaGrubuByGirisId: (girisId) => 
-  ipcRenderer.invoke('database:getPlakaGrubuByGirisId', girisId),
-
-   findPlakaGrubuByGiris: (girisId) => 
-  ipcRenderer.invoke('database:findPlakaGrubuByGiris', girisId),
-
-checkPlakaGrubuIslemDurumu: (plakaGrubuId) => 
-  ipcRenderer.invoke('database:checkPlakaGrubuIslemDurumu', plakaGrubuId),
-
-updatePlakaGrubu: (updateData) => 
-  ipcRenderer.invoke('database:updatePlakaGrubu', updateData),
-
-
-canUpdatePlakaGrubu: (plakaGrubuId, yeniPlakaSayisi) => 
-  ipcRenderer.invoke('database:canUpdatePlakaGrubu', plakaGrubuId, yeniPlakaSayisi),
-
-deletePlakaGrubuIslem: (islemId) => ipcRenderer.invoke('database:deletePlakaGrubuIslem', islemId),
-getAllStockAtDate: (targetDate) => ipcRenderer.invoke('database:getAllStockAtDate', targetDate),
-getAllHammaddeAtDate: (targetDate) => ipcRenderer.invoke('database:getAllHammaddeAtDate', targetDate),
-getAllSarfMalzemeAtDate: (targetDate) => ipcRenderer.invoke('database:getAllSarfMalzemeAtDate', targetDate),
-getAllYariMamulAtDate: (targetDate) => ipcRenderer.invoke('database:getAllYariMamulAtDate', targetDate),
-getStockMovementsBetweenDates: (startDate, endDate) => ipcRenderer.invoke('database:getStockMovementsBetweenDates', startDate, endDate),
-updateSarfMalzemeRaf: (sarfMalzemeId, rafBilgisi) => ipcRenderer.invoke('database:updateSarfMalzemeRaf', sarfMalzemeId, rafBilgisi),
-getSarfMalzemeByIdWithRaf: (id) => ipcRenderer.invoke('database:getSarfMalzemeByIdWithRaf', id),
-updateYariMamulRaf: (yariMamulId, rafKonumu) => ipcRenderer.invoke('database:updateYariMamulRaf', yariMamulId, rafKonumu),
-getYariMamulFotograf: (id) => ipcRenderer.invoke('database', 'getYariMamulFotograf', id),
-getSarfMalzemeFotograf: (id) => ipcRenderer.invoke('database', 'getSarfMalzemeFotograf', id),
-updateSarfMalzemeFotograf: (id, base64Image) => ipcRenderer.invoke('database', 'updateSarfMalzemeFotograf', id, base64Image),
-getSarfMalzemeBasicInfo: (id) => ipcRenderer.invoke('database', 'getSarfMalzemeBasicInfo', id)
+            loadHammaddeFasonIslemlerById: (parcaId) => ipcRenderer.invoke('database', 'loadHammaddeFasonIslemlerById', parcaId),
+            loadHammaddeMakineIslemlerById: (parcaId) => ipcRenderer.invoke('database', 'loadHammaddeMakineIslemlerById', parcaId),
+            getFasonIslemlerHepsiBirlikte: () => ipcRenderer.invoke('database:getFasonIslemlerHepsiBirlikte'),
+            getMakineIslemlerHepsiBirlikte: () => ipcRenderer.invoke('database:getMakineIslemlerHepsiBirlikte'),
+            getIskartaUrunlerHepsiBirlikte: () => ipcRenderer.invoke('database:getIskartaUrunlerHepsiBirlikte'),
+            updateYariMamulFotograf: (id, base64Image) => ipcRenderer.invoke('database', 'updateYariMamulFotograf', id, base64Image),
+            getIslemlerByMultiplePlakaIds: (plakaIds) => ipcRenderer.invoke('database', 'getIslemlerByMultiplePlakaIds', plakaIds),
+            addPlakaGrubuIslem: (islemData) => ipcRenderer.invoke('database:addPlakaGrubuIslem', islemData),
+            getParcalarByPlakaGrubuId: (grubuId) => ipcRenderer.invoke('database:getParcalarByPlakaGrubuId', grubuId),
+            getPlakaGrubuById: (grubuId) => ipcRenderer.invoke('database:getPlakaGrubuById', grubuId),
+            getPlakaGruplariByHammaddeId: (hammaddeId) => ipcRenderer.invoke('database:getPlakaGruplariByHammaddeId', hammaddeId),
+            addPlakaGrubu: (grubuData) => ipcRenderer.invoke('database:addPlakaGrubu', grubuData),
+            getIslemlerByMultiplePlakaGrubuIds: (plakaGrubuIds) => ipcRenderer.invoke('database:getIslemlerByMultiplePlakaGrubuIds', plakaGrubuIds),
+            addPlakaGrubuToIslemde: (plakaGrubuId, adet, userId) => 
+                ipcRenderer.invoke('database:addPlakaGrubuToIslemde', plakaGrubuId, adet, userId),
+            getAllIslemdekiPlakaGruplari: () => 
+                ipcRenderer.invoke('database:getAllIslemdekiPlakaGruplari'),
+            removePlakaGrubuFromIslemde: (plakaGrubuId) => 
+                ipcRenderer.invoke('database:removePlakaGrubuFromIslemde', plakaGrubuId),
+            removePlakaGruplarıFromIslemdeByHammadde: (hammaddeId) => 
+                ipcRenderer.invoke('database:removePlakaGruplarıFromIslemdeByHammadde', hammaddeId),
+            isPlakaGrubuIslemde: (plakaGrubuId) => 
+                ipcRenderer.invoke('database:isPlakaGrubuIslemde', plakaGrubuId),
+            getPlakaGrubuByGirisId: (girisId) => 
+                ipcRenderer.invoke('database:getPlakaGrubuByGirisId', girisId),
+            findPlakaGrubuByGiris: (girisId) => 
+                ipcRenderer.invoke('database:findPlakaGrubuByGiris', girisId),
+            checkPlakaGrubuIslemDurumu: (plakaGrubuId) => 
+                ipcRenderer.invoke('database:checkPlakaGrubuIslemDurumu', plakaGrubuId),
+            updatePlakaGrubu: (updateData) => 
+                ipcRenderer.invoke('database:updatePlakaGrubu', updateData),
+            canUpdatePlakaGrubu: (plakaGrubuId, yeniPlakaSayisi) => 
+                ipcRenderer.invoke('database:canUpdatePlakaGrubu', plakaGrubuId, yeniPlakaSayisi),
+            deletePlakaGrubuIslem: (islemId) => ipcRenderer.invoke('database:deletePlakaGrubuIslem', islemId),
+            getAllStockAtDate: (targetDate) => ipcRenderer.invoke('database:getAllStockAtDate', targetDate),
+            getAllHammaddeAtDate: (targetDate) => ipcRenderer.invoke('database:getAllHammaddeAtDate', targetDate),
+            getAllSarfMalzemeAtDate: (targetDate) => ipcRenderer.invoke('database:getAllSarfMalzemeAtDate', targetDate),
+            getAllYariMamulAtDate: (targetDate) => ipcRenderer.invoke('database:getAllYariMamulAtDate', targetDate),
+            getStockMovementsBetweenDates: (startDate, endDate) => ipcRenderer.invoke('database:getStockMovementsBetweenDates', startDate, endDate),
+            updateSarfMalzemeRaf: (sarfMalzemeId, rafBilgisi) => ipcRenderer.invoke('database:updateSarfMalzemeRaf', sarfMalzemeId, rafBilgisi),
+            getSarfMalzemeByIdWithRaf: (id) => ipcRenderer.invoke('database:getSarfMalzemeByIdWithRaf', id),
+            updateYariMamulRaf: (yariMamulId, rafKonumu) => ipcRenderer.invoke('database:updateYariMamulRaf', yariMamulId, rafKonumu),
+            getYariMamulFotograf: (id) => ipcRenderer.invoke('database', 'getYariMamulFotograf', id),
+            getSarfMalzemeFotograf: (id) => ipcRenderer.invoke('database', 'getSarfMalzemeFotograf', id),
+            updateSarfMalzemeFotograf: (id, base64Image) => ipcRenderer.invoke('database', 'updateSarfMalzemeFotograf', id, base64Image),
+            getSarfMalzemeBasicInfo: (id) => ipcRenderer.invoke('database', 'getSarfMalzemeBasicInfo', id),
+            
+            // Görsel arama için fotoğraflı sarf malzemeleri getirme
+            getAllSarfMalzemeWithPhotos: () => ipcRenderer.invoke('database:getAllSarfMalzemeWithPhotos'),
         }
     }
 });

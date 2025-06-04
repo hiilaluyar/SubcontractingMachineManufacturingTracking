@@ -7481,6 +7481,51 @@ async function updateSarfMalzemeFotograf(id, base64Image) {
 }
 
 
+async function getAllSarfMalzemeWithPhotos() {
+  try {
+    const query = `
+      SELECT 
+        sm.id,
+        sm.stok_kodu,
+        sm.malzeme_adi,
+        sm.birim,
+        sm.kalan_miktar,
+        sm.kritik_seviye,
+        sm.barkod,
+        sm.ekleme_tarihi,
+        sm.fotograf,
+        sm.raf,
+        CASE 
+          WHEN sm.kalan_miktar = 0 THEN 'STOKTA_YOK'
+          WHEN sm.kalan_miktar <= sm.kritik_seviye THEN 'AZ_KALDI'
+          ELSE 'STOKTA_VAR'
+        END as durum,
+        CASE 
+          WHEN sm.fotograf IS NOT NULL AND sm.fotograf != '' THEN 1
+          ELSE 0
+        END as has_photo
+      FROM sarf_malzemeler sm 
+      WHERE sm.fotograf IS NOT NULL AND sm.fotograf != ''
+      ORDER BY sm.ekleme_tarihi DESC
+    `;
+    
+    const [rows] = await pool.execute(query);
+    
+    // Fotoğrafları base64 formatına çevir
+    const processedRows = rows.map(row => {
+      if (row.fotograf && Buffer.isBuffer(row.fotograf)) {
+        row.fotograf = row.fotograf.toString('base64');
+      }
+      return row;
+    });
+    
+    return { success: true, sarfMalzemeler: processedRows };
+  } catch (error) {
+    console.error('Fotoğraflı sarf malzemeler getirme hatası:', error);
+    return { success: false, message: error.message };
+  }
+}
+
 
 // Dışa aktarılacak fonksiyonlar 
 module.exports = {
@@ -7602,7 +7647,8 @@ addPlakaGrubuToIslemde,
   getYariMamulFotograf,
   updateSarfMalzemeFotograf,
  getSarfMalzemeFotograf,
- getSarfMalzemeBasicInfo
+ getSarfMalzemeBasicInfo,
+ getAllSarfMalzemeWithPhotos
 
 
 };

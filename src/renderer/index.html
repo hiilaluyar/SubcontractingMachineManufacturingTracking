@@ -3229,6 +3229,57 @@
     </div>
 </div>
 
+
+<div id="visualSearchModal" class="modal">
+  <div class="modal-content" style="max-width: 800px;">
+    <div class="modal-header">
+      <h2>📷 Görsel Arama</h2>
+      <span class="close" onclick="closeModal('visualSearchModal')">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="visual-search-container">
+        <div class="upload-section">
+          <h3>Fotoğraf Yükle veya Çek</h3>
+          <div class="upload-options">
+            <input type="file" id="visualSearchFile" accept="image/*" style="display: none;">
+            <button type="button" onclick="document.getElementById('visualSearchFile').click()" class="btn btn-primary">
+              📁 Dosyadan Seç
+            </button>
+            <button type="button" onclick="openCameraForSearch()" class="btn btn-secondary">
+              📷 Kamera Aç
+            </button>
+          </div>
+          
+          <div id="cameraContainer" style="display: none; margin: 20px 0;">
+            <video id="cameraVideo" autoplay style="width: 100%; max-width: 400px; border-radius: 8px;"></video>
+            <div style="margin-top: 10px;">
+              <button onclick="capturePhoto()" class="btn btn-success">📸 Fotoğraf Çek</button>
+              <button onclick="closeCameraForSearch()" class="btn btn-danger">❌ Kamerayı Kapat</button>
+            </div>
+          </div>
+          
+          <div id="selectedImagePreview" style="display: none; margin: 20px 0;">
+            <img id="previewImage" style="max-width: 300px; max-height: 200px; border-radius: 8px;">
+            <div style="margin-top: 10px;">
+              <button onclick="searchSimilarProducts()" class="btn btn-success">🔍 Benzer Ürünleri Ara</button>
+            </div>
+          </div>
+        </div>
+        
+        <div id="searchResults" style="display: none;">
+          <h3>Benzer Ürünler</h3>
+          <div id="similarProductsList"></div>
+        </div>
+        
+        <div id="searchLoading" style="display: none; text-align: center; padding: 20px;">
+          <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+          <p>Benzer ürünler aranıyor...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
 <script src="../modules/globals.js"></script>
 

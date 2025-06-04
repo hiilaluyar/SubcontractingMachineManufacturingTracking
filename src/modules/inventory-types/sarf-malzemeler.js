@@ -28,7 +28,6 @@ async function loadSarfMalzemePhotoOnDemand(sarfMalzemeId) {
   }
 }
 
-
 async function loadSarfMalzemeListesi() {
     try {
         console.log('Sarf malzeme listesi yükleniyor...');
@@ -45,7 +44,7 @@ async function loadSarfMalzemeListesi() {
         // 1. HEMEN loading göster ve sayfa geçişi yap
         tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Yükleniyor...</td></tr>';
         
-        // Sayfa geçişini hemen yap (kullanıcı gecikme hissetmesin)
+        // Sayfa geçişini hemen yap
         requestAnimationFrame(() => {
             const navLinks = document.querySelectorAll('.nav-links li a');
             navLinks.forEach(l => l.parentElement.classList.remove('active'));
@@ -66,7 +65,7 @@ async function loadSarfMalzemeListesi() {
             return;
         }
 
-        // 3. Kullanıcı yetki kontrolü (önceden)
+        // 3. Kullanıcı yetki kontrolü
         const isUserAdmin = window.globalUserData?.rol === 'yonetici';
 
         // 4. Sarf malzeme verilerini al
@@ -87,8 +86,11 @@ async function loadSarfMalzemeListesi() {
         
         console.log('Sarf malzeme sayısı:', result.sarfMalzemeler.length);
         
-        // 5. SÜPER HIZLI RENDERING - DocumentFragment kullanarak
+        // 5. SÜPER HIZLI RENDERING
         await renderAllSarfMalzemeOptimized(result.sarfMalzemeler, tableBody, isUserAdmin);
+        
+        // 6. Görsel arama butonunu ekle
+        addVisualSearchButton();
         
         console.log('Sarf malzeme listesi yüklendi!');
         
@@ -100,6 +102,7 @@ async function loadSarfMalzemeListesi() {
         }
     }
 }
+
 
 // SÜPER OPTIMIZE EDİLMİŞ RENDERER
 async function renderAllSarfMalzemeOptimized(sarfMalzemeler, tableBody, isUserAdmin) {
@@ -1820,6 +1823,488 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+function openVisualSearchModal() {
+  console.log('🔍 Görsel arama modalı açılıyor...');
+  
+  // Modal varsa sil ve yeniden oluştur
+  createVisualSearchModal();
+  
+  // Modal'ı aç
+  setTimeout(() => {
+    openModal('visualSearchModal');
+  }, 150);
+}
+
+function createVisualSearchModal() {
+  // Önce mevcut modalı sil
+  const existingModal = document.getElementById('visualSearchModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  const modalHTML = `
+    <div id="visualSearchModal" class="modal">
+      <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+          <h2>📷 Görsel Arama</h2>
+          <span class="close" onclick="closeModal('visualSearchModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="visual-search-container">
+            <div class="upload-section">
+              <h3>Fotoğraf Yükle veya Çek</h3>
+              <div class="upload-options">
+                <input type="file" id="visualSearchFile" accept="image/*" style="display: none;">
+                <button type="button" onclick="document.getElementById('visualSearchFile').click()" class="btn btn-primary">
+                  📁 Dosyadan Seç
+                </button>
+                <button type="button" onclick="openCameraForSearch()" class="btn btn-secondary">
+                  📷 Kamera Aç
+                </button>
+              </div>
+              
+              <div id="cameraContainer" style="display: none; margin: 20px 0;">
+                <video id="cameraVideo" autoplay style="width: 100%; max-width: 400px; border-radius: 8px;"></video>
+                <div style="margin-top: 10px;">
+                  <button onclick="capturePhoto()" class="btn btn-success">📸 Fotoğraf Çek</button>
+                  <button onclick="closeCameraForSearch()" class="btn btn-danger">❌ Kamerayı Kapat</button>
+                </div>
+              </div>
+              
+              <div id="selectedImagePreview" style="display: none; margin: 20px 0;">
+                <img id="previewImage" style="max-width: 300px; max-height: 200px; border-radius: 8px;">
+                <div style="margin-top: 10px;">
+                  <button onclick="searchSimilarProducts()" class="btn btn-success">🔍 Benzer Ürünleri Ara</button>
+                </div>
+              </div>
+            </div>
+            
+            <div id="searchResults" style="display: none;">
+              <h3>Benzer Ürünler</h3>
+              <div id="similarProductsList"></div>
+            </div>
+            
+            <div id="searchLoading" style="display: none; text-align: center; padding: 20px;">
+              <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+              <p>Benzer ürünler aranıyor...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  // MODAL OLUŞTURULDUKTAN SONRA EVENT LISTENER EKLE
+  setTimeout(() => {
+    const fileInput = document.getElementById('visualSearchFile');
+    if (fileInput) {
+      // Önceki event listener'ları temizle
+      fileInput.removeEventListener('change', handleFileInputChange);
+      
+      // Yeni event listener ekle
+      fileInput.addEventListener('change', handleFileInputChange);
+      
+      console.log('✅ File input event listener eklendi');
+    } else {
+      console.error('❌ visualSearchFile elementi bulunamadı');
+    }
+  }, 100);
+}
+
+function handleFileInputChange(e) {
+  console.log('📁 Dosya seçildi:', e.target.files[0]);
+  
+  const file = e.target.files[0];
+  if (file) {
+    console.log('📸 Dosya tipi:', file.type);
+    console.log('📦 Dosya boyutu:', file.size);
+    
+    // Dosya tipini kontrol et
+    if (!file.type.startsWith('image/')) {
+      showToast('Lütfen geçerli bir resim dosyası seçin.', 'error');
+      return;
+    }
+    
+    // Dosya boyutunu kontrol et (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Dosya boyutu 5MB\'dan küçük olmalıdır.', 'error');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      console.log('🖼️ Dosya okundu, önizleme gösteriliyor');
+      showImagePreview(event.target.result);
+    };
+    reader.onerror = function(error) {
+      console.error('❌ Dosya okuma hatası:', error);
+      showToast('Dosya okuma hatası oluştu.', 'error');
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// Fotoğraf önizlemesi gösterme
+function showImagePreview(imageSrc) {
+  console.log('🖼️ Fotoğraf önizlemesi gösteriliyor');
+  
+  const previewContainer = document.getElementById('selectedImagePreview');
+  const previewImage = document.getElementById('previewImage');
+  
+  if (!previewContainer || !previewImage) {
+    console.error('❌ Önizleme elementleri bulunamadı');
+    return;
+  }
+  
+  previewImage.src = imageSrc;
+  previewContainer.style.display = 'block';
+  
+  // Kamerayı kapat
+  closeCameraForSearch();
+  
+  console.log('✅ Önizleme başarıyla gösterildi');
+}
+
+// Kamera açma
+let cameraStream = null;
+
+async function openCameraForSearch() {
+  try {
+    console.log('📹 Kamera açılıyor...');
+    
+    const cameraContainer = document.getElementById('cameraContainer');
+    const video = document.getElementById('cameraVideo');
+    
+    if (!cameraContainer || !video) {
+      console.error('❌ Kamera elementleri bulunamadı');
+      showToast('Kamera elementleri bulunamadı.', 'error');
+      return;
+    }
+    
+    // Önceki stream'i kapat
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+    }
+    
+    cameraStream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        width: { ideal: 640 }, 
+        height: { ideal: 480 },
+        facingMode: 'environment' // Arka kamera tercih et
+      } 
+    });
+    
+    video.srcObject = cameraStream;
+    cameraContainer.style.display = 'block';
+    
+    console.log('✅ Kamera başarıyla açıldı');
+  } catch (error) {
+    console.error('❌ Kamera açma hatası:', error);
+    
+    let errorMessage = 'Kamera açılamadı. ';
+    if (error.name === 'NotAllowedError') {
+      errorMessage += 'Kamera izni verilmedi.';
+    } else if (error.name === 'NotFoundError') {
+      errorMessage += 'Kamera bulunamadı.';
+    } else {
+      errorMessage += 'Lütfen izinleri kontrol edin.';
+    }
+    
+    showToast(errorMessage, 'error');
+  }
+}
+
+
+function capturePhoto() {
+  try {
+    console.log('📸 Fotoğraf çekiliyor...');
+    
+    const video = document.getElementById('cameraVideo');
+    if (!video || !video.srcObject) {
+      console.error('❌ Video elementi bulunamadı veya aktif değil');
+      showToast('Kamera aktif değil.', 'error');
+      return;
+    }
+    
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    
+    // Video boyutlarını al
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    
+    // Video'dan fotoğrafı çiz
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Base64 formatına çevir
+    const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
+    
+    console.log('✅ Fotoğraf başarıyla çekildi');
+    showImagePreview(imageSrc);
+  } catch (error) {
+    console.error('❌ Fotoğraf çekme hatası:', error);
+    showToast('Fotoğraf çekme sırasında hata oluştu.', 'error');
+  }
+}
+
+function closeCameraForSearch() {
+  try {
+    console.log('📹 Kamera kapatılıyor...');
+    
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => {
+        track.stop();
+        console.log('📹 Track durduruldu:', track.kind);
+      });
+      cameraStream = null;
+    }
+    
+    const cameraContainer = document.getElementById('cameraContainer');
+    if (cameraContainer) {
+      cameraContainer.style.display = 'none';
+    }
+    
+    const video = document.getElementById('cameraVideo');
+    if (video) {
+      video.srcObject = null;
+    }
+    
+    console.log('✅ Kamera başarıyla kapatıldı');
+  } catch (error) {
+    console.error('❌ Kamera kapatma hatası:', error);
+  }
+}
+
+async function searchSimilarProducts() {
+  try {
+    console.log('🔍 Benzer ürün arama başlatılıyor...');
+    
+    // API kontrolü - doğru kontrol
+    if (!window.electronAPI || !window.electronAPI.invoke) {
+      console.error('❌ ElectronAPI bulunamadı');
+      showToast('API erişimi yok. Lütfen uygulamayı yeniden başlatın.', 'error');
+      return;
+    }
+    
+    const previewImage = document.getElementById('previewImage');
+    if (!previewImage || !previewImage.src) {
+      console.error('❌ Önizleme resmi bulunamadı');
+      showToast('Lütfen önce bir fotoğraf seçin.', 'error');
+      return;
+    }
+    
+    const imageSrc = previewImage.src;
+    console.log('📸 Resim kaynağı alındı, boyut:', imageSrc.length);
+    
+    // Loading göster
+    const loadingElement = document.getElementById('searchLoading');
+    const resultsElement = document.getElementById('searchResults');
+    
+    if (loadingElement) loadingElement.style.display = 'block';
+    if (resultsElement) resultsElement.style.display = 'none';
+    
+    console.log('⏳ Hash hesaplanıyor...');
+    
+    // DOĞRU API KULLANIMI - preload.js'deki tanıma uygun
+    const hashResult = await window.electronAPI.invoke.calculateImageHash(imageSrc);
+    
+    console.log('🔢 Hash sonucu:', hashResult);
+    
+    if (!hashResult.success) {
+      throw new Error(hashResult.message || 'Hash hesaplama başarısız');
+    }
+    
+    console.log('🔍 Benzer ürünler aranıyor...');
+    
+    // DOĞRU API KULLANIMI - preload.js'deki tanıma uygun
+    const searchResult = await window.electronAPI.invoke.findSimilarProducts(hashResult.hash, 25); // %75 benzerlik
+    
+    console.log('📊 Arama sonucu:', searchResult);
+    
+    if (loadingElement) loadingElement.style.display = 'none';
+    
+    if (searchResult.success) {
+      displaySimilarProducts(searchResult.products);
+    } else {
+      throw new Error(searchResult.message || 'Arama başarısız');
+    }
+    
+  } catch (error) {
+    console.error('❌ Görsel arama hatası:', error);
+    
+    const loadingElement = document.getElementById('searchLoading');
+    if (loadingElement) loadingElement.style.display = 'none';
+    
+    showToast('Arama sırasında bir hata oluştu: ' + error.message, 'error');
+  }
+}
+
+function displaySimilarProducts(products) {
+  console.log('📋 Benzer ürünler gösteriliyor:', products.length, 'adet');
+  
+  const resultsContainer = document.getElementById('searchResults');
+  const productsList = document.getElementById('similarProductsList');
+  
+  if (!resultsContainer || !productsList) {
+    console.error('❌ Sonuç gösterme elementleri bulunamadı');
+    return;
+  }
+  
+  if (products.length === 0) {
+    productsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Benzer ürün bulunamadı. Farklı bir fotoğraf deneyin.</p>';
+  } else {
+    const productsHTML = products.map(product => `
+      <div class="similar-product-item" style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px 0; display: flex; align-items: center;">
+        <div class="product-image" style="margin-right: 15px;">
+          <img src="data:image/jpeg;base64,${product.fotograf}" 
+               style="width: 80px; height: 80px; object-fit: cover; border-radius: 5px;"
+               alt="${product.malzeme_adi}">
+        </div>
+        <div class="product-info" style="flex: 1;">
+          <h4 style="margin: 0 0 5px 0; color: #333;">${product.malzeme_adi}</h4>
+          <p style="margin: 2px 0; color: #666;"><strong>Stok Kodu:</strong> ${product.stok_kodu}</p>
+          <p style="margin: 2px 0; color: #666;"><strong>Kalan Miktar:</strong> ${Number(product.kalan_miktar).toFixed(2)} ${product.birim}</p>
+          <p style="margin: 2px 0;"><strong>Benzerlik:</strong> <span style="color: #28a745; font-weight: bold;">%${product.similarity}</span></p>
+        </div>
+        <div class="product-actions">
+          <button onclick="selectSimilarProduct('${product.stok_kodu}')" class="btn btn-primary btn-sm">
+            Seç ve Git
+          </button>
+        </div>
+      </div>
+    `).join('');
+    
+    productsList.innerHTML = productsHTML;
+  }
+  
+  resultsContainer.style.display = 'block';
+  console.log('✅ Sonuçlar başarıyla gösterildi');
+}
+
+function selectSimilarProduct(stokKodu) {
+  console.log('🎯 Ürün seçildi:', stokKodu);
+  
+  // Modal'ı kapat
+  closeModal('visualSearchModal');
+  closeCameraForSearch();
+  
+  // Sarf malzeme listesine git
+  document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+  document.getElementById('sarf-malzeme-listesi').classList.add('active');
+  
+  // Menüyü aktif et
+  const navLinks = document.querySelectorAll('.nav-links li a');
+  navLinks.forEach(l => l.parentElement.classList.remove('active'));
+  const sarfMalzemeLink = document.querySelector('a[data-page="sarf-malzeme-listesi"]');
+  if (sarfMalzemeLink) {
+    sarfMalzemeLink.parentElement.classList.add('active');
+  }
+  
+  // Arama kutusuna stok kodunu yaz ve ara
+  const aramaKutusu = document.getElementById('sarfMalzemeAra');
+  if (aramaKutusu) {
+    aramaKutusu.value = stokKodu;
+    searchSarfMalzeme();
+    
+    // Ürünü vurgula
+    setTimeout(() => {
+      const rows = document.getElementById('sarfMalzemeTable').querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        if (row.cells[0] && row.cells[0].textContent === stokKodu) {
+          row.classList.add('highlighted-row');
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          setTimeout(() => {
+            row.classList.remove('highlighted-row');
+          }, 5000);
+        }
+      });
+    }, 500);
+  }
+  
+  console.log('✅ Ürün sayfasına yönlendirildi');
+}
+
+// CSS stillerini ekle (style.css'ye)
+const visualSearchStyles = `
+.visual-search-container {
+  padding: 20px 0;
+}
+
+.upload-options {
+  display: flex;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.similar-product-item:hover {
+  background-color: #f8f9fa;
+  cursor: pointer;
+}
+
+.highlighted-row {
+  background-color: #fff3cd !important;
+  animation: highlight-fade 5s ease-out;
+}
+
+@keyframes highlight-fade {
+  0% { background-color: #ffeaa7; }
+  100% { background-color: transparent; }
+}
+`;
+
+// Stilleri sayfaya ekle
+const styleSheet = document.createElement('style');
+styleSheet.textContent = visualSearchStyles;
+document.head.appendChild(styleSheet);
+
+// Arama kutusuna görsel arama butonu ekle (sarf-malzeme.js'de loadSarfMalzemeListesi fonksiyonuna)
+function addVisualSearchButton() {
+    const aramaContainer = document.querySelector('.arama-container') || 
+                          document.querySelector('#sarfMalzemeAra').parentElement;
+    
+    if (aramaContainer && !document.getElementById('visualSearchBtn')) {
+        const visualSearchBtn = document.createElement('button');
+        visualSearchBtn.id = 'visualSearchBtn';
+        visualSearchBtn.type = 'button';
+        visualSearchBtn.className = 'btn btn-info';
+        visualSearchBtn.innerHTML = '📷 Görsel Arama';
+        visualSearchBtn.style.marginLeft = '10px';
+        visualSearchBtn.onclick = openVisualSearchModal;
+        
+        // Arama kutusunun yanına ekle
+        const aramaAlani = document.getElementById('sarfMalzemeAra');
+        if (aramaAlani) {
+            aramaAlani.parentElement.insertBefore(visualSearchBtn, aramaAlani.nextSibling);
+        } else {
+            aramaContainer.appendChild(visualSearchBtn);
+        }
+        
+        console.log('Görsel arama butonu eklendi!');
+    }
+}
+
+// Global fonksiyonları window'a ekle
+window.openVisualSearchModal = openVisualSearchModal;
+window.openCameraForSearch = openCameraForSearch;
+window.capturePhoto = capturePhoto;
+window.closeCameraForSearch = closeCameraForSearch;
+window.searchSimilarProducts = searchSimilarProducts;
+window.selectSimilarProduct = selectSimilarProduct;
+
+window.createVisualSearchModal = createVisualSearchModal;
+window.handleFileInputChange = handleFileInputChange;
+window.showImagePreview = showImagePreview;
+window.openCameraForSearch = openCameraForSearch;
+window.capturePhoto = capturePhoto;
+window.closeCameraForSearch = closeCameraForSearch;
+window.searchSimilarProducts = searchSimilarProducts;
+window.displaySimilarProducts = displaySimilarProducts;
+window.selectSimilarProduct = selectSimilarProduct;
+
 
 // Global fonksiyonları window'a ekle
 window.loadSarfMalzemeListesi = loadSarfMalzemeListesi;
